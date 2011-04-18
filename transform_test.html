@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Transform Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="forwarding_handler.js"></script>
+<script src="transform.js"></script>
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+<script>
+
+function testIdentity() {
+  var t = new IdentityTransform();
+
+  assertEquals(undefined, t.toTarget(t.toSource(undefined)));
+  assertEquals(null, t.toTarget(t.toSource(null)));
+  assertEquals('', t.toTarget(t.toSource('')));
+  assertEquals('a b c', t.toTarget(t.toSource('a b c')));
+  assertEquals(43.24, t.toTarget(t.toSource(43.24)));
+  assertEquals(-234, t.toTarget(t.toSource(-234)));
+  assertEquals(true, t.toTarget(t.toSource(true)));
+  assertEquals(false, t.toTarget(t.toSource(false)));
+}
+
+function testToggle() {
+  assertEquals(ToggleTransform, Transform.registry.toggle);
+  var t = new ToggleTransform();
+
+  assertEquals('selected', t.toTarget(true, 'selected'));
+  assertEquals('selected', t.toTarget('foo', 'selected'));
+  assertEquals('', t.toTarget(false, 'selected'));
+  assertEquals('', t.toTarget('', 'selected'));
+
+  assertEquals(true, t.toSource('selected', 'selected'));
+  assertEquals(false, t.toSource('', 'selected'));
+  assertEquals(false, t.toSource('foo', 'selected'));
+
+  var t = new ToggleTransform('highlighted');
+
+  assertEquals('highlighted', t.toTarget(true, 'selected'));
+  assertEquals('highlighted', t.toTarget('foo', 'selected'));
+  assertEquals('', t.toTarget(false, 'selected'));
+  assertEquals('', t.toTarget('', 'selected'));
+
+  assertEquals(true, t.toSource('highlighted', 'selected'));
+  assertEquals(false, t.toSource('', 'selected'));
+  assertEquals(false, t.toSource('foo', 'selected'));
+}
+
+function testCurrency() {
+  assertEquals(CurrencyTransform, Transform.registry.currency);
+  var t = new CurrencyTransform();
+
+  assertEquals('$2.43', t.toTarget(2.43));
+  assertEquals('$19.00', t.toTarget(19));
+  assertEquals('$-20.11', t.toTarget(-20.11));
+  assertEquals('$0.00', t.toTarget(0));
+  assertEquals('NaN', t.toTarget(NaN));
+
+  assertEquals(0, t.toSource(''));
+  assertEquals(1, t.toSource('1'));
+  assertEquals(-1, t.toSource('-1.000'));
+  assertEquals(.2, t.toSource('.20'));
+  assertEquals(100.99, t.toSource('100.99'));
+  assertTrue(isNaN(t.toSource('f00')));
+  assertTrue(isNaN(t.toSource('2.ab')));
+
+  assertEquals(0, t.toSource('$'));
+  assertEquals(1, t.toSource('$1'));
+  assertEquals(-1, t.toSource('$-1.000'));
+  assertEquals(.27, t.toSource('$.27'));
+  assertEquals(100.99, t.toSource('$100.99'));
+  assertTrue(isNaN(t.toSource('$f00')));
+  assertTrue(isNaN(t.toSource('$2.ab')));
+}
+
+function testAbsent() {
+  assertEquals(AbsentTransform, Transform.registry.absent);
+
+  var t = new AbsentTransform();
+
+  assertEquals(true, t.toTarget(false));
+  assertEquals(true, t.toTarget(null));
+  assertEquals(true, t.toTarget(undefined));
+  assertEquals(true, t.toTarget(0));
+  assertEquals(true, t.toTarget(0.00));
+  assertEquals(true, t.toTarget(''));
+  assertEquals(true, t.toTarget([]));
+
+  assertEquals(false, t.toTarget(true));
+  assertEquals(false, t.toTarget(-1));
+  assertEquals(false, t.toTarget(1));
+  assertEquals(false, t.toTarget(22.2323215));
+  assertEquals(false, t.toTarget(' '));
+  assertEquals(false, t.toTarget('foo bar'));
+  assertEquals(false, t.toTarget([ 1 ]));
+}
+
+function testPresent() {
+  assertEquals(PresentTransform, Transform.registry.present);
+
+  var t = new PresentTransform();
+
+  assertEquals(false, t.toTarget(false));
+  assertEquals(false, t.toTarget(null));
+  assertEquals(false, t.toTarget(undefined));
+  assertEquals(false, t.toTarget(0));
+  assertEquals(false, t.toTarget(0.00));
+  assertEquals(false, t.toTarget(''));
+  assertEquals(false, t.toTarget([]));
+
+  assertEquals(true, t.toTarget(true));
+  assertEquals(true, t.toTarget(-1));
+  assertEquals(true, t.toTarget(1));
+  assertEquals(true, t.toTarget(22.2323215));
+  assertEquals(true, t.toTarget(' '));
+  assertEquals(true, t.toTarget('foo bar'));
+  assertEquals(true, t.toTarget([1]));
+}
+
+</script>
+</body>
+</html>

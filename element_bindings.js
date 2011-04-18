@@ -1,0 +1,587 @@
+// Copyright 2011 Google Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Only exposed for testing.
+function BindingSource(source, path, transform) {
+  this.source = source;
+  this.path = new Path(path);
+  this.sourceName = this.path.length > 0 ?
+      this.path.get(this.path.length - 1) : '';
+  this.transform = transform || new IdentityTransform();
+}
+
+function Binding(source, path, transform) {
+  if (arguments.length < 3 && typeof source == 'string') {
+    transform = path;
+    path = source;
+    source = undefined;
+  }
+  this.sources_ = [new BindingSource(source, path, transform)];
+}
+
+function PlaceHolderBinding(tokenString) {
+  this.tokenString_ = tokenString;
+}
+
+(function() {
+
+var placeHolderParser = new PlaceHolderParser;
+
+function prepareNewBinding(binding) {
+  // TODO(arv): Do we want to support this coercion? Should the getter return
+  // the string?
+  if (typeof binding == 'string')
+    return new PlaceHolderBinding(binding);
+
+  return binding;
+}
+
+function addBinding(property, binding) {
+  // Don't unbind, then bind again the same binding. It'll cause the transform
+  // fire.
+  if (this.bindings_ &&
+      this.bindings_[property] &&
+      this.bindings_[property] === binding) {
+    return;
+  }
+
+  this.removeBinding(property, !!binding);
+
+  if (binding) {
+    this.bindings_[property] = prepareNewBinding(binding);
+    this.bindings_[property].bindTo(this, property);
+  }
+}
+
+function removeBinding(property, aboutToRebind) {
+  if (!this.bindings_) {
+    this.bindings_ = {};
+    return;
+  }
+
+  if (this.bindings_[property]) {
+    this.bindings_[property].unbind();
+    delete this.bindings_[property];
+
+    // This is the last binding, so we need to clear modelOwner cache
+    // all the way to bindingOwner because we can no longer be sure
+    // that anyone is listener.
+    if (!aboutToRebind && Object.keys(this.bindings_).length == 0)
+      clearModelOwnerAndPathCache(this);
+  }
+}
+
+HTMLElement.prototype.addBinding = addBinding;
+HTMLElement.prototype.removeBinding = removeBinding;
+Text.prototype.addBinding = addBinding;
+Text.prototype.removeBinding = removeBinding;
+
+Object.defineProperty(Text.prototype, 'binding', {
+  get: function() {
+    return this.bindings_['textContent'];
+  },
+  set: function(binding) {
+    this.addBinding('textContent', binding);
+  },
+  configurable: true,
+  enumerable: true
+});
+
+function isBindableInputProperty(type, property) {
+  switch (type) {
+    case 'checkbox':
+    case 'radio':
+      return property == 'checked';
+    case 'select-multiple':
+    case 'select-one':
+      return property == 'value' || property == 'selectedIndex';
+    default:
+      return property == 'value';
+  }
+}
+
+function getEventForInputType(type) {
+  switch (type) {
+    case 'checkbox':
+    case 'radio':
+      return 'click';
+    case 'select-multiple':
+    case 'select-one':
+      return 'change';
+    default:
+      return 'input';
+  }
+}
+
+function bindsTwoWay(element) {
+  return (element instanceof HTMLInputElement) ||
+      (element instanceof HTMLSelectElement) ||
+      (element instanceof HTMLTextAreaElement);
+}
+
+function sourceIsDOMNode(source) {
+  return source && 'parentElement' in source;
+}
+
+function addBindingSourceToModelOwner(element, bindingSource) {
+  if (!element)
+    return;
+  if (!element.boundSources_) {
+    element.boundSources_ = [bindingSource];
+    return;
+  }
+
+  var index = element.boundSources_.indexOf(bindingSource);
+  if (index >= 0)
+    return;
+
+  element.boundSources_.push(bindingSource);
+}
+
+function removeBindingSourceFromModelOwner(element, bindingSource) {
+  if (!element || !element.boundSources_)
+    return;
+  var index = element.boundSources_.indexOf(bindingSource);
+  if (index < 0)
+    return;
+  element.boundSources_.splice(index, 1);
+  if (element.boundSources_.length == 0)
+    element.boundSources_ = null;
+}
+
+BindingSource.prototype = {
+  source: null,
+  path: null,
+
+  toString: function() {
+    return JSON.stringify({ source: this.source, path: this.path });
+  },
+
+  bindTo: function(target, property, callback, ignoreModelScope) {
+    this.target = target,
+    this.property = property,
+    // We need a locally bound function in case our binding has multiple
+    // sources observing at the same path.
+    this.callback = function(value, oldValue) {
+      callback(value, oldValue);
+    };
+    this.ignoreModelScope = ignoreModelScope;
+    this.resetPaths();
+  },
+
+  rebindTo: function(target) {
+    this.target = target;
+  },
+
+  unbind: function() {
+    if (this.pathValue) {
+      this.pathValue.stopObserving(this.callback);
+      this.pathValue = null;
+    }
+
+    if (this.modelOwner) {
+      removeBindingSourceFromModelOwner(this.modelOwner, this);
+      this.modelOwner = null;
+    }
+
+    this.target = null;
+    this.callback = null;
+  },
+
+  resetPaths: function(ownerCacheToken) {
+    var source = this.source || this.target;
+    var path = this.path;
+
+    // Model source isn't DOM-bound
+    if (this.path.isNamed || !sourceIsDOMNode(source)) {
+      // Already listening. Non-DOM-bound models don't change path.
+      if (this.pathValue)
+        return;
+
+      if (this.path.isNamed) {
+        source = this.target.ownerDocument.models;
+        path = path.forwardPath;
+      }
+    } else {
+      // DOM-bound model.
+      var ownerAndPath = getModelOwnerAndPath(source,
+                                              false,  // ignoreLocalScope
+                                              this.ignoreModelScope,
+                                              ownerCacheToken);
+      source = ownerAndPath[0];
+
+      // Joining the owner path and this.path will properly handle the case
+      // where this.path is absolute or relative.
+      path = Path.join(ownerAndPath[1], this.path);
+
+      // Use path.forwardPath here because 'model' is essentially 'above'
+      // the root, so if fullPath is absolute, we wouldn't want to loose the
+      // 'model' portion of the effectivePath.
+      path = Path.join('model', path.forwardPath);
+
+      // TOOD(rafaelw): Error in some reasonable way.
+      if (!path.valid || path.ancestorLevels > 0)
+        path = new Path;
+
+      var oldOwner = this.modelOwner;
+      this.modelOwner = source;
+
+      if (oldOwner && oldOwner != this.modelOwner) {
+        removeBindingSourceFromModelOwner(oldOwner, this);
+        addBindingSourceToModelOwner(this.modelOwner, this);
+      } else if (!oldOwner) {
+        // This bindingSource has never been attached.
+        addBindingSourceToModelOwner(this.modelOwner, this);
+      }
+
+      this.pathToOwner = path;
+    }
+
+    // Save lastObservedValue, if any
+    var wasBound = false;
+    var lastObservedValue;
+    if (this.pathValue) {
+      wasBound = true;
+      lastObservedValue = this.pathValue.lastObservedValue(this.callback);
+      this.pathValue.stopObserving(this.callback);
+    }
+
+    // Find new PathValue
+    this.pathValue = Model.observe(source, path, this.callback);
+
+    if (wasBound && lastObservedValue != this.pathValue.value) {
+      // Don't leak this.
+      this.callback.call(null, this.pathValue.value, lastObservedValue);
+    }
+  },
+
+  get value() {
+    var value;
+    try {
+      value = this.transform.toTarget(this.pathValue.value,
+                                      this.sourceName,
+                                      this.target,
+                                      this.property);
+    } catch (ex) {
+      console.error('Uncaught exception within binding: ', ex);
+    }
+
+    return value;
+  },
+
+  set value(newValue) {
+    var value;
+    try {
+      value = this.transform.toSource(newValue,
+                                      this.sourceName,
+                                      this.target,
+                                      this.property);
+    } catch (ex) {
+      console.error('Uncaught exception within binding: ', ex);
+    }
+
+    this.pathValue.expectValue(this.callback, value);
+    this.pathValue.value = value;
+  }
+}
+
+const JS_PROP = 1;
+const ATTR = 2;
+const BOOL_ATTR = 3;
+
+function getPropertyKind(object, name) {
+  if (object instanceof Element) {
+    var lcName = name.toLowerCase();
+    var kind = getAtttributeKind(object.tagName, name);
+    switch (kind) {
+      case (AttributeKind.BOOLEAN):
+        if (lcName == 'checked')
+          return JS_PROP;
+        return BOOL_ATTR;
+
+      case (AttributeKind.KNOWN):
+        if (lcName == 'value')
+          return JS_PROP;
+        return ATTR;
+
+      case (AttributeKind.EVENT_HANDLER):
+      case (AttributeKind.UNKNOWN):
+        return JS_PROP;
+    }
+  }
+
+  return JS_PROP;
+}
+
+/**
+ * Converts a name to a camle case name.
+ * @param {string} name The name to camel case.
+ * @return {string} The camel cased name
+ */
+function getPropertyName(name) {
+  return name.replace(/\-([a-z])/g, function(all, match) {
+    return match.toUpperCase();
+  });
+}
+
+function setProperty(object, name, value) {
+  if (object && name) {
+    var kind = getPropertyKind(object, name);
+    switch (kind) {
+      case JS_PROP:
+        object[getPropertyName(name)] = value;
+        break;
+      case BOOL_ATTR:
+        if (value)
+          object.setAttribute(name, '');
+        else
+          object.removeAttribute(name);
+        break;
+      case ATTR:
+        if (value === undefined)
+          object.removeAttribute(name);
+        else
+          object.setAttribute(name, value);
+        break;
+    }
+  }
+}
+
+function getProperty(object, name) {
+  if (object && name) {
+    var kind = getPropertyKind(object, name);
+    switch (kind) {
+      case JS_PROP:
+        return object[getPropertyName(name)];
+      case ATTR:
+        return object.getAttribute(name);
+      case BOOL_ATTR:
+        return object.hasAttribute(name);
+    }
+  }
+}
+
+Binding.prototype = {
+  sync__: true,
+  dirty_: false,
+
+  set sync_(sync_) {
+    if (this.sync__ == sync_)
+      return;
+
+    this.sync__ = sync_;
+    if (this.dirty_)
+      this.dependencyChanged();
+  },
+
+  get sources() {
+    return this.sources_;
+  },
+
+  get isTwoWay() {
+    return this.target_ &&
+           bindsTwoWay(this.target_) &&
+           isBindableInputProperty(this.target_.type, this.property_);
+  },
+
+  maybeSetupTwoWayBinding: function() {
+    if (this.isTwoWay) {
+      if (!this.boundTargetChanged_) {
+        this.boundTargetChanged_ = this.targetChanged.bind(this);
+      }
+
+      this.target_.addEventListener(getEventForInputType(this.target_.type),
+                                    this.boundTargetChanged_,
+                                    false);
+    }
+  },
+
+  /**
+   * Binds the binding to the targets model and property.
+   * @param {HTMLElement|TextNode} target The node that has the model.
+   * @param {string} property Name of the property to observe.
+   */
+  bindTo: function(target, property) {
+    this.target_ = target;
+    this.property_ = property;
+    if (!this.boundDependencyChanged)
+      this.boundDependencyChanged = this.dependencyChanged.bind(this);
+
+    var ignoreModelScope = this.property_ == 'modelScope';
+    this.sources.forEach(function(source) {
+      source.bindTo(this.target_, this.property_, this.boundDependencyChanged,
+                    ignoreModelScope);
+    }, this);
+
+    // Execute the transform now.
+    this.dependencyChanged();
+
+    this.maybeSetupTwoWayBinding();
+  },
+
+  rebindTo: function(target) {
+    this.target_ = target;
+    this.sources.forEach(function(source) {
+      source.rebindTo(target);
+    });
+    this.maybeSetupTwoWayBinding();
+  },
+
+  unbind: function() {
+    this.sources.forEach(function(source) {
+      source.unbind();
+    });
+
+    if (this.isTwoWay) {
+      this.target_.removeEventListener(getEventForInputType(this.target_.type),
+                                      this.boundTargetChanged_,
+                                      false);
+    }
+
+    this.target_ = null;
+    this.property_ = null;
+  },
+
+  dependencyChanged: function() {
+    if (!this.sync__) {
+      this.dirty_ = true;
+      return;
+    }
+
+    var args = this.sources.map(function(source) {
+      try {
+        return source.value;
+      } catch (ex) {
+        console.error('Uncaught exception within binding: ', ex);
+        return undefined;
+      }
+    });
+
+    var output;
+    try {
+      output = this.format.apply(this, args);
+    } catch (ex) {
+      console.error('Uncaught exception within binding: ', ex);
+    }
+
+    setProperty(this.target_, this.property_, output);
+  },
+
+  /**
+   * Callback for when the target changed. This is used for two way binding,
+   * such as when the value changes in a text input.
+   */
+  targetChanged: function() {
+    var newValue;
+    try {
+      newValue = this.parse(getProperty(this.target_, this.property_));
+    } catch (ex) {
+      console.error('Uncaught exception within binding: ', ex);
+    }
+
+    var sources = this.sources;
+
+    // It's unclear how much sense it makes to "push" values to more than
+    // one source model path, but for now, we say that it's well defined
+    // for the first path and undefined for any subsequent paths (no value
+    // pushed back). One possibility is that parse() could return a map of
+    // path => parsedValue. This would allow (for instance) PlaceHolderParser
+    // to attempt to token match and parse out multiple values.
+    if (sources.length == 0)
+      return;
+
+    sources[0].value = newValue;
+  },
+
+  format: function() {
+    if (arguments.length == 0)
+      return undefined;
+    if (arguments.length == 1)
+      return arguments[0];
+
+    return Array.prototype.join.call(arguments, ', ');
+  },
+
+  parse: function(value) {
+    return value;
+  }
+};
+
+PlaceHolderBinding.prototype = {
+  __proto__: Binding.prototype,
+
+  get sources() {
+    if (this.sources_)
+      return this.sources_;
+
+    if (!this.tokens_)
+      this.tokens_ = placeHolderParser.parse(this.tokenString_);
+
+    var sources = [];
+    function push(dep) {
+      var transform;
+      var transFunc = Transform.registry[dep.transformName];
+      if (dep.transformName && typeof transFunc == 'function') {
+        // Construct a new transform using rest args. In Harmony speak:
+        //   new transFunc(...dep.transformArgs)
+        transform = Object.create(transFunc.prototype);
+        transFunc.apply(transform, dep.transformArgs);
+      }
+      sources.push(new BindingSource(undefined, dep.path, transform));
+    }
+
+    this.tokens_.forEach(function(token) {
+      var type = token.type;
+      var value = token.value;
+      if (type == 'dep')
+        push(value);
+      else if (type == 'expr')
+        value.deps.forEach(push);
+    });
+
+    this.sources_ = sources;
+    return this.sources_;
+  },
+
+  format: function() {
+    var args = Array.prototype.slice.apply(arguments);
+
+    if (!this.tokens_)
+      this.tokens_ = placeHolderParser.parse(this.tokenString_);
+
+    var results = this.tokens_.map(function(token) {
+      var type = token.type;
+      var value = token.value;
+      if (type == 'text')
+        return value;
+
+      if (type == 'expr') {
+        var expressionArguments = args.splice(0, value.deps.length);
+        return value.func.apply(this.target_, expressionArguments);
+      }
+
+      return args.shift();
+    }, this);
+
+    // If we got a single result pass it along without doing a toString
+    // coercion.
+    // TODO(arv): Treat null/undefined as '' for strings?
+    if (results.length == 1)
+      return results[0];
+
+    return results.join('');
+  }
+}
+
+})();

@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Model Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="forwarding_handler.js"></script>
+<script src="weak_map.js"></script>
+<script src="path.js"></script>
+<script src="model.js"></script>
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+<script>
+
+// Closure's assertArrayEquals does not handle proxies
+function assertArrayEquals() {
+  var msg = '', a, b;
+  if (arguments.length == 3)
+    [msg, a, b] = arguments;
+  else
+    [a, b] = arguments;
+  assertEquals('different type', typeof a, typeof b);
+  assertEquals('different length', a.length, b.length);
+  for (var i = 0; i < a.length; i++) {
+    assertEquals('index ' + i, a[i], b[i]);
+  }
+}
+
+function testEvent() {
+  var data = { id: 1 };
+  var model = Model.get(data);
+  var eventCount = 0;
+
+  Model.observeObject(model, function(c) {
+    ++eventCount;
+    assertEquals(model, c.model);
+  });
+
+  // Event should fire.
+  model.id = 2;
+  assertEquals(1, eventCount);
+  assertEquals(model.id, data.id);
+
+  // Event shouldn't fire, but model & data should still agree.
+  data.id = 3;
+  assertEquals(1, eventCount);
+  assertEquals(model.id, data.id);
+}
+
+function testBasic() {
+  var data = {};
+  var model = Model.get(data);
+
+  var eventCount = 0;
+  var expect = {
+    propertyName: 'id'
+  };
+
+  var callback = function(c) {
+    ++eventCount;
+    assertEquals(expect.propertyName, c.propertyName);
+    assertEquals(expect.mutation, c.mutation);
+    assertEquals(expect.oldValue, c.oldValue);
+    assertEquals(expect.value, c.value);
+  };
+
+  Model.observeObject(model, callback);
+
+  expect.mutation = 'add';
+  expect.value = 0;
+  model.id = 0;
+  assertEquals(1, eventCount);
+
+  expect.mutation = 'update';
+  expect.oldValue = 0;
+  expect.value = -1;
+  model.id = -1;
+  assertEquals(2, eventCount);
+
+  expect.mutation = 'delete';
+  expect.oldValue = -1;
+  expect.value = undefined;
+  delete model.id;
+  assertEquals(3, eventCount);
+
+  // Stop observing -- shouldn't see an event.
+  Model.stopObservingObject(model, callback);
+  model.id = 101;
+  assertEquals(3, eventCount);
+
+  // Re-observe -- should see an new event again.
+  Model.observeObject(model, callback);
+  expect.mutation = 'update';
+  expect.oldValue = 101;
+  expect.value = 100;
+  model.id = 100;
+  assertEquals(4, eventCount);
+}
+
+function testIdentity() {
+  var obj = {};
+  var m1 = Model.get(obj);
+  var m2 = Model.get(obj);
+  assertTrue(m1 === m2);
+}
+
+function testIdentity2() {
+  var obj = {a: {}, b: {}};
+  var m1 = Model.get(obj);
+  var c = m1.a.c = {};
+  delete m1.a.c;
+  var m2 = m1.a;
+  m2.c = c;
+  assertTrue(m1.a.c === m2.c);
+}
+
+function testWrapping() {
+  var data = {};
+
+  var eventCount = 0;
+  var expect = {
+    propertyName: 'id'
+  };
+
+  var callback = function(c) {
+    ++eventCount;
+    assertEquals(expect.propertyName, c.propertyName);
+    assertEquals(expect.mutation, c.mutation);
+    assertEquals(expect.oldValue, c.oldValue);
+    assertEquals(expect.value, c.value);
+  };
+
+  Model.observeObject(data, callback);
+
+  expect.mutation = 'add';
+  expect.value = 0;
+  data.id = 0;
+  Model.notify(data, 'id', 'add', 0, undefined);
+  assertEquals(1, eventCount);
+
+  expect.mutation = 'update';
+  expect.oldValue = 0;
+  expect.value = -1;
+  data.id = -1;
+  Model.notify(data, 'id', 'update', -1, 0);
+  assertEquals(2, eventCount);
+
+  expect.mutation = 'delete';
+  expect.oldValue = -1;
+  expect.value = undefined;
+  delete data.id;
+  Model.notify(data, 'id', 'delete', undefined, -1);
+  assertEquals(3, eventCount);
+
+  // Stop observing -- shouldn't see an event.
+  Model.stopObservingObject(data, callback);
+  data.id = 101;
+  Model.notify(data, 'id', 'add', 101, undefined);
+  assertEquals(3, eventCount);
+
+  // Re-observe -- should see an new event again.
+  Model.observeObject(data, callback);
+  expect.mutation = 'update';
+  expect.oldValue = 101;
+  expect.value = 100;
+  data.id = 100;
+  Model.notify(data, 'id', 'update', 100, 101);
+  assertEquals(4, eventCount);
+}
+
+function testGetPath() {
+  var m = Model.get({a: {b: {c: 'xyz'}}});
+
+  assertEquals(undefined, Model.get(m, 'a.b.c.d'));
+  assertEquals('xyz', Model.get(m, 'a.b.c'));
+  assertEquals(m.a.b, Model.get(m, 'a.b'));
+  assertEquals(m.a, Model.get(m, 'a'));
+}
+
+function testPathValue() {
+  var m = Model.get({ id: 1});
+  var eventCount = 0;
+
+  var observer = function(value, oldValue) {
+    eventCount++;
+  };
+
+  var pv = Model.observe(m, 'id', observer);
+
+  assertEquals(m.id, pv.value);
+  assertEquals(0, eventCount);
+
+  m.id = 2;
+  assertEquals(m.id, pv.value);
+  assertEquals(1, eventCount);
+
+  Model.stopObserving(m, 'id', observer);
+  m.id = 3;
+  assertThrows(function() { return pv.value; });
+  assertEquals(1, eventCount);
+}
+
+function testPathValueScalar() {
+  var eventCount = 0;
+  var pv = Model.observe("foo", function() {
+    eventCount++;
+  });
+
+  assertEquals('foo', pv.value);
+  pv.value = 'bar';
+  assertEquals('bar', pv.value);
+  assertEquals(0, eventCount);
+}
+
+function testPathValueSet() {
+  var m = Model.get({foo: {bar: 1}});
+  var eventCount1 = 0;
+  var eventCount2 = 0;
+  var eventCount3 = 0;
+
+  var pv1 = Model.observe(m, 'foo.bar', function() {
+    eventCount1++;
+  });
+  var pv2 = Model.observe(m, 'foo', function() {
+    eventCount2++;
+  })
+  var pv3 = Model.observe(m, '', function() {
+    eventCount3++;
+  })
+
+  pv1.value = 2;
+  assertEquals(2, m.foo.bar);
+  assertEquals(2, pv1.value);
+  assertEquals(1, eventCount1);
+  assertEquals(0, eventCount2);
+  assertEquals(0, eventCount3);
+
+  pv2.value = 4;
+  assertEquals(4, m.foo);
+  assertEquals(4, pv2.value);
+  assertEquals(undefined, pv1.value);
+  assertEquals(2, eventCount1);
+  assertEquals(1, eventCount2);
+  assertEquals(0, eventCount3);
+
+  // pv3 is an "anonymous root" PathValue (i.e. it is *not* the parent of pv1
+  // and pv2). Setting its will not affect m or it's decendants and observers
+  // above.
+  pv3.value = 6;
+  assertEquals(4, m.foo);
+  assertEquals(4, pv2.value);
+  assertEquals(undefined, pv1.value);
+  assertEquals(2, eventCount1);
+  assertEquals(1, eventCount2);
+  assertEquals(0, eventCount3);
+
+  assertThrows(function() {
+    Model.observe('foo', 'bar', function(){});
+  })
+}
+
+function testPathValueDepthFirstNotification() {
+  var m = Model.get({
+    data: {
+      val: '0',
+      a: {
+        val: '1',
+        c: {
+          val: '2'
+        },
+        d: {
+          val: '2'
+        }
+      },
+      b: {
+        val: '1',
+        e: {
+          val: '2'
+        },
+        f: {
+          val: '2'
+        }
+      }
+    }
+  });
+
+  var notificationSequence = '';
+  function createCallback() {
+    return function(obj) {
+      notificationSequence += obj.val;
+    }
+  };
+
+  Model.observe(m, 'data.a.c', createCallback());
+  Model.observe(m, 'data.a.d', createCallback());
+  Model.observe(m, 'data.b.e', createCallback());
+  Model.observe(m, 'data.b.f', createCallback());
+  Model.observe(m, 'data.b', createCallback());
+  Model.observe(m, 'data.a', createCallback());
+  Model.observe(m, 'data', createCallback())
+  Model.observeObject(m, function(c) {
+    notificationSequence += 'Mutation,';
+  });
+
+  m.data = {
+    val: '0',
+    a: {
+      val: '1',
+      c: {
+        val: '2'
+      },
+      d: {
+        val: '2'
+      }
+    },
+    b: {
+      val: '1',
+      e: {
+        val: '2'
+      },
+      f: {
+        val: '2'
+      }
+    }
+  }
+
+  assertEquals('Mutation,0112222', notificationSequence);
+}
+
+function testPathValueDescendantsCanBeRemovedDuringNotification() {
+  var m = Model.get([{a: 2}, {a: 1}]);
+
+  var eventCount = 0;
+  var observer = function() {
+    eventCount++;
+  };
+  var pv = Model.observe(m, '[1].a', observer);
+
+  // First test that the splice actually propagates down.
+  m.unshift({a: 3});
+  assertEquals(1, eventCount);
+  assertEquals(2, pv.value);
+
+  // Now remove the observation above while a higher-level is receiving the
+  // notification.
+  Model.observeObject(m, function(c) {
+    Model.stopObserving(m, '[1].a', observer);
+  });
+
+  // The observation above should not have fired.
+  m.unshift({a: 4});
+  assertEquals(1, eventCount);
+}
+
+function testPathValueDescendantsCanBeResetDuringNotification() {
+  var m = Model.get([{a: 2}, {a: 1}]);
+
+  var eventCount = 0;
+  var observer = function() {
+    eventCount++;
+  };
+  var pv = Model.observe(m, '[1].a', observer);
+
+  // First test that the splice actually propagates down.
+  m.unshift({a: 3});
+  assertEquals(1, eventCount);
+  assertEquals(2, pv.value);
+
+  // Now reset the observation above while a higher-level is receiving the
+  // notification. The 're-observe' should reset the lastObservedValue,
+  // and prevent the notification from firing.
+  Model.observeObject(m, function(c) {
+    Model.stopObserving(m, '[1].a', observer);
+    Model.observe(m, '[1].a', observer);
+  });
+
+  // The observation above should not have fired.
+  m.unshift({a: 4});
+  assertEquals(1, eventCount);
+}
+
+
+function testPathObservation() {
+  var m = Model.get({
+    a: {
+      b: {
+        c: 'hello, world'
+      }
+    }
+  });
+
+  var eventCount = 0;
+  var expect = {
+    oldModel: undefined,
+    model: 'hello, world'
+  }
+
+  var observer = function(model, oldModel) {
+    eventCount++;
+    assertEquals(expect.oldModel, oldModel);
+    assertEquals(expect.model, model);
+  };
+
+  Model.observe(m, 'a.b.c', observer);
+
+  assertEquals(expect.model, Model.get(m, 'a.b.c'));
+
+  expect.oldModel = expect.model;
+  expect.model = 'hello, mom';
+  m.a.b.c = 'hello, mom';
+  assertEquals(1, eventCount);
+  assertEquals(expect.model, Model.get(m, 'a.b.c'));
+
+  expect.oldModel = expect.model;
+  expect.model = 'hello, dad';
+  m.a.b = {
+    c: 'hello, dad'
+  };
+  assertEquals(2, eventCount);
+  assertEquals(expect.model, Model.get(m, 'a.b.c'));
+
+  expect.oldModel = expect.model;
+  expect.model = 'hello, you';
+  m.a = {
+    b: {
+      c: 'hello, you'
+    }
+  };
+  assertEquals(3, eventCount);
+  assertEquals(expect.model, Model.get(m, 'a.b.c'));
+
+  // a.b.c is no longer able to evaluate
+  expect.oldModel = expect.model;
+  expect.model = undefined;
+  m.a.b = 1;
+  assertEquals(4, eventCount);
+  assertEquals(expect.model, Model.get(m, 'a.b.c'));
+
+  // Stop observing
+  Model.stopObserving(m, 'a.b.c', observer);
+  expect.oldModel = expect.model;
+  expect.model = 'hello, back again -- but not observing';
+  m.a.b = {c: 'hello, back again -- but not observing'};
+  assertEquals(4, eventCount);
+
+  // Resume observing
+  Model.observe(m, 'a.b.c', observer);
+  expect.oldModel = expect.model;
+  expect.model = 'hello. Back for reals';
+  m.a.b.c = 'hello. Back for reals';
+  assertEquals(5, eventCount);
+
+  // Try to stop observing at different path. Scopes are different,
+  // so this should have no effect.
+  Model.stopObserving(m.a, 'b.c', observer)
+  expect.oldModel = expect.model;
+  expect.model = 'hello. scopes are different';
+  m.a.b.c = 'hello. scopes are different';
+  assertEquals(6, eventCount);
+}
+
+function testMultipleObservationsAreCollapsed() {
+  var m = Model.get({id: 1});
+  var count = 0;
+  var observer = function() {
+    count++;
+  }
+
+  var pv1 = Model.observe(m, 'id', observer);
+  var pv2 = Model.observe(m, 'id', observer);
+
+  assertEquals(pv1, pv2);
+  m.id = 2;
+  assertEquals(1, count);
+}
+
+function testCatchCallbackException() {
+  var m = Model.get({ id: 1 });
+  var count = 0;;
+  Model.observe(m, 'id', function() {
+    count++;
+    throw 'Bad';
+  });
+  Model.observe(m, 'id', function() {
+    count++;
+  });
+
+  var ex = assertThrows(function() {
+    m.id = 2;
+  });
+  assertEquals('Bad', ex);
+  assertEquals(2, count);
+}
+
+function testSetSame() {
+  var m = Model.get({id: 1});
+  var fired = false;
+  Model.observeObject(m, function(c) {
+    fired = true;
+  });
+  m.id = 1;
+  assertFalse('Setting an own property to same value should not notify', fired);
+}
+
+function testSetToSameAsPrototype() {
+  var m = Model.get({
+    __proto__: {
+      id: 1
+    }
+  });
+  var fired = false;
+  Model.observeObject(m, function(c) {
+    fired = true;
+  });
+  m.id = 1;
+  assertFalse('Setting a property to same value should not notify', fired);
+}
+
+function testSetReadOnly() {
+  var obj = {};
+  Object.defineProperty(obj, 'x', {
+    configurable: true,
+    writable: false,
+    value: 1
+  });
+  var m = Model.get(obj);
+
+  var fired = false;
+  Model.observeObject(m, function(c) {
+    fired = true;
+  });
+  m.x = 2;
+  assertFalse('Setting a read only property should not notify', fired);
+}
+
+function testSetUndefined() {
+  var m = Model.get({});
+
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals('x', c.propertyName);
+    assertEquals('add', c.mutation);
+    assertUndefined(c.value);
+    assertUndefined(c.oldValue);
+    count++;
+  });
+  m.x = undefined;
+  assertEquals(1, count);
+}
+
+function testSetShadows() {
+  var m = Model.get({
+    __proto__: {
+      x: 1
+    }
+  });
+
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals('x', c.propertyName);
+    assertEquals('update', c.mutation);
+    assertEquals(2, c.value);
+    assertEquals(1, c.oldValue);
+    count++;
+  });
+  m.x = 2;
+  assertEquals(1, count);
+}
+
+function testDeleteWithSameValueOnPrototype() {
+  var m = Model.get({
+    __proto__: {
+      x: 1,
+    },
+    x: 1
+  });
+
+  var fired = false;
+  Model.observeObject(m, function(c) {
+    fired = true;
+  });
+  assertTrue(delete m.x);
+  assertFalse('Deleting a property exposes the same value in this case', fired);
+}
+
+function testDeleteWithDifferentValueOnPrototype() {
+  var m = Model.get({
+    __proto__: {
+      x: 1,
+    },
+    x: 2
+  });
+
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    count++;
+    assertEquals('x', c.propertyName);
+    assertEquals('update', c.mutation);
+    assertEquals(1, c.value);
+    assertEquals(2, c.oldValue);
+  });
+  assertTrue(delete m.x);
+  assertEquals(1, count);
+}
+
+function testDeleteOfNonConfigurable() {
+  var obj = {};
+  Object.defineProperty(obj, 'x', {
+    configurable: false,
+    value: 1
+  });
+  var m = Model.get(obj);
+
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    count++;
+  });
+  assertFalse(delete m.x);
+  assertEquals(0, count);
+}
+
+function testModelWithFunctions() {
+  var m = Model.get({
+    innerObject: {},
+    field: 42,
+    method1: function() {
+      return this.field;
+    },
+    method2: function() {
+      return 42;
+    },
+    getInnerObject: function() {
+      return this.innerObject;
+    },
+
+    modifyField: function() {
+      assertEquals(m, this);
+      this.field++;
+    }
+  });
+
+  assertEquals(42, m.field);
+  assertEquals(42, m.method1());
+  assertEquals(42, m.method2());
+
+  var g = m.method1.bind(m);
+  assertEquals('Test that bind works correctly', 42, g());
+
+  var f = m.method2;
+  assertEquals(42, f());
+
+  var count = 0;
+  Model.observeObject(f, function(c) {
+    assertEquals('test', c.propertyName);
+    count++;
+  });
+  f.test = 1;
+  assertEquals(1, count);
+
+  Model.observeObject(m, function(c) {
+    assertEquals('field', c.propertyName);
+    count++;
+  });
+  m.modifyField();
+  assertEquals(2, count);
+
+  var innerObject = m.getInnerObject();
+  Model.observeObject(innerObject, function(c) {
+    count++;
+  });
+
+  assertEquals('Ensure that we return wrapped objects',
+               m.innerObject, innerObject);
+
+  innerObject.x = 'y';
+  assertEquals(3, count);
+}
+
+function testModelFunctionConstruct() {
+  var m = Model.get(function(x, y, z) {
+    assertEquals('x', x);
+    assertEquals('y', y);
+    assertEquals('z', z);
+
+    this.change = function() {
+      this.test++;
+    };
+
+    var self = this;
+    this.change2 = function() {
+      self.test++;
+    };
+
+    this.change3 = function(obj) {
+      this.test += Number(obj !== Model.get(obj));
+    }
+  });
+
+  var object = new m('x', 'y', 'z');
+
+  var count = 0;
+  Model.observeObject(object, function(c) {
+    assertEquals('test', c.propertyName);
+    count++;
+  });
+  object.test = 1;
+  assertEquals(1, count);
+
+  object.change();
+  assertEquals(2, object.test);
+  assertEquals(2, count);
+
+  // Internal change not observable.
+  object.change2();
+  assertEquals(3, object.test);
+  assertEquals(2, count);
+
+  // Arguments should be unwrapped.
+  object.change3(Model.get({}));
+  assertEquals(4, object.test);
+  assertEquals(3, count);
+}
+
+function testModelFunctionConstructReturnObject() {
+  var m = Model.get(function(x, y, z) {
+    assertEquals('x', x);
+    assertEquals('y', y);
+    assertEquals('z', z);
+
+    return {};
+  });
+
+  var object = new m('x', 'y', 'z');
+
+  var count = 0;
+  Model.observeObject(object, function(c) {
+    assertEquals('test', c.propertyName);
+    count++;
+  });
+  object.test = 1;
+  assertEquals(1, count);
+}
+
+function testInstanceOf() {
+  var n = Model.get(new Number(42));
+  assertTrue(n instanceof Number);
+
+  var F = Model.get(function() {});
+  assertTrue(F instanceof Function);
+
+  var o = new F;
+  assertTrue(o instanceof F);
+}
+
+function testArrayModel() {
+  var m = Model.get([0, 1]);
+
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals('splice', c.mutation);
+    count++;
+  });
+
+  m[0] = 'zero';
+
+  assertArrayEquals(['zero', 1], m);
+  assertEquals(1, count);
+
+  m[1] = 'one';
+
+  assertArrayEquals(['zero', 'one'], m);
+  assertEquals(2, count);
+}
+
+function testArrayModelSplice() {
+  var zero = {zero: 'zero'};
+  var one = {one: 'one'};
+  var two = {two: 'two'};
+  var three = {three: 'three'};
+  var zeroModel = Model.get(zero);
+  var oneModel = Model.get(one);
+  var twoModel = Model.get(two);
+  var threeModel = Model.get(three);
+
+  var arr = [zero, one];
+  var m = Model.get(arr);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 1;
+  expected.removed = [oneModel];
+  expected.added = [twoModel, threeModel];
+
+  m.splice(1, 1, two, three);
+
+  assertArrayEquals([zero, two, three], arr);
+  assertArrayEquals([zeroModel, twoModel, threeModel], m);
+  assertEquals(1, count);
+
+  expected.mutation = 'splice';
+  expected.index = 0;
+  expected.removed = [zeroModel];
+  expected.added = [];
+
+  m.splice(0, 1);
+
+  assertArrayEquals([two, three], arr);
+  assertArrayEquals([twoModel, threeModel], m);
+  assertEquals(2, count);
+
+  m.splice();
+  assertEquals(2, count);
+
+  m.splice(0);
+  assertEquals(2, count);
+
+  m.splice(0, 0);
+  assertEquals(2, count);
+
+  m.splice(0, -1);
+  assertEquals(2, count);
+
+  expected.mutation = 'splice';
+  expected.index = 1;
+  expected.removed = [];
+  expected.added = [1.5];
+
+  m.splice(-1, 0, 1.5);
+  assertArrayEquals([two, 1.5, three], arr);
+  assertArrayEquals([twoModel, 1.5, threeModel], m);
+
+  expected.mutation = 'splice';
+  expected.index = 3;
+  expected.removed = [];
+  expected.added = [zeroModel];
+
+  m.splice(3, 0, zeroModel);
+  assertArrayEquals([two, 1.5, three, zero], arr);
+  assertArrayEquals([twoModel, 1.5, threeModel, zeroModel], m);
+}
+
+function testArrayModelLength() {
+  var m = Model.get([0, 1]);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 2;
+  expected.removed = [];
+  expected.added = [ , , , ];
+
+  m.length = 5;
+
+  assertArrayEquals([0, 1, , , ,], m);
+  assertEquals(1, count);
+
+  expected.mutation = 'splice';
+  expected.index = 1;
+  expected.removed = [1, , , ,];
+  expected.added = [];
+
+  m.length = 1;
+
+  assertArrayEquals([0], m);
+  assertEquals(2, count);
+
+  m.length = 1;
+
+  assertArrayEquals([0], m);
+  assertEquals(2, count);
+}
+
+function testArrayModelPush() {
+  var m = Model.get([0, 1]);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 2;
+  expected.removed = [];
+  expected.added = [2, 3];
+
+  m.push(2, 3);
+
+  assertArrayEquals([0, 1, 2, 3], m);
+  assertEquals(1, count);
+
+  m.push();
+
+  assertEquals(1, count);
+}
+
+function testArrayModelPop() {
+  var m = Model.get([0, 1]);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 1;
+  expected.removed = [1];
+  expected.added = [];
+
+  assertEquals(1, m.pop());
+  assertArrayEquals([0], m);
+  assertEquals(1, count);
+
+  expected.index = 0;
+  expected.removed = [0];
+
+  assertEquals(0, m.pop());
+  assertArrayEquals([], m);
+  assertEquals(2, count);
+
+  assertUndefined,(m.pop());
+  assertArrayEquals([], m);
+  assertEquals(2, count);
+}
+
+function testArrayModelShift() {
+  var m = Model.get([0, 1]);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 0;
+  expected.removed = [0];
+  expected.added = [];
+
+  assertEquals(0, m.shift());
+  assertArrayEquals([1], m);
+  assertEquals(1, count);
+
+  expected.index = 0;
+  expected.removed = [1];
+
+  assertEquals(1, m.shift());
+  assertArrayEquals([], m);
+  assertEquals(2, count);
+
+  assertUndefined,(m.shift());
+  assertArrayEquals([], m);
+  assertEquals(2, count);
+}
+
+function testArrayModelUnshift() {
+  var m = Model.get([0, 1]);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 0;
+  expected.removed = [];
+  expected.added = [-1];
+
+  assertEquals(3, m.unshift(-1));
+  assertArrayEquals([-1, 0, 1], m);
+  assertEquals(1, count);
+
+  expected.added = [-3, -2];
+
+  assertEquals(5, m.unshift(-3, -2));
+  assertArrayEquals([-3, -2, -1, 0, 1], m);
+  assertEquals(2, count);
+
+  assertUndefined,(m.unshift());
+  assertArrayEquals([-3, -2, -1, 0, 1], m);
+  assertEquals(2, count);
+}
+
+function testArrayView() {
+  var m = Model.get([]);
+
+  // Sort in lexicographic order, and only include strings
+  // which start with an odd ascii character value:
+  // a, c, e, g, i, k, m, o, q, s, u, w, y;
+  var sortFunc = function(a, b) {
+    if (a === b)
+      return 0;
+    return a < b ? -1 : 1;
+  };
+  var filterFunc = function(a) {
+    return a.charCodeAt(0) % 2;
+  };
+
+  var v = Model.getView(m, sortFunc, filterFunc);
+  var count = 0;
+  var lastMutation;
+  Model.observeObject(v, function(c) {
+    lastMutation = c.mutation;
+    count++;
+  });
+
+  assertArrayEquals([], m);
+  assertArrayEquals([], v);
+
+  m.push('a');
+  assertArrayEquals(['a'], m);
+  assertArrayEquals(['a'], v);
+  assertEquals(1, count);
+
+  m.push('d');
+  assertArrayEquals(['a', 'd'], m);
+  assertArrayEquals(['a'], v);
+  assertEquals(1, count);
+
+  m.push('c');
+  assertArrayEquals(['a', 'd', 'c'], m);
+  assertArrayEquals(['a', 'c'], v);
+  assertEquals(2, count);
+
+  // Should generate two splices for the view.
+  m.splice(1, 1, 'zzz', 'a', 'r', 'g', 'uu');
+  assertArrayEquals(['a', 'zzz', 'a', 'r', 'g', 'uu', 'c'], m);
+  assertArrayEquals(['a', 'a', 'c', 'g', 'uu',], v);
+  assertEquals(4, count);
+
+  m.pop();
+  assertArrayEquals(['a', 'zzz', 'a', 'r', 'g', 'uu'], m);
+  assertArrayEquals(['a', 'a', 'g', 'uu',], v);
+  assertEquals(5, count);
+
+  m.shift();
+  assertArrayEquals(['zzz', 'a', 'r', 'g', 'uu'], m);
+  assertArrayEquals(['a', 'g', 'uu',], v);
+  assertEquals(6, count);
+
+  m.unshift('qqq');
+  assertArrayEquals(['qqq', 'zzz', 'a', 'r', 'g', 'uu'], m);
+  assertArrayEquals(['a', 'g', 'qqq', 'uu',], v);
+  assertEquals(7, count);
+
+  m[0] = 'qq';
+  assertArrayEquals(['qq', 'zzz', 'a', 'r', 'g', 'uu'], m);
+  assertArrayEquals(['a', 'g', 'qq', 'uu'], v);
+  assertEquals(8, count);
+  assertEquals('splice', lastMutation);
+
+  m.splice(4, 2); // Should generate two splices for the view.
+  m.shift();
+  m.splice(1, 1);
+  assertArrayEquals(['zzz', 'r'], m);
+  assertArrayEquals([], v);
+  assertEquals(12, count);
+}
+
+function testArrayViewComposite() {
+  var arr = [];
+  var m = Model.get(arr);
+
+  // Sort in lexicographic order by name.
+  var sortFunc = function(a, b) {
+    if (a === b)
+      return 0;
+    return a.name < b.name ? -1 : 1;
+  };
+  var filterFunc = function(a) {
+    return a.age >= 18;
+  };
+
+  var v = Model.getView(m, sortFunc, filterFunc, ['name', 'age']);
+  var count = 0;
+  var lastMutation;
+  Model.observeObject(v, function(c) {
+    lastMutation = c.mutation;
+    count++;
+  });
+
+  assertArrayEquals([], m);
+  assertArrayEquals([], v);
+
+  var alice = {name: 'Alice', age: 19};
+  var aliceModel = Model.get(alice);
+  m.push(alice);
+  assertArrayEquals([alice], arr);
+  assertArrayEquals([aliceModel], v);
+  assertEquals(1, count);
+
+  var bob = {name: 'Bob', age: 18};
+  var bobModel = Model.get(bob);
+  m.unshift(bob);
+  assertArrayEquals([bob, alice], arr);
+  assertArrayEquals([aliceModel, bobModel], v);
+  assertEquals(2, count);
+
+  var charles = {name: 'Charles', age: 17};
+  var charlesModel = Model.get(charles);
+  m.push(charles);
+  assertArrayEquals([bob, alice, charles], arr);
+  assertArrayEquals([aliceModel, bobModel], v);
+  assertEquals(2, count);
+
+  aliceModel.name = 'Z';
+  assertArrayEquals([bob, alice, charles], arr);
+  assertArrayEquals([bobModel, aliceModel], v);
+  assertEquals(4, count);
+
+  charlesModel.age++;
+  assertArrayEquals([bob, alice, charles], arr);
+  assertArrayEquals([bobModel, charlesModel, aliceModel], v);
+  assertEquals(5, count);
+
+  m.push(charles);
+  assertArrayEquals([bob, alice, charles, charles], arr);
+  assertArrayEquals([bobModel, charlesModel, charlesModel, aliceModel], v);
+  assertEquals(6, count);
+
+  aliceModel.name = 'Alicia';
+  assertArrayEquals([bob, alice, charles, charles], arr);
+  assertArrayEquals([aliceModel, bobModel, charlesModel, charlesModel], v);
+  assertEquals(8, count);
+
+  charlesModel.age = 10;
+  assertArrayEquals([bob, alice, charles, charles], arr);
+  assertArrayEquals([aliceModel, bobModel], v);
+  assertEquals(9, count);
+
+  charlesModel.age = 30;
+  assertArrayEquals([bob, alice, charles, charles], arr);
+  // TODO(adamk): What do we want to do about dups in the input?
+  assertArrayEquals([aliceModel, bobModel, charlesModel], v);
+  assertEquals(12, count);
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Element Bindings Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="forwarding_handler.js"></script>
+<script src="weak_map.js"></script>
+<script src="path.js"></script>
+<script src="model.js"></script>
+<script src="transform.js"></script>
+<script src="dependency_parser.js"></script>
+<script src="expression_parser.js"></script>
+<script src="place_holder_parser.js"></script>
+<script src="element_model.js"></script>
+<script src="html5_attributes.js"></script>
+<script src="element_bindings.js"></script>
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+<script>
+
+function testFormat() {
+  var b = new Binding('a.b', 'a.c');
+  var data = {
+    a: {
+      b: 'B',
+      c: 'C',
+    }
+  };
+  assertEquals('B, C', b.format(Model.get(data, 'a.b'),
+                                Model.get(data, 'a.c')));
+}
+
+function testSimpleBinding() {
+  var el = document.createElement('div');
+  el.model = {a: '1'};
+  el.addBinding('foo', new Binding('a'));
+
+  assertEquals('1', el.foo);
+
+  el.model.a = '2';
+  assertEquals('2', el.foo);
+
+  el.model.a = 232.2;
+  assertEquals(232.2, el.foo);
+
+  el.model.a = 232;
+  assertEquals(232, el.foo);
+
+  el.model.a = null;
+  assertEquals(null, el.foo);
+
+  el.model.a = undefined;
+  assertUndefined(el.foo);
+}
+
+function testSimpleBindingAbsoluteRelativeAndCurrent() {
+  var parent = document.createElement('div');
+  parent.modelScope = 'abs';
+  var child = parent.appendChild(document.createElement('div'))
+  child.modelScope = 'ans';
+  var el = child.appendChild(document.createElement('div'))
+  el.modelScope = 'cur';
+
+  parent.model = {
+    val: 'root',
+    abs: {
+      val: 'abs',
+      ans: {
+        val: 'ans',
+        cur: 'cur'
+      }
+    }
+  };
+
+  el.addBinding('root', '{{ /val }}');
+  assertEquals('root', el.root);
+
+  el.addBinding('abs', '{{ /abs.val }}');
+  assertEquals('abs', el.abs);
+
+  el.addBinding('ans', '{{ ../val }}');
+  assertEquals('ans', el.ans);
+
+  el.addBinding('cur', '{{ ./ }}');
+  assertEquals('cur', el.cur);
+}
+
+function testSimpleBindingWithDashes() {
+  var el = document.createElement('div');
+  el.model = {a: '1'};
+  el.addBinding('foo-bar', new Binding('a'));
+
+  assertEquals('1', el.fooBar);
+
+  el.model.a = '2';
+  assertEquals('2', el.fooBar);
+}
+
+function testBindToForeignNode() {
+  var el = document.createElement('div');
+  el.model = {a: '1'};
+  var other = document.createElement('div');
+  other.model = {a: '2'};
+
+  el.addBinding('foo', new Binding(other, 'a'));
+
+  assertEquals('2', el.foo);
+  el.model.a = '3';
+  other.model.a = '4';
+  assertEquals('4', el.foo);
+}
+
+function testBindToNonNodeModel() {
+  var el = document.createElement('div');
+  var m = Model.get({a: '1'});
+
+  el.addBinding('foo', new Binding(m, 'a'));
+
+  assertEquals('1', el.foo);
+  m.a = '2';
+  assertEquals('2', el.foo);
+}
+
+function testBindToNamedModel() {
+  var el = document.createElement('div');
+  document.models = Model.get({a: '1'});
+
+  el.addBinding('foo', new Binding('#a'));
+  assertEquals('1', el.foo);
+  document.models.a = '2';
+  assertEquals('2', el.foo);
+}
+
+function testSimpleBindingChangeModel() {
+  var el = document.createElement('div');
+  el.addBinding('foo', new Binding('a'));
+  el.model = {a: '1'};
+  assertEquals('1', el.foo);
+}
+
+function testSimpleBindingChangeModelScope() {
+  var el = document.createElement('div');
+  el.addBinding('foo', new Binding('a'));
+  el.model = {a: {a: '1'}};
+  assertObjectEquals({a: '1'}, el.foo);
+
+  el.modelScope = 'a';
+  assertEquals('1', el.foo);
+}
+
+function testBindingChangeAtModelScopeChild() {
+  var parent = document.createElement('div');
+  var child = parent.appendChild(document.createElement('div'));
+
+  parent.model = {
+    a: {b: 1}
+  };
+
+  child.addBinding('b', new Binding('b'));
+  child.modelScope = 'a';
+  assertEquals(1, child.b);
+
+  parent.model.a = {b: 2};
+  assertEquals(2, child.b);
+}
+
+function testBindingChangeAtModelScopeParent() {
+  var parent = document.createElement('div');
+  var child = parent.appendChild(document.createElement('div'));
+
+  parent.model = {
+    a: {b: 1}
+  };
+
+  child.addBinding('b', new Binding('b'));
+  parent.modelScope = 'a';
+  assertEquals(1, child.b);
+
+  parent.model.a = {b: 2};
+  assertEquals(2, child.b);
+}
+
+function testSimpleBindingChangeAncestorModel() {
+  var d1 = document.createElement('div');
+  var d2 = d1.appendChild(document.createElement('div'));
+  var d3 = d2.appendChild(document.createElement('div'));
+  d3.addBinding('foo', new Binding('a'));
+
+  d1.model = {a: 1};
+  assertEquals(1, d3.foo);
+
+  d1.model = {a: 2};
+  assertEquals(2, d3.foo);
+
+  d2.model = {a: 3};
+  assertEquals(3, d3.foo);
+
+  d3.model = {a: 4};
+  assertEquals(4, d3.foo);
+
+  d2.model = {a: 5};
+  assertEquals(4, d3.foo);
+
+  d3.model = undefined;
+  assertEquals(5, d3.foo);
+
+  d2.model = undefined;
+  assertEquals(2, d3.foo);
+}
+
+function testSimpleBindingChangeAncestorModelScope() {
+  var d1 = document.createElement('div');
+  var d2 = d1.appendChild(document.createElement('div'));
+  var d3 = d2.appendChild(document.createElement('div'));
+  d3.addBinding('foo', new Binding('c'));
+  d3.addBinding('bar', new Binding('d'));
+  d3.addBinding('baz', new Binding('c.d'));
+
+  d1.model = {
+    a: {c: {d: 1}},
+    b: {c: {d: 2}},
+    c: {c: {d: 3}},
+  };
+  assertObjectEquals({c: {d: 3}}, d3.foo);
+  assertUndefined(d3.bar);
+  assertUndefined(d3.baz);
+
+  d1.modelScope = 'a';
+  assertObjectEquals({d: 1}, d3.foo);
+  assertUndefined(d3.bar);
+  assertEquals(1, d3.baz);
+
+  d1.modelScope = 'b';
+  assertObjectEquals({d: 2}, d3.foo);
+  assertUndefined(d3.bar);
+  assertEquals(2, d3.baz);
+
+  d2.modelScope = 'c';
+  assertUndefined(d3.foo);
+  assertEquals(2, d3.bar);
+  assertUndefined(d3.baz);
+
+  d1.modelScope = 'c';
+  assertUndefined(d3.foo);
+  assertEquals(3, d3.bar);
+  assertUndefined(d3.baz);
+}
+
+function testBindToModelScope() {
+  var m = Model.get({
+    scope: 'foo',
+    foo: {x: 'abc'},
+    bar: {x: 'def'}
+  });
+
+  var d1 = document.createElement('div');
+  d1.model = m;
+  d1.modelScope = 'foo';
+  d1.addBinding('textContent', '{{x}}');
+  assertEquals('abc', d1.textContent);
+
+  d1.addBinding('modelScope', '{{scope}}');
+  m.scope = 'bar';
+  assertEquals('def', d1.textContent);
+  assertEquals('bar', d1.modelScope);
+}
+
+function testPlaceHolderBindingText() {
+  var phb = new PlaceHolderBinding('Hello {{ adj }} {{noun}}!');
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.textContent = 'dummy';
+  el.firstChild.addBinding('textContent', phb);
+  el.model = m;
+
+  assertEquals('Hello cruel world!', el.textContent);
+
+  el.model.adj = 'happy';
+  assertEquals('Hello happy world!', el.textContent);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  assertEquals('Hello sunny day!', el.textContent);
+}
+
+function testPlaceHolderBindingText2() {
+  var phb = new PlaceHolderBinding('Hello {{ adj }} {{noun}}!');
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.textContent = 'dummy';
+  el.firstChild.binding = phb;
+  el.model = m;
+
+  assertEquals('Hello cruel world!', el.textContent);
+
+  el.model.adj = 'happy';
+  assertEquals('Hello happy world!', el.textContent);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  assertEquals('Hello sunny day!', el.textContent);
+}
+
+function testPlaceHolderBindingTextInline() {
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.textContent = 'dummy';
+  el.firstChild.addBinding('textContent', 'Hello {{ adj }} {{noun}}!');
+  el.model = m;
+
+  assertEquals('Hello cruel world!', el.textContent);
+
+  el.model.adj = 'happy';
+  assertEquals('Hello happy world!', el.textContent);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  assertEquals('Hello sunny day!', el.textContent);
+}
+
+function testPlaceHolderBindingElementProperty() {
+  var phb = new PlaceHolderBinding('Hello {{ adj }} {{noun}}!');
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.addBinding('foo', phb);
+  el.model = m;
+
+  assertEquals('Hello cruel world!', el.foo);
+
+  el.model.adj = 'happy';
+  assertEquals('Hello happy world!', el.foo);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  assertEquals('Hello sunny day!', el.foo);
+
+  // Change the binding.
+  el.addBinding('foo', 'Goodbye {{ adj }} {{noun}}!');
+  assertEquals('Goodbye sunny day!', el.foo);
+
+  // Remove the binding. Should stop following the model.
+  el.removeBinding('foo');
+  el.model.adj = 'cloudy';
+  assertEquals('Goodbye sunny day!', el.foo);
+}
+
+function testDomTreeChanges() {
+  var d1 = document.createElement('div');
+  d1.id = 'd1';
+  var d2 = document.createElement('div');
+  d2.id = 'd2';
+  var d3 = document.createElement('div');
+  d3.id = 'd3';
+
+  d3.addBinding('foo', new Binding('a'));
+
+  assertUndefined(d3.foo);
+
+  d1.model = {a: 1};
+  d2.model = {a: 2};
+
+  d1.appendChild(d3);
+  assertEquals(1, d3.foo);
+
+  d2.appendChild(d3);
+  assertEquals(2, d3.foo);
+}
+
+function dispatchEvent(type, target) {
+  var event = document.createEvent('HTMLEvents');
+  event.initEvent(type, true, false);
+  target.dispatchEvent(event);
+}
+
+function testInputElementTextBinding() {
+  var m = Model.get({val: 'ping'});
+
+  var el = document.createElement('input');
+  el.addBinding('value', '{{val}}');
+  el.model = m;
+  assertEquals('ping', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals('pong', m.val);
+
+  // Try a deep path.
+  m = Model.get({
+    a: {
+      b: {
+        c: 'ping'
+      }
+    }
+  });
+
+  el.addBinding('value', '{{ a.b.c }}');
+  el.model = m;
+  assertEquals('ping', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals('pong', Model.get(m, 'a.b.c'));
+
+  // Start with the model property being absent.
+  delete m.a.b.c;
+  assertEquals('undefined', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals('pong', Model.get(m, 'a.b.c'));
+
+  // Model property unreachable (and unsettable).
+  delete m.a.b;
+  assertEquals('undefined', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals(undefined, Model.get(m, 'a.b.c'));
+}
+
+function testSimpleTransform() {
+  var trans = {
+    toTarget: function(source) {
+      return source + 1;
+    },
+
+    toSource: function(target) {
+      return (+target) - 1;
+    }
+  };
+
+  var m = Model.get({val: 1});
+  var el = document.createElement('input');
+  el.addBinding('value', new Binding('val', trans));
+  el.model = m;
+  assertEquals('2', el.value);
+
+  el.value = '3';
+  dispatchEvent('input', el);
+  assertEquals(2, m.val);
+}
+
+function testDeclarativeTransform() {
+  var transformArgs;
+  var toTargetArgs;
+
+  function MyTrans(var_arg) {
+    transformArgs = Array.prototype.slice.call(arguments);
+  }
+  MyTrans.prototype = {
+    toTarget: function(source, elm, property) {
+      toTargetArgs = Array.prototype.slice.call(arguments);
+      return source + 1;
+    },
+
+    toSource: function(target) {
+      return +target - 1;
+    }
+  };
+
+  Transform.registry.myTrans = MyTrans;
+
+  var m = Model.get({val: 1});
+  var el = document.createElement('input');
+  el.addBinding('value',
+                '{{ val | myTrans("a", \'b\', 1) }}');
+  el.model = m;
+  assertEquals('2', el.value);
+  assertArrayEquals([m.val, 'val', el, 'value'], toTargetArgs);
+
+  el.value = '3';
+  dispatchEvent('input', el);
+  assertEquals(2, m.val);
+
+  assertArrayEquals(['a', 'b', 1],
+                    transformArgs);
+
+  delete Transform.registry.myTrans;
+}
+
+function testClassListTransform() {
+  var el = document.createElement('div');
+  el.addBinding('className', '{{ val | toggle("selected") }}');
+  el.model = Model.get({ val: false });
+  assertEquals('', el.className);
+
+  el.model.val = true;
+  assertEquals('selected', el.className);
+
+  // Test impicit naming
+  el = document.createElement('div');
+  el.addBinding('className', '{{ selected | toggle }}');
+  el.model = Model.get({ selected: false });
+  assertEquals('', el.className);
+
+  el.model.selected = true;
+  assertEquals('selected', el.className);
+
+  // Test impicit naming
+  el = document.createElement('div');
+  el.addBinding('className', 'classA {{ selected | toggle }} classB');
+  el.model = Model.get({ selected: false });
+  assertEquals('classA  classB', el.className);
+
+  el.model.selected = true;
+  assertEquals('classA selected classB', el.className);
+}
+
+function testInputElementCheckboxRadio() {
+  var m = Model.get({val: true});
+
+  // Checkbox
+  var el = document.createElement('input');
+  el.type = 'checkbox';
+  el.addBinding('checked', new Binding('val'));
+  el.model = m;
+  assertEquals(true, el.checked);
+  m.val = false;
+  assertEquals(false, el.checked);
+
+  el.checked = true;
+  dispatchEvent('click', el);
+  assertEquals(true, m.val);
+  el.checked = false;
+  dispatchEvent('click', el);
+  assertEquals(false, m.val);
+
+  // Radio
+  m = Model.get({val: true});
+  var el = document.createElement('input');
+  el.type = 'radio';
+  el.addBinding('checked', new Binding('val'));
+  el.model = m;
+  assertEquals(true, el.checked);
+  m.val = false;
+  assertEquals(false, el.checked);
+
+  el.checked = true;
+  dispatchEvent('click', el);
+  assertEquals(true, m.val);
+  el.checked = false;
+  dispatchEvent('click', el);
+  assertEquals(false, m.val);
+}
+
+function testSelectElementValue() {
+  var m = Model.get({value: 'foo'});
+
+  // Value
+  var el = document.createElement('select');
+  var op = el.appendChild(document.createElement('option'));
+  op.textContent = 'Foo';
+  op.value = 'foo';
+  var op = el.appendChild(document.createElement('option'));
+  op.textContent = 'Bar';
+  op.value = 'bar';
+
+  el.addBinding('value', new Binding('value'));
+  el.model = m;
+
+  assertEquals('foo', el.value);
+  assertEquals('foo', m.value);
+
+  m.value = 'bar';
+  assertEquals('bar', el.value);
+
+  el.value = 'foo';
+  dispatchEvent('change', el);
+  assertEquals('foo', m.value);
+}
+
+function testSelectElementSelectedIndex() {
+  var m = Model.get({index: 0});
+
+  // Value
+  var el = document.createElement('select');
+  var op = el.appendChild(document.createElement('option'));
+  op.textContent = 'Foo';
+  op.value = 'foo';
+  var op = el.appendChild(document.createElement('option'));
+  op.textContent = 'Bar';
+  op.value = 'bar';
+
+  el.addBinding('selectedIndex', new Binding('index'));
+  el.model = m;
+
+  assertEquals(0, el.selectedIndex);
+  assertEquals(0, m.index);
+
+  m.index = 1;
+  assertEquals(1, el.selectedIndex);
+
+  el.selectedIndex = 0;
+  dispatchEvent('change', el);
+  assertEquals(0, m.index);
+}
+
+function testInputElementTextBindingWithModelScope() {
+  var div = document.createElement('div');
+  var child = div.appendChild(document.createElement('div'));
+  var input = child.appendChild(document.createElement('input'));
+
+  var m = Model.get({
+    a: {}
+  });
+  div.model = m;
+
+  child.modelScope = 'a';
+  input.addBinding('value', '{{b}}');
+
+  input.value = 'changed';
+  dispatchEvent('input', input);
+
+  assertEquals('changed', m.a.b);
+}
+
+function testBindToChecked() {
+  var div = document.createElement('div');
+  var child = div.appendChild(document.createElement('div'));
+  var input = child.appendChild(document.createElement('input'));
+  input.type = 'checkbox';
+
+  var m = Model.get({
+    a: {
+      b: false
+    }
+  });
+  div.model = m;
+
+  child.modelScope = 'a';
+  input.addBinding('checked', '{{b}}');
+
+  input.checked = true;
+  dispatchEvent('click', input);
+  assertTrue(m.a.b);
+
+  input.checked = false;
+  assertTrue(m.a.b);
+  dispatchEvent('click', input);
+  assertFalse(m.a.b);
+}
+
+function testExpressionBinding() {
+  var el = document.createElement('div');
+  var m = el.model = Model.get({a: 1, b: 2});
+  el.addBinding('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
+  assertEquals('1 + 2 = 3', el.foo);
+
+  m.a = 4;
+  assertEquals('4 + 2 = 6', el.foo);
+
+  m.b = 8;
+  assertEquals('4 + 8 = 12', el.foo);
+
+  el.model = null;
+  assertEquals(' +  = NaN', el.foo);
+}
+
+function testMultipleReferences() {
+  var el = document.createElement('div');
+  var m = el.model = Model.get({foo: 'bar'});
+  el.addBinding('foo', '{{foo}} {{ expr(foo) foo }}');
+  assertEquals('bar bar', el.foo);
+  el.modelScope = 'foo';
+}
+
+function testExpressionBindingThis() {
+  var el = document.createElement('div');
+  el.id = 'test-element';
+  el.addBinding('foo', '{{ expr() this.id }}');
+  assertEquals('test-element', el.foo);
+}
+
+function testExpressionBindingNoCoerce() {
+  var el = document.createElement('div');
+  var m = el.model = Model.get({
+    a: {
+      b: 1
+    },
+    c: {
+      d: 2
+    }
+  });
+  el.addBinding('foo', '{{ expr(a.b, c.d) b + d }}');
+  assertEquals(3, el.foo);
+}
+
+function testExceptionInBinding() {
+  var b = new Binding('a');
+
+  b.parse = function() {
+    throw 'Parse exception';
+  };
+  b.format = function() {
+    throw 'Format exception';
+  }
+
+  var el = document.createElement('input');
+  el.model = {a: '1'};
+  el.addBinding('value', b);
+  assertEquals('undefined', el.value);
+
+  el.model.a = '2';
+  assertEquals('undefined', el.value);
+
+  dispatchEvent('input', el);
+  assertEquals(undefined, el.model.a);
+}
+
+function testExceptionInTransform() {
+  var t = new IdentityTransform();
+  t.toTarget = function() {
+    throw 'toTarget exception';
+  }
+  t.toSource = function() {
+    throw 'toSource exception';
+  }
+
+  var b = new Binding('a', t);
+
+  var el = document.createElement('input');
+  el.model = {a: '1'};
+  el.addBinding('value', b);
+  assertEquals('undefined', el.value);
+
+  el.model.a = '2';
+  assertEquals('undefined', el.value);
+
+  dispatchEvent('input', el);
+  assertEquals(undefined, el.model.a);
+}
+
+function testMinimalReads() {
+  var el = document.createElement('div');
+  function Data(a, b) {
+    this.a_ = a;
+    this.b_ = b;
+  }
+  var aAccess = 0;
+  var bAccess = 0;
+  Data.prototype = {
+    get a() {
+      aAccess++;
+      return this.a_;
+    },
+    set a(a) {
+      this.a_ = a;
+    },
+    get b() {
+      bAccess++;
+      return this.b_;
+    },
+    set b(b) {
+      this.b_ = b;
+    }
+  }
+
+  el.model = new Data('a', 'b');
+  el.addBinding('foo', '{{a}} {{b}}');
+
+  assertEquals('a b', el.foo);
+  assertEquals(1, aAccess);
+  assertEquals(1, bAccess);
+
+  el.model.a = 'c';
+  assertEquals('c b', el.foo);
+  assertEquals(2, aAccess);
+  assertEquals(1, bAccess);
+
+  el.model.b = 'd';
+  assertEquals('c d', el.foo);
+  assertEquals(2, aAccess);
+  assertEquals(2, bAccess);
+}
+
+function testAsyncBinding() {
+  var el = document.createElement('div');
+  el.model = {a: '1'};
+  var b = new Binding('a');
+  el.addBinding('foo', b);
+
+  assertEquals('1', el.foo);
+
+  el.model.a = '2';
+  assertEquals('2', el.foo);
+
+  // Dependency change notifications will just dirty the binding, but not assign
+  // to the target;
+  b.sync_ = false;
+  el.model.a = '3';
+  assertEquals('2', el.foo);
+
+  // Since the binding is now dirty, setting sync_ = true will trigger
+  // assignment.
+  b.sync_ = true;
+  assertEquals('3', el.foo);
+}
+
+function testBindingToPhantomNode() {
+  var root = document.createElement('div');
+  var liveChild = root.appendChild(document.createElement('div'));
+  liveChild.modelScope = 'foo';
+  liveChild.addBinding('a', new Binding('bar'));
+
+  var b = new Binding('bat');
+  b.sync_ = false;
+
+  var valueBinding = new Binding('text');
+  valueBinding.sync_ = false;
+
+  var phantomChild = {
+    modelScope: 'baz',
+    parentElement: root,
+    bindings_: {
+      'b': b,
+      'value': valueBinding
+    }
+  };
+
+  b.bindTo(phantomChild, 'b');
+  valueBinding.bindTo(phantomChild, 'value');
+
+  assertEquals(root, phantomChild.modelOwner_);
+
+  root.model = {
+    foo: {bar: 1},
+    baz: {bat: 2, text: 'test'}
+  };
+  assertEquals(1, liveChild.a);
+
+  root.model = {
+    foo: {bar: 3},
+    baz: {bat: 4, text: 'test2'}
+  };
+  assertEquals(3, liveChild.a);
+
+  root.model.baz = {bat: 5, text: 'test3'};
+
+  // Move the modelOwner
+  var newRoot = document.createElement('div');
+  newRoot.appendChild(root);
+  newRoot.model = root.model;
+  root.model = undefined;
+
+  // Make sure the phantomChild knows it's got a new modelOwner
+  assertEquals(newRoot, phantomChild.modelOwner_);
+
+  // Simulate turning phantomChild into a real child and re-assign.
+  var newChild = root.appendChild(document.createElement('input'));
+  newChild.modelScope = phantomChild.modelScope;
+  newChild.bindings_ = newChild.bindings_ || {};
+
+  newChild.bindings_['b'] = b;
+  b.rebindTo(newChild);
+  b.sync_ = true;
+  newChild.bindings_['value'] = valueBinding;
+  valueBinding.rebindTo(newChild);
+  valueBinding.sync_ = true;
+
+  assertEquals(5, newChild.b);
+  assertEquals('test3', newChild.value);
+
+  // Verify that the two-way binding got setup correctly.
+  newChild.value = 'test4';
+  dispatchEvent('input', newChild);
+  assertEquals('test4', newRoot.model.baz.text);
+
+}
+
+</script>
+</body>
+</html>

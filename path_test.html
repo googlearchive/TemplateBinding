@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Path Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="path.js"></script>
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+<script>
+
+function testSimple() {
+  var p = new Path();
+  assertTrue(p.valid);
+  assertEquals('', p.toString());
+
+  p = new Path('a');
+  assertTrue(p.valid)
+  assertEquals('a', p.toString());
+
+  p = new Path('0');
+  assertTrue(p.valid);
+  assertEquals('[0]', p.toString());
+
+  p = new Path('a0');
+  assertTrue(p.valid)
+  assertEquals('a0', p.toString());
+
+  p = new Path('_');
+  assertTrue(p.valid)
+  assertEquals('_', p.toString());
+
+  p = new Path('#a');
+  assertTrue(p.valid)
+  assertEquals('#a', p.toString());
+
+  p = new Path('#a0');
+  assertTrue(p.valid)
+  assertEquals('#a0', p.toString());
+
+  p = new Path('#_');
+  assertTrue(p.valid)
+  assertEquals('#_', p.toString());
+
+  p = new Path('a.b');
+  assertEquals('a.b', p.toString());
+
+  p = new Path('a[0]');
+  assertEquals('a[0]', p.toString());
+
+  p = new Path('a[0][1]');
+  assertEquals('a[0][1]', p.toString());
+
+  p = new Path('a[0].b[1]');
+  assertEquals('a[0].b[1]', p.toString());
+
+  p = new Path('[0]');
+  assertEquals('[0]', p.toString());
+}
+
+function testPath() {
+  var p = new Path('a.b');
+  var p2 = new Path(p);
+
+  assertEquals(p.toString(), p2.toString());
+}
+
+function testInvalid() {
+  var p = new Path('a+b');
+  assertFalse(p.valid);
+
+  p = new Path('a[b]');
+  assertFalse(p.valid);
+
+  p = new Path('.a');
+  assertFalse(p.valid);
+
+  p = new Path('#');
+  assertFalse(p.valid);
+
+  p = new Path('[]');
+  assertFalse(p.valid);
+
+  p = new Path('.0');
+  assertFalse(p.valid);
+}
+
+function testConcat() {
+  var p = new Path('a');
+  var p2 = p.concat('b');
+  assertEquals('a.b', p2.toString());
+
+  p2 = p.concat('b', 'c');
+  assertEquals('a.b.c', p2.toString());
+
+  p2 = p.concat('[0]');
+  assertEquals('a[0]', p2.toString());
+
+  p2 = p.concat(new Path('[0]'));
+  assertEquals('a[0]', p2.toString());
+
+  p2 = p.concat('#b');
+  assertEquals('#b', p2.toString());
+
+  p2 = p.concat(0, 1);
+  assertEquals('a[0][1]', p2.toString());
+
+  p = new Path('');
+  p2 = p.concat('[0]');
+  assertTrue(p2.valid);
+
+  // Combining absolutes
+  p = new Path('/');
+  p2 = p.concat('a.b');
+  assertTrue(p2.isAbsolute);
+  assertEquals('/a.b', p2.toString());
+
+  p = new Path('');
+  p2 = p.concat('/a.b');
+  assertTrue(p2.isAbsolute);
+  assertEquals('/a.b', p2.toString());
+
+  p = new Path('/');
+  p2 = p.concat('/a.b');
+  assertTrue(p2.isAbsolute);
+  assertEquals('/a.b', p2.toString());
+
+  p = new Path('a');
+  p2 = p.concat('/b');
+  assertTrue(p2.isAbsolute);
+  assertEquals('/b', p2.toString());
+
+  // Combining relatives
+  p = new Path('a.b');
+  p2 = p.concat('../');
+  assertEquals('a', p2.toString());
+
+  p = new Path('a.b');
+  p2 = p.concat('../../');
+  assertEquals('', p2.toString());
+
+  p = new Path('a.b');
+  p2 = p.concat('../../../../');
+  assertEquals(2, p2.ancestorLevels);
+}
+
+function testJoin() {
+  var p = Path.join(0, 1);
+  assertEquals('[0][1]', p.toString());
+
+  p = Path.join(0, '#a');
+  assertEquals('#a', p.toString());
+
+  p = Path.join('./', '/a.b.c', '../d', 'e.f', '../g', './');
+  assertTrue(p.isAbsolute);
+  assertEquals('/a.b.d.e.g', p.toString());
+}
+
+function testAbsolute() {
+  var p = new Path('/a.b');
+  assertTrue(p.isAbsolute);
+  assertEquals('/a.b', p.toString());
+
+  p = new Path('/../a.b');
+  assertFalse(p.valid);
+}
+
+function testUpSelector() {
+  var p = new Path('../a.b');
+  assertEquals(1, p.ancestorLevels);
+  assertEquals('../a.b', p.toString());
+
+  p = new Path('../../a.b');
+  assertEquals(2, p.ancestorLevels);
+  assertEquals('../../a.b', p.toString());
+
+  p = new Path('../././a.b');
+  assertEquals(1, p.ancestorLevels);
+  assertEquals('../a.b', p.toString());
+}
+
+function testStartsWith() {
+  var p = new Path('foo.bar.baz');
+
+  assertTrue(p.startsWith(''));
+  assertTrue(p.startsWith('foo'));
+  assertTrue(p.startsWith('foo.bar'));
+  assertTrue(p.startsWith('foo.bar.baz'));
+  assertTrue(p.startsWith(new Path('foo.bar.baz')));
+  assertFalse(p.startsWith('bot'));
+}
+
+
+function testThisSelector() {
+  var p = new Path('./');
+  assertEquals('', p.toString());
+
+  p = new Path('./a.b');
+  assertEquals('a.b', p.toString());
+
+  p = new Path('././a.b');
+  assertEquals('a.b', p.toString());
+}
+
+function testWalk() {
+  var object = {
+    a: [
+      {
+        b: [2, 3]
+      }
+    ]
+  };
+  var that = {};
+  var p = new Path('a[0].b[1]');
+  var count = 0;
+  p.walk(object, function(val, i) {
+    count++;
+    assertEquals(that, this);
+    switch (i) {
+      case 0:
+        assertEquals(object, val);
+        break;
+      case 1:
+        assertArrayEquals(object.a, val);
+        break;
+      case 2:
+        assertEquals(object.a[0], val);
+        break;
+      case 3:
+        assertArrayEquals(object.a[0].b, val);
+        break;
+      case 4:
+        assertEquals(object.a[0].b[1], val);
+        break;
+      default:
+        fail('Called too many times');
+    }
+  }, that);
+
+  assertEquals(5, count);
+}
+
+function testWalkWithName() {
+  document.models = {
+    a: [
+      {
+        b: [4, 5]
+      }
+    ]
+  };
+
+  var that = {};
+  var p = new Path('#a[0].b[1]');
+  var count = 0;
+
+  assertTrue(p.isNamed);
+  assertEquals('a[0].b[1]', p.forwardPath.toString());
+  p.walk(document.models, function(val, i) {
+    count++;
+    assertEquals(that, this);
+    switch (i) {
+      case 0:
+        assertObjectEquals(document.models, val);
+        break;
+      case 1:
+        assertArrayEquals(document.models.a, val);
+        break;
+      case 2:
+        assertObjectEquals(document.models.a[0], val);
+        break;
+      case 3:
+        assertArrayEquals([4, 5], val);
+        break;
+      case 4:
+        assertEquals(5, val);
+        break;
+      default:
+        fail('Called too many times');
+    }
+  }, that);
+
+  assertEquals(5, count);
+}
+
+function testSlice() {
+  var p = new Path('a.b.c.d');
+  assertEquals('a.b', p.slice(0, 2).toString());
+  assertEquals('b.c', p.slice(1, 3).toString());
+  assertEquals('b.c', p.slice(1, -1).toString());
+}
+
+function testEmpty() {
+  var p = new Path('');
+  assertEquals('', p.toString());
+
+  var p2 = p.concat('a', '', 'b');
+  assertEquals('a.b', p2.toString());
+
+  var p3 = Path.join('', 'a', p, 'b');
+  assertEquals('a.b', p3.toString());
+}
+
+function testAllow$InPath() {
+  var p = new Path('$foo');
+  assertEquals('$foo', p.toString());
+}
+
+</script>
+</body>
+</html>

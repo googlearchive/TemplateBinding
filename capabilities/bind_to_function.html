@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Bind To Function</title>
+<link rel="stylesheet" href="common_styles.css">
+<script src="include.js"></script>
+<style>
+.selected {
+  color: red;
+}
+</style>
+</head>
+<body>
+  <div class="example">
+    <h1>Bind To Function</h1>
+    <div class="content">
+      Click Us:
+      <ul>
+      <template iterate="people">
+        <li onclick="{{ clickHandler }}" class="{{ selected | toggle }}">
+          {{ name }}
+        </li>
+      </template>
+      </ul>
+    </div>
+  </div>
+
+<script>
+document.body.model = Model.get({
+  people: [
+    {
+      name: 'Un'
+    },
+    {
+      name: 'Duex'
+    },
+    {
+      name: 'Trois'
+    }
+  ]
+});
+
+function clickHandler() {
+  this.computedModel.selected = !this.computedModel.selected;
+}
+
+document.body.model.people.forEach(function(person) {
+  person.clickHandler = clickHandler;
+});
+</script>
+
+  <div class="comment">
+    <h1 onclick="alert(this)">Comment</h1>
+    <div class="content">
+      This example shows that it is possible to include functions directly
+      in the model which is bound to the DOM and bind those functions to
+      event handler attributes.
+    </div>
+  </div>
+</body>
+</html>
