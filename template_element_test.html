@@ -299,10 +299,12 @@ function testInstatiateWithModelScope() {
   // This tests that the presense of a modelScope attribute above a binding
   // doesn't cause an error to be thrown.
   div = createTestHtml('<template instantiate>' +
-      '<div modelScope="foo" hidden="">{{bar}}</div></template>');
+      '<div modelScope="foo" hidden="">{{ bar }}</div></template>');
   var m = div.model = Model.get({
-    s1: {val: 1}
+    foo: {bar: 'baz'}
   });
+  
+  assertEquals('baz', div.childNodes[1].childNodes[0].textContent);
 }
 
 function testIterateModelSet() {
