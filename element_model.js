@@ -17,19 +17,6 @@ var clearModelOwnerAndPathCache;
 
 (function() {
 
-if (!('parentElement' in document.createElement('div'))) {
-  Object.defineProperty(Node.prototype, 'parentElement', {
-    configurable: true,
-    enumerable: true,
-    get: function() {
-      var p = this.parentNode;
-      if (p && p.nodeType == Node.ELEMENT_NODE)
-        return p;
-      return null;
-    },
-  });
-}
-
 function handleDomNodeInserted(e) {
   // All bindings should have their source set at the root node, if they
   // are in need of an inherited model

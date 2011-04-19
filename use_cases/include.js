@@ -14,6 +14,7 @@
 
 document.write('<link rel="stylesheet" href="../template_element.css">');
 [
+  '../compat.js',
   '../forwarding_handler.js',
   '../weak_map.js',
   '../path.js',
