@@ -303,7 +303,7 @@ function testInstatiateWithModelScope() {
   var m = div.model = Model.get({
     foo: {bar: 'baz'}
   });
-  
+
   assertEquals('baz', div.childNodes[1].childNodes[0].textContent);
 }
 

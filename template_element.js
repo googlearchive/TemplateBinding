@@ -116,6 +116,12 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
   if (opt_templateScope)
     phantom.templateScope_ = opt_templateScope;
 
+  // This needs to happen first because the b.bindTo() below in
+  // case: 'bindings_' depends on it being set properly.
+  if ('modelScope' in desc) {
+    phantom.modelScope = desc.modelScope;
+  }
+
   for (var key in desc) {
     switch (key) {
       case 'bindings_':
@@ -129,8 +135,7 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
         break;
 
       case 'modelScope':
-        phantom.modelScope = desc.modelScope;
-        break;
+        break; // Already done above. Ignore.
 
       default:
         phantom[key] = createPhantomInstanceInner(desc[key], phantom);
