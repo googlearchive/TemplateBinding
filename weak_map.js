@@ -50,7 +50,7 @@ WeakMap.prototype = {
       return false;
     return this.keys_.indexOf(key) >= 0;
   },
-  delete: function(key) {
+  'delete': function(key) {
     if (this.keys_) {
       var index = this.keys_.indexOf(key);
       if (index >= 0) {

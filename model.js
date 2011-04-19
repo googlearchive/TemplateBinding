@@ -294,7 +294,7 @@ function Model() {
 
     pathValue.stopObserving(callback);
     if (!rootValue.hasObservers_) {
-      pathValueMap.delete(model);
+      pathValueMap['delete'](model);
     }
   };
 
@@ -430,7 +430,7 @@ function Model() {
   var handlerProto = {
     __proto__: ForwardingHandler.prototype,
 
-    delete: function(name) {
+    'delete': function(name) {
       var hasOwnProp = this.object.hasOwnProperty(name);
       if (!hasOwnProp)
         return true;
@@ -1102,7 +1102,7 @@ function Model() {
       } else {
         // Make sure the main pathValueMap isn't holding onto a dead root
         // PathValue.
-        pathValueMap.delete(this.value_);
+        pathValueMap['delete'](this.value_);
       }
       this.value_ = null;
       this.root_ = null;

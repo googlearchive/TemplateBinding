@@ -31,7 +31,7 @@ ForwardingHandler.prototype = {
   defineProperty: function(name, desc) {
     Object.defineProperty(this.object, name, desc);
   },
-  delete: function(name) {
+  'delete': function(name) {
     return delete this.object[name];
   },
   fix: function() {

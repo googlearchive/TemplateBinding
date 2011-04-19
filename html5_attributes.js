@@ -25,7 +25,7 @@ var getAtttributeKind = (function() {
   // http://simon.html5.org/html-elements
   const globalMap = {
     accesskey: true,
-    class: true,
+    'class': true,
     contenteditable: true,
     contextmenu: true,
     dir: true,
@@ -325,7 +325,7 @@ var getAtttributeKind = (function() {
     },
     label: {
       form: true,
-      for: true
+      'for': true
     },
     legend: {},
     li: {
@@ -387,7 +387,7 @@ var getAtttributeKind = (function() {
       value: true
     },
     output: {
-      for: true,
+      'for': true,
       form: true,
       name: true
     },
@@ -485,7 +485,7 @@ var getAtttributeKind = (function() {
       srclang: true
     },
     ul: {},
-    var: {},
+    'var': {},
     video: {
       src: true,
       poster: true,
@@ -506,7 +506,7 @@ var getAtttributeKind = (function() {
     autoplay: true,
     checked: true,
     controls: true,
-    default: true,
+    'default': true,
     defer: true,
     disabled: true,
     formnovalidate: true,
