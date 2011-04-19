@@ -29,6 +29,7 @@ function Model() {
   var unwrappedToWrapped = new WeakMap;
   var unwrappedToWrappedById = {};
   var observersMap = new WeakMap;
+  var observersById = {};
 
   function isObject(obj) {
     return obj === Object(obj);
@@ -50,6 +51,10 @@ function Model() {
   function getWrapped(unwrapped) {
     return unwrappedToWrappedById[unwrapped.__id__] ||
            unwrappedToWrapped.get(unwrapped);
+  }
+
+  function getObservers(model) {
+    return observersById[model.__id__] || observersMap.get(model);
   }
 
   /**
@@ -248,10 +253,13 @@ function Model() {
 
     var model = Model.get(data);
 
-    var observers = observersMap.get(model);
+    var observers = getObservers(model);
     if (!observers) {
       observers = [];
-      observersMap.set(model, observers);
+      if ('__id__' in model)
+        observersById[model.__id__] = observers;
+      else
+        observersMap.set(model, observers);
     }
 
     // Order of |observers| is significant. All internal observers
@@ -308,7 +316,7 @@ function Model() {
     if (!model)
       return;
 
-    var observers = observersMap.get(model);
+    var observers = getObservers(model);
     if (!observers)
       return;
 
@@ -323,8 +331,12 @@ function Model() {
     var change = {
       mutation: 'splice',
       index: index,
-      added: added,
-      removed: removed
+      added: added.map(function(item) {
+        return Model.get(item);
+      }),
+      removed: removed.map(function(item) {
+        return Model.get(item);
+      })
     };
 
     notifyChange(data, change);
@@ -345,10 +357,6 @@ function Model() {
       return;
 
     change.model = model;
-
-    // Make sure all observers see a model of the data changed,
-    // rather than the raw changes themselves.
-    change = Model.get(change);
 
     // The notification cycle here is:
     // 1) Notify all internal (observer.internal == true) observers. These will
@@ -420,8 +428,8 @@ function Model() {
     var change = {
       propertyName: propertyName,
       mutation: mutation,
-      oldValue: oldValue,
-      value: value
+      oldValue: Model.get(oldValue),
+      value: Model.get(value)
     }
 
     notifyChange(data, change);
@@ -695,14 +703,14 @@ function Model() {
     },
 
     trackedDidSplice: function(removed, added) {
-      // TODO: This is weak: added and removed are proxy objects.
-      // Because Array.isArray returns false for proxies of arrays,
-      // concat (below) doesn't do the right thing. So we have
-      // to unwrap the proxy in this case.
-      if (isModel(removed))
-        removed = wrappedToUnwrapped.get(removed);
-      if (isModel(added))
-        added = wrappedToUnwrapped.get(added);
+      // We want to operate on the added/removed items themselves, not their
+      // models: addObservers_/removeObservers_ depend on object identity.
+      removed = removed.map(function(item) {
+        return getUnwrapped(item) || item;
+      });
+      added = added.map(function(item) {
+        return getUnwrapped(item) || item;
+      });
 
       this.removeObservers_(removed);
       this.addObservers_(added);
