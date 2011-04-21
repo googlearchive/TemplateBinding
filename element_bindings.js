@@ -475,6 +475,13 @@ Binding.prototype = {
       console.error('Uncaught exception within binding: ', ex);
     }
 
+    // This target is always a value of a DOM node. In general assigning
+    // undefined to a DOM node value isn't of any use. null has the effect
+    // of removing an attribute, so we just assume that undefined is null
+    // for the DOM's purposes.
+    if (output === undefined)
+      output = null;
+
     setProperty(this.target_, this.property_, output);
   },
 

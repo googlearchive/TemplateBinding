@@ -69,7 +69,7 @@ function testSimpleBinding() {
   assertEquals(null, el.foo);
 
   el.model.a = undefined;
-  assertUndefined(el.foo);
+  assertNull(el.foo);
 }
 
 function testSimpleBindingAbsoluteRelativeAndCurrent() {
@@ -241,28 +241,28 @@ function testSimpleBindingChangeAncestorModelScope() {
     c: {c: {d: 3}},
   };
   assertObjectEquals({c: {d: 3}}, d3.foo);
-  assertUndefined(d3.bar);
-  assertUndefined(d3.baz);
+  assertNull(d3.bar);
+  assertNull(d3.baz);
 
   d1.modelScope = 'a';
   assertObjectEquals({d: 1}, d3.foo);
-  assertUndefined(d3.bar);
+  assertNull(d3.bar);
   assertEquals(1, d3.baz);
 
   d1.modelScope = 'b';
   assertObjectEquals({d: 2}, d3.foo);
-  assertUndefined(d3.bar);
+  assertNull(d3.bar);
   assertEquals(2, d3.baz);
 
   d2.modelScope = 'c';
-  assertUndefined(d3.foo);
+  assertNull(d3.foo);
   assertEquals(2, d3.bar);
-  assertUndefined(d3.baz);
+  assertNull(d3.baz);
 
   d1.modelScope = 'c';
-  assertUndefined(d3.foo);
+  assertNull(d3.foo);
   assertEquals(3, d3.bar);
-  assertUndefined(d3.baz);
+  assertNull(d3.baz);
 }
 
 function testBindToModelScope() {
@@ -397,7 +397,7 @@ function testDomTreeChanges() {
 
   d3.addBinding('foo', new Binding('a'));
 
-  assertUndefined(d3.foo);
+  assertNull(d3.foo);
 
   d1.model = {a: 1};
   d2.model = {a: 2};
@@ -446,7 +446,7 @@ function testInputElementTextBinding() {
 
   // Start with the model property being absent.
   delete m.a.b.c;
-  assertEquals('undefined', el.value);
+  assertEquals('', el.value);
 
   el.value = 'pong';
   dispatchEvent('input', el);
@@ -454,7 +454,7 @@ function testInputElementTextBinding() {
 
   // Model property unreachable (and unsettable).
   delete m.a.b;
-  assertEquals('undefined', el.value);
+  assertEquals('', el.value);
 
   el.value = 'pong';
   dispatchEvent('input', el);
@@ -741,10 +741,10 @@ function testExceptionInBinding() {
   var el = document.createElement('input');
   el.model = {a: '1'};
   el.addBinding('value', b);
-  assertEquals('undefined', el.value);
+  assertEquals('', el.value);
 
   el.model.a = '2';
-  assertEquals('undefined', el.value);
+  assertEquals('', el.value);
 
   dispatchEvent('input', el);
   assertEquals(undefined, el.model.a);
@@ -764,10 +764,10 @@ function testExceptionInTransform() {
   var el = document.createElement('input');
   el.model = {a: '1'};
   el.addBinding('value', b);
-  assertEquals('undefined', el.value);
+  assertEquals('', el.value);
 
   el.model.a = '2';
-  assertEquals('undefined', el.value);
+  assertEquals('', el.value);
 
   dispatchEvent('input', el);
   assertEquals(undefined, el.model.a);
