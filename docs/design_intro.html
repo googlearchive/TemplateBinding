@@ -12,28 +12,26 @@
 <code><pre>&lt;div id="example"&gt;
 Goals:
 &lt;ul&gt;
-&lt;template iterate="goals"&gt;
+&lt;template iterate&gt;
   &lt;li&gt;{{ goal }}&lt;/li&gt;
 &lt;/template&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 ...
 &lt;script&gt;
-document.querySelector('#example').model = {
-  goals: [
-    {goal: 'Fast'},
-    {goal: 'Safe'},
-    {goal: 'Stable'},
-    {goal: 'Simple'}
-  ]
-};
+document.querySelector('#example').model = [
+  {goal: 'Fast'},
+  {goal: 'Safe'},
+  {goal: 'Stable'},
+  {goal: 'Simple'}
+];
 &lt;/script&gt;
 </pre></code>
 
 <code><pre class="result">&lt;div id="example"&gt;
 Goals:
 &lt;ul&gt;
-&lt;template iterate="goals"&gt;&lt;/template&gt;
+&lt;template iterate&gt;&lt;/template&gt;
   &lt;li&gt;Fast&lt;/li&gt;
   &lt;li&gt;Safe&lt;/li&gt;
   &lt;li&gt;Stable&lt;/li&gt;
