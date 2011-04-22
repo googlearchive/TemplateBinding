@@ -47,8 +47,7 @@ data.person.name = 'James'; // No observers are fired. Only model objects are ob
 member lookup syntax in ECMAScript. Dot (<code>.</code>) and bracket
 (<code>[]</code>) notation are supported.</p>
 
-<code><pre>
-{"a": {"b": {"c": 42, "d": [97, 13]}}}
+<code><pre>{"a": {"b": {"c": 42, "d": [97, 13]}}}
 
 a.b.c => 42
 a.b.d[1] => 13
@@ -101,7 +100,7 @@ concat(path-a, path-b) => /d.e
 
 <h2>Model Objects</h2>
 
-<p>A <em>Model</em> object is a proxy for an underlying "raw" data object. The model can be read and written to as if it were the underlying object, but writes will cause observers to be notified of mutations. The object which the model is proxing is the <em>proxied object</em>. An object has at most one model and a model has at most one proxied object.  Models have the following behaviors.</p>
+<p>A <em>Model</em> object is a proxy for an underlying "raw" data object. The model can be read and written to as if it were the underlying object, but writes will cause observers to be notified of mutations. The object which the model is proxing is the <em>proxied object</em>. An object has at most one model and a model has at most one proxied object. Models have the following behaviors.</p>
 
 <ul>
 
@@ -136,7 +135,7 @@ concat(path-a, path-b) => /d.e
 <li>Mutations made to a raw object are never observable, even if a corresponding model object has been retrieved and observed.</li>
 </ul>
 
-<p class="todo">Clarify. The point here is that writes to models will fire notifications to observers. Further that the model attempts to maintain a wet/dry boundary for the models/proxied objects. The wet side is the "outside", i.e. traversing from a model will always return objects wrapped as models. The dry side is the "inside", i.e. functions of proxied objects (includding setters) should never see model objects, only proxied "raw" objects.</p>
+<p class="todo">Clarify. The point here is that writes to models will fire notifications to observers. Further that the model maintain a wet/dry boundary for the models/proxied objects. The wet side is the "outside", i.e. traversing from a model will always return objects wrapped as models. The dry side is the "inside", i.e. functions of proxied objects (including setters) should never see model objects, only proxied "raw" objects.</p>
 
 <p>Arrays objects behave like other objects with respect to models, except that Array fire <a href="#spliceMutation">"splice"</a> mutation events when index properties are affected.</p>
 
