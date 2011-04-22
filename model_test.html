@@ -771,7 +771,9 @@ function testInstanceOf() {
 }
 
 function testArrayModel() {
-  var m = Model.get([0, 1]);
+  var zero = {zero: 0};
+  var one = {one: 1};
+  var m = Model.get([zero, one]);
 
   var count = 0;
   Model.observeObject(m, function(c) {
@@ -779,14 +781,16 @@ function testArrayModel() {
     count++;
   });
 
-  m[0] = 'zero';
+  var two = {two: 2};
+  var three = {three: 3};
+  m[0] = two;
 
-  assertArrayEquals(['zero', 1], m);
+  assertArrayEquals(Model.get([two, one]), m);
   assertEquals(1, count);
 
-  m[1] = 'one';
+  m[1] = three;
 
-  assertArrayEquals(['zero', 'one'], m);
+  assertArrayEquals(Model.get([two, three]), m);
   assertEquals(2, count);
 }
 
@@ -906,7 +910,9 @@ function testArrayModelLength() {
 }
 
 function testArrayModelPush() {
-  var m = Model.get([0, 1]);
+  var zero = {zero: 0};
+  var one = {one: 1};
+  var m = Model.get([zero, one]);
 
   var expected = {};
   var count = 0;
@@ -918,14 +924,16 @@ function testArrayModelPush() {
     count++;
   });
 
+  var two = {two: 2};
+  var three = {three: 3};
   expected.mutation = 'splice';
   expected.index = 2;
   expected.removed = [];
-  expected.added = [2, 3];
+  expected.added = Model.get([two, three]);
 
-  m.push(2, 3);
+  m.push(two, three);
 
-  assertArrayEquals([0, 1, 2, 3], m);
+  assertArrayEquals(Model.get([zero, one, two, three]), m);
   assertEquals(1, count);
 
   m.push();
@@ -934,7 +942,9 @@ function testArrayModelPush() {
 }
 
 function testArrayModelPop() {
-  var m = Model.get([0, 1]);
+  var zero = {zero: 0};
+  var one = {one: 1};
+  var m = Model.get([zero, one]);
 
   var expected = {};
   var count = 0;
@@ -948,17 +958,17 @@ function testArrayModelPop() {
 
   expected.mutation = 'splice';
   expected.index = 1;
-  expected.removed = [1];
+  expected.removed = [Model.get(one)];
   expected.added = [];
 
-  assertEquals(1, m.pop());
-  assertArrayEquals([0], m);
+  assertEquals(Model.get(one), m.pop());
+  assertArrayEquals([Model.get(zero)], m);
   assertEquals(1, count);
 
   expected.index = 0;
-  expected.removed = [0];
+  expected.removed = [Model.get(zero)];
 
-  assertEquals(0, m.pop());
+  assertEquals(Model.get(zero), m.pop());
   assertArrayEquals([], m);
   assertEquals(2, count);
 
@@ -968,7 +978,9 @@ function testArrayModelPop() {
 }
 
 function testArrayModelShift() {
-  var m = Model.get([0, 1]);
+  var zero = {zero: 0};
+  var one = {one: 1};
+  var m = Model.get([zero, one]);
 
   var expected = {};
   var count = 0;
@@ -982,17 +994,17 @@ function testArrayModelShift() {
 
   expected.mutation = 'splice';
   expected.index = 0;
-  expected.removed = [0];
+  expected.removed = [Model.get(zero)];
   expected.added = [];
 
-  assertEquals(0, m.shift());
-  assertArrayEquals([1], m);
+  assertEquals(Model.get(zero), m.shift());
+  assertArrayEquals([Model.get(one)], m);
   assertEquals(1, count);
 
   expected.index = 0;
-  expected.removed = [1];
+  expected.removed = [Model.get(one)];
 
-  assertEquals(1, m.shift());
+  assertEquals(Model.get(one), m.shift());
   assertArrayEquals([], m);
   assertEquals(2, count);
 
@@ -1002,7 +1014,9 @@ function testArrayModelShift() {
 }
 
 function testArrayModelUnshift() {
-  var m = Model.get([0, 1]);
+  var zero = {zero: 0};
+  var one = {one: 1};
+  var m = Model.get([zero, one]);
 
   var expected = {};
   var count = 0;
@@ -1014,23 +1028,26 @@ function testArrayModelUnshift() {
     count++;
   });
 
+  var negOne = {negOne: -1};
   expected.mutation = 'splice';
   expected.index = 0;
   expected.removed = [];
-  expected.added = [-1];
+  expected.added = [Model.get(negOne)];
 
-  assertEquals(3, m.unshift(-1));
-  assertArrayEquals([-1, 0, 1], m);
+  assertEquals(3, m.unshift(negOne));
+  assertArrayEquals(Model.get([negOne, zero, one]), m);
   assertEquals(1, count);
 
-  expected.added = [-3, -2];
+  var negTwo = {negTwo: -2};
+  var negThree = {negThree: -3};
+  expected.added = Model.get([negThree, negTwo]);
 
-  assertEquals(5, m.unshift(-3, -2));
-  assertArrayEquals([-3, -2, -1, 0, 1], m);
+  assertEquals(5, m.unshift(negThree, negTwo));
+  assertArrayEquals(Model.get([negThree, negTwo, negOne, zero, one]), m);
   assertEquals(2, count);
 
   assertUndefined,(m.unshift());
-  assertArrayEquals([-3, -2, -1, 0, 1], m);
+  assertArrayEquals(Model.get([negThree, negTwo, negOne, zero, one]), m);
   assertEquals(2, count);
 }
 
@@ -1110,7 +1127,7 @@ function testArrayView() {
   assertEquals(12, count);
 }
 
-function testArrayViewComposite() {
+function testArrayViewObject() {
   var arr = [];
   var m = Model.get(arr);
 
