@@ -45,11 +45,8 @@ document.querySelector('#example').model = Model.get({ person: { name: 'Alice', 
 <code><pre>&lt;ol&gt;
   &lt;template iterate="things"&gt;&lt;li&gt;{{ name }} thing&lt;/li&gt;&lt;/template&gt;
   &lt;li&gt;First thing&lt;/li&gt;
-      &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;li&gt;Second thing&lt;/li&gt;
-      &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;li&gt;Thid thing&lt;/li&gt;
-      &lt;template-instance&gt;&lt;/template-instance&gt;
 &lt;/ol&gt;</pre></code>
 
 <h3>Template Instances</h3>
@@ -94,7 +91,6 @@ document.querySelector('#example').model = Model.get({ location: 'World' });
 <code><pre>&lt;div id='example'&gt;
   &lt;template instantiate&gt;&lt;span&gt;Hello, {{ location }}&lt;/span&gt;&lt;/template&gt;
   &lt;span&gt;Hello, World&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
 &lt;/div&gt;</pre></code>
 
 <h3 id="iterate">Iteration</h3>
@@ -129,11 +125,8 @@ document.querySelector('#example').model = Model.get({
   &lt;ol&gt;
   &lt;template iterate="pets"&gt;&lt;li&gt;{{ name }}&lt;/li&gt;&lt;/template&gt;
   &lt;li&gt;Snoopy&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;li&gt;Garfield&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;li&gt;Tweetie&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;/ol&gt;
 &lt;/div&gt;</pre></code>
 
@@ -165,11 +158,8 @@ document.querySelector('#example').model = Model.get({
   &lt;ol&gt;
   &lt;template src="#petTemplate" iterate="pets"&gt;&lt;/template&gt;
   &lt;li&gt;Snoopy&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;li&gt;Garfield&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;li&gt;Tweetie&lt;/span&gt;
-    &lt;template-instance&gt;&lt;/template-instance&gt;
   &lt;/ol&gt;
 &lt;/div&gt;</pre></code>
 
