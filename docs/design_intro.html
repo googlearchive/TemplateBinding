@@ -22,8 +22,8 @@ Goals:
 document.querySelector('#example').model = [
   {goal: 'Fast'},
   {goal: 'Safe'},
-  {goal: 'Stable'},
   {goal: 'Simple'}
+  {goal: 'Stable'},
 ];
 &lt;/script&gt;
 </pre></code>
@@ -34,8 +34,8 @@ Goals:
 &lt;template iterate&gt;&lt;/template&gt;
   &lt;li&gt;Fast&lt;/li&gt;
   &lt;li&gt;Safe&lt;/li&gt;
-  &lt;li&gt;Stable&lt;/li&gt;
   &lt;li&gt;Simple&lt;/li&gt;
+  &lt;li&gt;Stable&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
 </pre></code>
@@ -51,9 +51,9 @@ Goals:
 
 <ol>
 <li><em>Fast.</em> DOM updates should be at least as fast as (and ideally faster than) use of innerHTML, node.cloneNode(true) and direct use of the DOM APIs.</li>
-<li><em>Stable.</em> Transient state of DOM structures such as event handlers, user input and application-specific use of node properties should never be destroyed as a side effect of MDV's operations.</li>
 <li><em>Safe.</em> MDV should neither create new attack surfaces nor encourage practices in applications which do.</li>
 <li><em>Simple</em>. Dramatically reduce the amount of code required to wire up application logic and the DOM.</li>
+<li><em>Stable.</em> Transient state of DOM structures such as event handlers, user input and application-specific use of node properties should never be destroyed as a side effect of MDV's operations.</li>
 </ol>
 
 <h2>Design Overview</h2>
