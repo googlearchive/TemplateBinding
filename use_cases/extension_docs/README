@@ -1,0 +1,5 @@
+This directory contains a re-implementation of the chromium extension docs using the MDV library. The original is here: http://src.chromium.org/viewvc/chrome/trunk/src/chrome/common/extensions/docs/.
+
+The original uses the JSTemplate rendering library: http://code.google.com/p/google-jstemplate/.
+
+Note that the main page (tabs.html) loads its JSON data file via XHR and may not work via the file:// scheme (in chrome you can enable this via --allow-file-access-from-files).
