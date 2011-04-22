@@ -100,7 +100,7 @@ function Model() {
         var args = Array.prototype.map.call(arguments, function(arg) {
           return getUnwrapped(arg) || arg;
         });
-        return Model.get(object.apply(this, args));
+        return Model.get(object.apply(getUnwrapped(this), args));
       };
       var constructTrap = function() {
         var obj = Object.create(proxy.prototype);
@@ -534,20 +534,20 @@ function Model() {
     push: function(var_args) {
       var args = Array.prototype.slice.call(arguments);
       args.unshift(this.length, 0);
-      this.splice.apply(this, args);
+      getWrapped(this).splice.apply(this, args);
       return this.length;
     },
 
     pop: function() {
       if (this.length == 0)
         return undefined;
-      return this.splice(this.length - 1, 1)[0];
+      return getWrapped(this).splice(this.length - 1, 1)[0];
     },
 
     shift: function() {
       if (this.length == 0)
         return undefined;
-      return this.splice(0, 1)[0];
+      return getWrapped(this).splice(0, 1)[0];
     },
 
     unshift: function(var_args) {
@@ -556,7 +556,7 @@ function Model() {
       if (argc > 0) {
         var spliceArgs = Array.prototype.slice.call(arguments);
         spliceArgs.unshift(0, 0);
-        this.splice.apply(this, spliceArgs);
+        getWrapped(this).splice.apply(this, spliceArgs);
       }
 
       return length + argc;

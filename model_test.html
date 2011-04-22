@@ -638,7 +638,7 @@ function testDeleteOfNonConfigurable() {
 }
 
 function testModelWithFunctions() {
-  var m = Model.get({
+  var object = {
     innerObject: {},
     field: 42,
     method1: function() {
@@ -652,10 +652,12 @@ function testModelWithFunctions() {
     },
 
     modifyField: function() {
-      assertEquals(m, this);
+      // "this" is not wrapped
+      assertEquals(object, this);
       this.field++;
     }
-  });
+  };
+  var m = Model.get(object);
 
   assertEquals(42, m.field);
   assertEquals(42, m.method1());
@@ -680,7 +682,7 @@ function testModelWithFunctions() {
     count++;
   });
   m.modifyField();
-  assertEquals(2, count);
+  assertEquals(1, count);
 
   var innerObject = m.getInnerObject();
   Model.observeObject(innerObject, function(c) {
@@ -691,7 +693,7 @@ function testModelWithFunctions() {
                m.innerObject, innerObject);
 
   innerObject.x = 'y';
-  assertEquals(3, count);
+  assertEquals(2, count);
 }
 
 function testModelFunctionConstruct() {
@@ -724,19 +726,20 @@ function testModelFunctionConstruct() {
   object.test = 1;
   assertEquals(1, count);
 
+  // "this" is not wrapped
   object.change();
   assertEquals(2, object.test);
-  assertEquals(2, count);
+  assertEquals(1, count);
 
   // Internal change not observable.
   object.change2();
   assertEquals(3, object.test);
-  assertEquals(2, count);
+  assertEquals(1, count);
 
   // Arguments should be unwrapped.
   object.change3(Model.get({}));
   assertEquals(4, object.test);
-  assertEquals(3, count);
+  assertEquals(1, count);
 }
 
 function testModelFunctionConstructReturnObject() {
@@ -1049,6 +1052,20 @@ function testArrayModelUnshift() {
   assertUndefined,(m.unshift());
   assertArrayEquals(Model.get([negThree, negTwo, negOne, zero, one]), m);
   assertEquals(2, count);
+}
+
+function testArrayModelIndexOf() {
+  var zero = {zero: 0};
+  var one = {one: 1};
+  var m = Model.get([zero, one]);
+  var zeroModel = m[0];
+  var oneModel = m[1];
+
+  assertEquals(0, m.indexOf(zero));
+  assertEquals(0, m.indexOf(zeroModel));
+  assertEquals(1, m.indexOf(one));
+  assertEquals(1, m.indexOf(oneModel));
+  assertEquals(-1, m.indexOf({foo: 'bar'}));
 }
 
 function testArrayView() {
