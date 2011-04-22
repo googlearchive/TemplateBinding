@@ -10,7 +10,7 @@
 <p>This document lays out the design for Model-driven Views (MDV): A proposal for extending HTML and the DOM APIs to support a sensible separation between the UI (DOM) of a document or application and its underlying data (model). Updates to the model are reflected in the DOM and user input into the DOM is immediately assigned to the model.</p>
 
 <code><pre>&lt;div id="example"&gt;
-&lt;span&gt;Goals:&lt;/span&gt;
+Goals:
 &lt;ul&gt;
 &lt;template iterate="goals"&gt;
   &lt;li&gt;{{ goal }}&lt;/li&gt;
@@ -24,7 +24,6 @@ document.querySelector('#example').model = {
     {goal: 'Fast'},
     {goal: 'Safe'},
     {goal: 'Stable'},
-    {goal: '~='},
     {goal: 'Simple'}
   ]
 };
@@ -32,13 +31,12 @@ document.querySelector('#example').model = {
 </pre></code>
 
 <code><pre class="result">&lt;div id="example"&gt;
-&lt;span&gt;Goals:&lt;/span&gt;
+Goals:
 &lt;ul&gt;
 &lt;template iterate="goals"&gt;&lt;/template&gt;
   &lt;li&gt;Fast&lt;/li&gt;
   &lt;li&gt;Safe&lt;/li&gt;
   &lt;li&gt;Stable&lt;/li&gt;
-  &lt;li&gt;~=&lt;/li&gt;
   &lt;li&gt;Simple&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
@@ -57,11 +55,10 @@ document.querySelector('#example').model = {
 <li><em>Fast.</em> DOM updates should be at least as fast as (and ideally faster than) use of innerHTML, node.cloneNode(true) and direct use of the DOM APIs.</li>
 <li><em>Stable.</em> Transient state of DOM structures such as event handlers, user input and application-specific use of node properties should never be destroyed as a side effect of MDV's operations.</li>
 <li><em>Safe.</em> MDV should neither create new attack surfaces nor encourage practices in applications which do.</li>
-<li><em>Has equivalently powerful declarative and imperative APIs.</em></li>
 <li><em>Simple</em>. Dramatically reduce the amount of code required to wire up application logic and the DOM.</li>
 </ol>
 
-<h2>Design Overview</h3>
+<h2>Design Overview</h2>
 
 <p>The overall design for MDV has five main components</p>
 
