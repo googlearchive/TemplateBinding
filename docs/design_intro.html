@@ -9,33 +9,39 @@
 
 <p>This document lays out the design for Model-driven Views (MDV): A proposal for extending HTML and the DOM APIs to support a sensible separation between the UI (DOM) of a document or application and its underlying data (model). Updates to the model are reflected in the DOM and user input into the DOM is immediately assigned to the model.</p>
 
-<code><pre>&lt;div&nbsp;id="example"&gt;
+<code><pre>&lt;div id="example"&gt;
 &lt;span&gt;Goals:&lt;/span&gt;
 &lt;ul&gt;
-&lt;template&nbsp;iterate="goals"&gt;
-&nbsp;&nbsp;&lt;li&gt;{{&nbsp;./&nbsp;}}&lt;/li&gt;
+&lt;template iterate="goals"&gt;
+  &lt;li&gt;{{ goal }}&lt;/li&gt;
 &lt;/template&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
+...
 &lt;script&gt;
-document.querySelector('#example').model&nbsp;=&nbsp;Model.get({goals:&nbsp;["Fast",&nbsp;"Safe",&nbsp;"Stable",&nbsp;"~=",&nbsp;"Simple"]});
+document.querySelector('#example').model = {
+  goals: [
+    {goal: 'Fast'},
+    {goal: 'Safe'},
+    {goal: 'Stable'},
+    {goal: '~='},
+    {goal: 'Simple'}
+  ]
+};
 &lt;/script&gt;
 </pre></code>
 
-<code><pre class="result">&lt;div&nbsp;id="example"&gt;
+<code><pre class="result">&lt;div id="example"&gt;
 &lt;span&gt;Goals:&lt;/span&gt;
 &lt;ul&gt;
-&lt;template&nbsp;iterate="goals"&gt;&lt;/template&gt;
-&nbsp;&nbsp;&lt;li&gt;Fast&lt;/li&gt;
-&nbsp;&nbsp;&lt;li&gt;Safe&lt;/li&gt;
-&nbsp;&nbsp;&lt;li&gt;Stable&lt;/li&gt;
-&nbsp;&nbsp;&lt;li&gt;~=&lt;/li&gt;
-&nbsp;&nbsp;&lt;li&gt;Simple&lt;/li&gt;
+&lt;template iterate="goals"&gt;&lt;/template&gt;
+  &lt;li&gt;Fast&lt;/li&gt;
+  &lt;li&gt;Safe&lt;/li&gt;
+  &lt;li&gt;Stable&lt;/li&gt;
+  &lt;li&gt;~=&lt;/li&gt;
+  &lt;li&gt;Simple&lt;/li&gt;
 &lt;/ul&gt;
 &lt;/div&gt;
-&lt;script&gt;
-document.querySelector('#example').model&nbsp;=&nbsp;Model.get({goals:&nbsp;["Fast",&nbsp;"Safe",&nbsp;"Stable",&nbsp;"~=",&nbsp;"Simple"]});
-&lt;/script&gt;
 </pre></code>
 
 <p class="todo">Implement &lt;!--template-delimiter--&gt; in prototype and update code samples.</p>
