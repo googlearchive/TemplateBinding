@@ -435,7 +435,7 @@ function Model() {
     notifyChange(data, change);
   };
 
-  var handlerProto = {
+  var handlerProto = createObject({
     __proto__: ForwardingHandler.prototype,
 
     'delete': function(name) {
@@ -501,7 +501,7 @@ function Model() {
 
       return true;
     }
-  };
+  });
 
   /**
    * This object provides implementations of some of the Array methods so that
@@ -563,7 +563,7 @@ function Model() {
     }
   };
 
-  var arrayHandlerProto = {
+  var arrayHandlerProto = createObject({
     __proto__: handlerProto,
 
     batchCount_: 0,
@@ -637,9 +637,9 @@ function Model() {
 
       return handlerProto.set.apply(this, arguments);
     }
-  };
+  });
 
-  var arrayViewHandlerProto = {
+  var arrayViewHandlerProto = createObject({
     __proto__: arrayHandlerProto,
 
     init: function(tracked, sortFunc, filterFunc, paths) {
@@ -844,7 +844,7 @@ function Model() {
         });
       });
     }
-  }
+  });
 
   function checkIsValid(pathValue) {
     if (!pathValue.valid)

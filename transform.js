@@ -26,7 +26,7 @@ function PresentTransform() {}
 
 Transform.registry = {};
 
-IdentityTransform.prototype = {
+IdentityTransform.prototype = createObject({
   __proto__: Transform.prototype,
   toTarget: function(source, sourceName, targetNode, propertyName) {
     return source;
@@ -35,9 +35,9 @@ IdentityTransform.prototype = {
   toSource: function(target, sourceName, targetNode, propertyName) {
     return target;
   }
-}
+});
 
-ToggleTransform.prototype = {
+ToggleTransform.prototype = createObject({
   __proto__: IdentityTransform.prototype,
 
   toTarget: function(source, sourceName) {
@@ -47,11 +47,11 @@ ToggleTransform.prototype = {
   toSource: function(target, sourceName) {
     return (this.value || sourceName) == target;
   }
-};
+});
 
 Transform.registry.toggle = ToggleTransform;
 
-CurrencyTransform.prototype = {
+CurrencyTransform.prototype = createObject({
   __proto__: IdentityTransform.prototype,
   pattern: /^\$?([-\d\.]*)$/,
 
@@ -64,21 +64,21 @@ CurrencyTransform.prototype = {
     var m = target.match(this.pattern) || {};
     return Number(m[1]);
   }
-};
+});
 
 Transform.registry.currency = CurrencyTransform;
 
-NumberTransform.prototype = {
+NumberTransform.prototype = createObject({
   __proto__: IdentityTransform.prototype,
 
   toSource: function(target) {
     return Number(target);
   }
-};
+});
 
 Transform.registry.number = NumberTransform;
 
-AbsentTransform.prototype = {
+AbsentTransform.prototype = createObject({
   __proto__: IdentityTransform.prototype,
 
   toTarget: function(source) {
@@ -86,17 +86,17 @@ AbsentTransform.prototype = {
       return !source.length;
     return !source;
   }
-}
+});
 
 Transform.registry.absent = AbsentTransform;
 
-PresentTransform.prototype = {
+PresentTransform.prototype = createObject({
   __proto__: IdentityTransform.prototype,
 
   toTarget: function(source) {
     return !AbsentTransform.prototype.toTarget(source);
   }
-}
+});
 
 Transform.registry.present = PresentTransform;
 

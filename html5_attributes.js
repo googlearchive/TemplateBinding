@@ -23,7 +23,7 @@ var getAtttributeKind = (function() {
 
   // This is generated using data from:
   // http://simon.html5.org/html-elements
-  const globalMap = {
+  var globalMap = {
     accesskey: true,
     'class': true,
     contenteditable: true,
@@ -47,7 +47,7 @@ var getAtttributeKind = (function() {
 
   // This is generated using data from:
   // http://simon.html5.org/html-elements
-  const eventHandlerMap = {
+  var eventHandlerMap = {
     onabort: true,
     onblur: true,
     oncanplay: true,

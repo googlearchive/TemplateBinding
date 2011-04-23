@@ -296,9 +296,9 @@ BindingSource.prototype = {
   }
 }
 
-const JS_PROP = 1;
-const ATTR = 2;
-const BOOL_ATTR = 3;
+var JS_PROP = 1;
+var ATTR = 2;
+var BOOL_ATTR = 3;
 
 function getPropertyKind(object, name) {
   if (object instanceof Element) {
@@ -525,7 +525,7 @@ Binding.prototype = {
   }
 };
 
-PlaceHolderBinding.prototype = {
+PlaceHolderBinding.prototype = createObject({
   __proto__: Binding.prototype,
 
   get sources() {
@@ -589,6 +589,6 @@ PlaceHolderBinding.prototype = {
 
     return results.join('');
   }
-}
+});
 
 })();

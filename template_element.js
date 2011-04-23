@@ -274,17 +274,34 @@ HTMLTemplateElement = function() {
   return el;
 };
 
+function isHTMLTemplateElement(el) {
+  return el instanceof HTMLTemplateElement ||
+      el.decorate === HTMLTemplateElement.prototype.decorate;
+}
+
+var hasProto = '__proto__' in {};
+
+function copyOwnProperties(from, to) {
+  Object.getOwnPropertyNames(from).forEach(function(name) {
+    Object.defineProperty(to, name,
+                          Object.getOwnPropertyDescriptor(from, name));
+  });
+}
+
 HTMLTemplateElement.decorate = function(el) {
   if (el instanceof HTMLTemplateElement)
     return;
 
-  el.__proto__ = HTMLTemplateElement.prototype;
+  if (hasProto)
+    el.__proto__ = HTMLTemplateElement.prototype;
+  else
+    copyOwnProperties(HTMLTemplateElement.prototype, el);
   el.decorate();
 };
 
 var htmlElement = this.HTMLUnknownElement || HTMLElement;
 
-HTMLTemplateElement.prototype = {
+HTMLTemplateElement.prototype = createObject({
   // Gecko is more picky with the prototype than WebKit. Make sure to use the
   // same prototype as created in the constructor.
   __proto__: htmlElement.prototype,
@@ -344,7 +361,7 @@ HTMLTemplateElement.prototype = {
 
     this.templateIterator.start();
   }
-};
+});
 
 
 /**
@@ -661,7 +678,7 @@ function TemplateInstance(iterator, templateScope) {
       createPhantomInstance(bindingDescriptions, parentNode, templateScope);
 }
 
-TemplateInstance.prototype = {
+TemplateInstance.prototype = createObject({
   next: null,
   previous: null,
 
@@ -820,6 +837,6 @@ TemplateInstance.prototype = {
     });
     this.dirtyTemplateScope_ = false;
   }
-};
+});
 
 })();

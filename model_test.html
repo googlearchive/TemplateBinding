@@ -521,11 +521,11 @@ function testSetSame() {
 }
 
 function testSetToSameAsPrototype() {
-  var m = Model.get({
+  var m = Model.get(createObject({
     __proto__: {
       id: 1
     }
-  });
+  }));
   var fired = false;
   Model.observeObject(m, function(c) {
     fired = true;
@@ -567,11 +567,11 @@ function testSetUndefined() {
 }
 
 function testSetShadows() {
-  var m = Model.get({
+  var m = Model.get(createObject({
     __proto__: {
       x: 1
     }
-  });
+  }));
 
   var count = 0;
   Model.observeObject(m, function(c) {
@@ -586,12 +586,12 @@ function testSetShadows() {
 }
 
 function testDeleteWithSameValueOnPrototype() {
-  var m = Model.get({
+  var m = Model.get(createObject({
     __proto__: {
       x: 1,
     },
     x: 1
-  });
+  }));
 
   var fired = false;
   Model.observeObject(m, function(c) {
@@ -602,12 +602,12 @@ function testDeleteWithSameValueOnPrototype() {
 }
 
 function testDeleteWithDifferentValueOnPrototype() {
-  var m = Model.get({
+  var m = Model.get(createObject({
     __proto__: {
       x: 1,
     },
     x: 2
-  });
+  }));
 
   var count = 0;
   Model.observeObject(m, function(c) {

@@ -32,12 +32,12 @@ function getProxyAndObject() {
     c: 'c',
     d: 'd',
   };
-  var object = {
+  var object = createObject({
     __proto__: proto,
     proto: proto,
     a: 'a',
     b: 'c',
-  };
+  });
   return [object, Proxy.create(new ForwardingHandler(object))];
 }
 

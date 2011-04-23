@@ -210,9 +210,9 @@ function UnaryConstraint(output, opt_func) {
   });
 }
 
-UnaryConstraint.prototype = {
+UnaryConstraint.prototype = createObject({
   __proto__: Constraint.prototype
-};
+});
 
 function BinaryConstraint(a, b, opt_aFunc, opt_bFunc) {
   // If opt_aFunc is a string and opt_bFunc is missing, assume both are
@@ -226,9 +226,9 @@ function BinaryConstraint(a, b, opt_aFunc, opt_bFunc) {
   });
 }
 
-BinaryConstraint.prototype = {
+BinaryConstraint.prototype = createObject({
   __proto__: Constraint.prototype
-};
+});
 
 function Planner(opts) {
   opts = opts || {};
@@ -237,7 +237,7 @@ function Planner(opts) {
   this.stayFunc = opts.stayFunc;
 };
 
-Planner.prototype = {
+Planner.prototype = createObject({
   //__proto__: cr.EventTarget.prototype,
 
   plan_: null,
@@ -372,7 +372,7 @@ Planner.prototype = {
       }());
     }.bind(this));
   }
-}
+});
 
 /**
  * Whether the planner is currently executing.
