@@ -63,3 +63,26 @@ var createObject = ('__proto__' in {}) ?
       });
       return newObject;
     };
+
+
+// IE does not support the hidden attribute/property.
+if (typeof document.createElement('div').hidden != 'boolean') {
+  Object.defineProperty(HTMLElement.prototype, 'hidden', {
+    get: function() {
+      return this.hasAttribute('hidden');
+    },
+    set: function(b) {
+      if (b)
+        this.setAttribute('hiddnen', '');
+      else
+        this.removeAttribute('hidden');
+    },
+    enumerable: true,
+    configurable: true
+  });
+
+  // Add default styling.
+  var styleElement = document.createElement('style');
+  styleElement.textContent = '[hidden] { display: none }';
+  document.head.appendChild(styleElement);
+}
