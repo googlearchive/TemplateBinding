@@ -33,40 +33,44 @@ limitations under the License.
 
 </head>
 <body>
-<div>
-<template iterate>
+<div id="listContainer">
+  <div class="itemRow">
+    <div><em onclick="getView('name')">Name</em></div>
+    <div><em onclick="getView('price')">Price</em></div>
+  </div>
+  <template iterate>
   <div class="itemRow {{ selected | toggle }}"
        onclick="focusExistingProduct(this.computedModel);">
     <div>{{ name }}</div>
     <div>{{ price | currency }}</div>
   </div>
-</template>
+  </template>
 <button onclick="addNewItem();">Create New</button>
 </div>
 
 <hr>
 
-<template instantiate>
-  <div id="detailContainer">
+<div id="detailContainer">
+  <template instantiate>
     <label>Product Name <input value="{{ name }}"></label>
     <label>Price <input value="{{ price }}"></label>
     <button onclick="deleteItem(this.computedModel);">Delete</button>
-  </div>
-</template>
+  </template>
+</div>
 
 <script>
 
 function addNewItem() {
   var newItem = Model.get({price: 0, name: ''});
-  model.push(newItem);
+  items.push(newItem);
   focusExistingProduct(newItem);
 }
 
 function deleteItem(item) {
-  var index = model.indexOf(item);
-  model.splice(index, 1);
-  index = Math.min(index, model.length - 1);
-  focusExistingProduct(model[index]);
+  var index = items.indexOf(item);
+  items.splice(index, 1);
+  index = Math.min(index, items.length - 1);
+  focusExistingProduct(items[index]);
 }
 
 var selectedItem;
@@ -78,14 +82,17 @@ function focusExistingProduct(item) {
     selectedItem.selected = false;
   }
 
-  var index = model.indexOf(item);
+  var index = listContainer.model.indexOf(item);
   item.selected = !item.selected;
   selectedItem = item;
 
-  document.getElementById('detailContainer').modelScope = index;
+  detailContainer.model = item;
 }
 
-var model = document.body.model = Model.get([
+var listContainer = document.getElementById('listContainer');
+var detailContainer = document.getElementById('detailContainer');
+
+var items = Model.get([
   {
     name: 'GrillMaster 2000',
     price: 199.99
@@ -100,8 +107,26 @@ var model = document.body.model = Model.get([
   }
 ]);
 
+var sortProp = '';
+function sortFunc(a, b) {
+  switch (sortProp) {
+    case 'name':
+      return a.name.localeCompare(b.name);
+    case 'price':
+      return a.price - b.price;
+  }
+}
+
+function getView(prop) {
+  if (sortProp != prop) {
+    sortProp = prop;
+    listContainer.model = Model.getView(items, sortFunc, null, ['name', 'price']);
+  }
+}
+
 window.onload = function() {
-  focusExistingProduct(model[0]);
+  getView('name');
+  focusExistingProduct(listContainer.model[0]);
 }
 
 </script>
