@@ -81,6 +81,7 @@ function Model() {
     if (!proxiesImplemented)
       return object;
 
+    var handler;
     if (Array.isArray(object)) {
       if (opt_sortFunc || opt_filterFunc) {
         handler = Object.create(arrayViewHandlerProto);
