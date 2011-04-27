@@ -73,7 +73,7 @@ if (typeof document.createElement('div').hidden != 'boolean') {
     },
     set: function(b) {
       if (b)
-        this.setAttribute('hiddnen', '');
+        this.setAttribute('hidden', '');
       else
         this.removeAttribute('hidden');
     },
