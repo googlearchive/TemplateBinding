@@ -925,7 +925,7 @@ function Model() {
      *     observed value is requested
      */
     expectValue: function(callback, value) {
-      this.checkValid_;
+      checkIsValid(this);
       var index = getObserverIndex(this.observers_, callback);
       if (index < 0)
         return;

@@ -1222,6 +1222,30 @@ function testArrayViewObject() {
   assertEquals(12, count);
 }
 
+function testExpectValue() {
+  var m = Model.get({a: 1});
+  var count = 0;
+  function counter(value, oldValue) {
+    count++;
+  }
+  var pathValue = Model.observe(m, 'a', counter);
+
+  m.a = 2;
+  assertEquals(1, count);
+
+  pathValue.expectValue(counter, 3);
+  m.a = 3;
+  assertEquals(1, count);
+
+  Model.stopObserving(m, 'a', counter);
+  try {
+    pathValue.expectValue(counter, 3);
+    fail('expectValue should throw if called on an invalid PathValue');
+  } catch (e) {
+    // expected an exception to be thrown
+  }
+}
+
 </script>
 </body>
 </html>
