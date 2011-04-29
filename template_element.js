@@ -571,6 +571,17 @@ TemplateIterator.prototype = {
       instance.syncDom();
     });
     this.instancesToRemove_ = [];
+
+    if (this.instanceTerminator_) {
+      this.templateElement.parentNode.removeChild(this.instanceTerminator_);
+      this.instanceTerminator_ = null;
+    }
+
+    if (isIterateTemplate(this) && this.firstInstance_) {
+      this.instanceTerminator_ = document.createComment('template-iterator');
+      this.templateElement.parentNode.insertBefore(
+          this.instanceTerminator_, this.lastManagedNode.nextSibling);
+    }
   },
 
   /**
@@ -752,6 +763,10 @@ TemplateInstance.prototype = createObject({
       transferBindingsToNode(node, this.phantomBindings_[i], templateScope);
       this.nodes.push(node);
     }
+
+    var instanceTerminator = document.createComment('template-instance');
+    parentNode.insertBefore(instanceTerminator, refNode);
+    this.nodes.push(instanceTerminator);
 
     for (var i = 0; i < this.nodes.length; i++) {
       var node = this.nodes[i];

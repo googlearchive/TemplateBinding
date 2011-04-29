@@ -116,11 +116,12 @@ function testDecorated() {
 
   assertEquals(4, modelContainer.children.length);
 
-  // 5 to start with plus 3 per template instantiation.
-  assertEquals(5 + 2 * 3, modelContainer.childNodes.length);
+  // 5 to start with plus 3 per template instantiation, plus
+  // terminator comment nodes.
+  assertEquals(5 + 2 * 3 + 2, modelContainer.childNodes.length);
 
   assertEquals('P', modelContainer.childNodes[3].tagName);
-  assertEquals('P', modelContainer.childNodes[8].tagName);
+  assertEquals('P', modelContainer.childNodes[9].tagName);
 }
 
 function testDefaultStyles() {
@@ -189,12 +190,12 @@ function testInstantiateChanged() {
   var t = div.firstChild;
   div.model = data;
 
-  assertEquals(2, div.childNodes.length);
+  assertEquals(3, div.childNodes.length);
   assertEquals('Hi Leela', t.nextSibling.textContent);
 
   t.instantiate = 'XZ';
 
-  assertEquals(2, div.childNodes.length);
+  assertEquals(3, div.childNodes.length);
   assertEquals('Hi Zoidberg', t.nextSibling.textContent);
 }
 
@@ -227,10 +228,13 @@ var div;
 var t;
 
 function assertNodesAre() {
-  // <template> is at index 0 and instances starts at 1 and use 1 node each.
+  // <template> is at index 0 and instances starts at 1 and use 2 nodes each.
   var startIndex = 1;
-  var nodesPerInstance = 1;
-  assertEquals(arguments.length + startIndex, div.childNodes.length);
+  var nodesPerInstance = 2;
+  assertEquals(
+      arguments.length * nodesPerInstance
+      + startIndex + (arguments.length ? 1 : 0),
+      div.childNodes.length);
   var model = Model.get(div.computedModel, t.iterate);
 
   for (var i = 0; i < arguments.length; i++) {
@@ -380,23 +384,23 @@ function testIterateReuse() {
 
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
   var node1 = div.childNodes[1];
-  var node2 = div.childNodes[2];
-  var node3 = div.childNodes[3];
+  var node2 = div.childNodes[3];
+  var node3 = div.childNodes[5];
 
   m.splice(1, 1, {name: 'Erik'});
   assertNodesAre('Hi Raf', 'Hi Erik', 'Hi Neal');
   assertEquals('model[0] did not change so the node should not have changed',
                node1, div.childNodes[1]);
-  assertNotEquals('Should not reuse when replacing', node2, div.childNodes[2]);
+  assertNotEquals('Should not reuse when replacing', node2, div.childNodes[3]);
   assertEquals('model[2] did not change so the node should not have changed',
-               node3, div.childNodes[3]);
+               node3, div.childNodes[5]);
 
-  node2 = div.childNodes[2];
+  node2 = div.childNodes[3];
   m.splice(0, 0, {name: 'Alex'});
   assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Erik', 'Hi Neal');
-  assertEquals('Should reuse node1', node1, div.childNodes[2]);
-  assertEquals('Should reuse node2', node2, div.childNodes[3]);
-  assertEquals('Should reuse node3', node3, div.childNodes[4]);
+  assertEquals('Should reuse node1', node1, div.childNodes[3]);
+  assertEquals('Should reuse node2', node2, div.childNodes[5]);
+  assertEquals('Should reuse node3', node3, div.childNodes[7]);
 }
 
 function testTwoLevelsDeepBug() {
@@ -422,8 +426,8 @@ function testIterateDoesNotCallFormat() {
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
   var child1 = div.childNodes[1];
-  var child2 = div.childNodes[2];
-  var child3 = div.childNodes[3];
+  var child2 = div.childNodes[3];
+  var child3 = div.childNodes[5];
   var b1 = child1.bindings_['textContent'];
   var b2 = child2.bindings_['textContent'];
   var b3 = child3.bindings_['textContent'];
@@ -543,17 +547,22 @@ function nestedIterateInstantiateHelper(s, start) {
   assertEquals('1', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('11', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('2', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('22', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-iterator', div.childNodes[i++].textContent);
 
   m.a[1] = {
     b: 3,
     c: {d: 33}
   };
 
-  assertEquals('3', div.childNodes[start + 3].textContent);
-  assertEquals('33', div.childNodes[start + 5].textContent);
+  assertEquals('3', div.childNodes[start + 5].textContent);
+  assertEquals('33', div.childNodes[start + 7].textContent);
 }
 
 function testNestedIterateInstantiate() {
@@ -599,11 +608,19 @@ function nestedIterateIterateHelper(s, start) {
   assertEquals('1', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('11', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('12', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-iterator', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('2', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('21', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('22', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-iterator', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
 
   m.a[1] = {
     b: 3,
@@ -611,10 +628,10 @@ function nestedIterateIterateHelper(s, start) {
   };
 
   i = start + 4;
-  assertEquals('3', div.childNodes[start + 4].textContent);
-  assertEquals('31', div.childNodes[start + 6].textContent);
-  assertEquals('32', div.childNodes[start + 7].textContent);
-  assertEquals('33', div.childNodes[start + 8].textContent);
+  assertEquals('3', div.childNodes[start + 8].textContent);
+  assertEquals('31', div.childNodes[start + 10].textContent);
+  assertEquals('32', div.childNodes[start + 12].textContent);
+  assertEquals('33', div.childNodes[start + 14].textContent);
 }
 
 function testNestedIterateIterate() {
@@ -678,8 +695,14 @@ function testNestedIterateSelfRef() {
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('Item 1.1.1', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-iterator', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('Item 1.2', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('template-iterator', div.childNodes[i++].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('Item 2', div.childNodes[i++].textContent);
 
   m[0] = {
@@ -689,7 +712,7 @@ function testNestedIterateSelfRef() {
   i = 1;
   assertEquals('Item 1 changed', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
-  assertEquals('Item 2', div.childNodes[i++].textContent);
+  assertEquals('Item 2', div.childNodes[i + 1].textContent);
 }
 
 function testDeepNested() {
@@ -806,16 +829,16 @@ function testInstantiateNested() {
     }
   });
 
-  assertEquals(5, div.childNodes.length);
+  assertEquals(7, div.childNodes.length);
   assertEquals('Name: Hermes', div.childNodes[1].textContent);
   assertEquals('Wife: LaBarbara', div.childNodes[3].textContent);
 
   m.child = {name: 'Dwight'};
-  assertEquals(6, div.childNodes.length);
-  assertEquals('Child: Dwight', div.childNodes[5].textContent);
+  assertEquals(9, div.childNodes.length);
+  assertEquals('Child: Dwight', div.childNodes[6].textContent);
 
   delete m.wife;
-  assertEquals(5, div.childNodes.length);
+  assertEquals(7, div.childNodes.length);
   assertEquals('Child: Dwight', div.childNodes[4].textContent);
 }
 
@@ -833,16 +856,16 @@ function testInstantiateRecursive() {
     }
   });
 
-  assertEquals(5, div.childNodes.length);
+  assertEquals(7, div.childNodes.length);
   assertEquals('Name: Fry', div.childNodes[1].textContent);
   assertEquals('Name: Bender', div.childNodes[3].textContent);
 
   m.friend.friend = {name: 'Leela'};
-  assertEquals(7, div.childNodes.length);
+  assertEquals(10, div.childNodes.length);
   assertEquals('Name: Leela', div.childNodes[5].textContent);
 
   m.friend = {name: 'Leela'};
-  assertEquals(5, div.childNodes.length);
+  assertEquals(7, div.childNodes.length);
   assertEquals('Name: Leela', div.childNodes[3].textContent);
 }
 
@@ -864,17 +887,17 @@ function testChangeFromInstantiateToIterate() {
     ]
   };
 
-  assertEquals(2, div.childNodes.length);
+  assertEquals(3, div.childNodes.length);
   assertEquals('3', div.childNodes[1].textContent);
 
   template.iterate = 'a';
-  assertEquals(4, div.childNodes.length);
+  assertEquals(8, div.childNodes.length);
   assertEquals('0', div.childNodes[1].textContent);
-  assertEquals('1', div.childNodes[2].textContent);
-  assertEquals('2', div.childNodes[3].textContent);
+  assertEquals('1', div.childNodes[3].textContent);
+  assertEquals('2', div.childNodes[5].textContent);
 
   template.instantiate = 'a[1].b';
-  assertEquals(2, div.childNodes.length);
+  assertEquals(3, div.childNodes.length);
   assertEquals('4', div.childNodes[1].textContent);
 }
 
@@ -894,9 +917,9 @@ function testChangeRefId() {
 
   div.model.push(1, 2);
 
-  assertEquals(7, div.childNodes.length);
+  assertEquals(12, div.childNodes.length);
   assertEquals('a:1', div.childNodes[4].textContent);
-  assertEquals('a:2', div.childNodes[6].textContent);
+  assertEquals('a:2', div.childNodes[8].textContent);
 }
 
 function testBindingRepresentation() {
