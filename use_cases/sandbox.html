@@ -24,6 +24,15 @@ body, html {
   padding: 0;
 }
 
+textarea {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border: 0;
+  padding: 0;
+  resize: none;
+}
+
 .box {
   font-family: Monaco, 'DejaVu Sans Mono', 'Bitstream Vera Sans Mono', 'Lucida Console', monospace;
   font-size: 80%;
@@ -81,8 +90,8 @@ window.onload = function() {
   exampleElm = document.getElementById('example');
 
   var query = decodeQuery(getFragment());
-  markupElm.innerText = query.markup || '';
-  dataElm.innerText = query.data || '';
+  markupElm.value = query.markup || '';
+  dataElm.value = query.data || '';
   update();
 }
 
@@ -93,8 +102,8 @@ function reval() {
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
 function update() {
-  markup = markupElm.innerText;
-  data = dataElm.innerText;
+  markup = markupElm.value;
+  data = dataElm.value;
 
   var query = {};
   query.markup = markup;
@@ -169,14 +178,18 @@ function escapeHTML(raw) {
 </head>
 <body>
   <div id="tl" class="container">
-    <pre id="markup" onkeydown="reval();" class="box" contenteditable></pre>
+    <div>
+      <textarea id="markup" onkeydown="reval();" class="box"></textarea>
+    </div>
   </div>
 
   <div id="tr" class="container">
-    <pre id="data" onkeydown="reval();" class="box" contenteditable></pre>
+    <div>
+      <textarea id="data" onkeydown="reval();" class="box"></textarea>
+    </div>
   </div>
 
-   <div id="bl" class="container">
+  <div id="bl" class="container">
     <div id="example" class="box"></div>
   </div>
 
