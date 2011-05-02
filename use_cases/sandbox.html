@@ -73,6 +73,10 @@ textarea {
   bottom: 0;
   right: 0;
 }
+
+.placeholder {
+  color: grey;
+}
 </style>
 <script>
 var m;
@@ -92,7 +96,8 @@ window.onload = function() {
   var query = decodeQuery(getFragment());
   markupElm.value = query.markup || '';
   dataElm.value = query.data || '';
-  update();
+  if (markupElm.value)
+    update();
 }
 
 function reval() {
@@ -179,22 +184,26 @@ function escapeHTML(raw) {
 <body>
   <div id="tl" class="container">
     <div>
-      <textarea id="markup" onkeydown="reval();" class="box"></textarea>
+      <textarea id="markup" onkeydown="reval();" class="box"
+                placeholder="Write your HTML view here..."></textarea>
     </div>
   </div>
 
   <div id="tr" class="container">
     <div>
-      <textarea id="data" onkeydown="reval();" class="box"></textarea>
+      <textarea id="data" onkeydown="reval();" class="box"
+                placeholder="...and your JSON model here!"></textarea>
     </div>
   </div>
 
   <div id="bl" class="container">
-    <div id="example" class="box"></div>
+    <div id="example" class="box">
+      <span class="placeholder">Formatted output will appear here...</span>
+    </div>
   </div>
 
   <div id="br" class="container">
-    <pre id="output" class="box"></pre>
+    <pre id="output" class="box"><span class="placeholder">...and generated HTML source here!</span></pre>
   </div>
 </div>
 
