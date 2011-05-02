@@ -563,24 +563,15 @@ TemplateIterator.prototype = {
    * @private
    */
   syncDom_: function() {
-    for (var inst = this.firstInstance_; inst; inst = inst.next) {
-      inst.syncDom();
+    // Remove instances from last to first so that their "previous" pointers
+    // stay valid during iteration.
+    for (var i = this.instancesToRemove_.length - 1; i >= 0; i--) {
+      this.instancesToRemove_[i].syncDom();
     }
-
-    this.instancesToRemove_.forEach(function(instance) {
-      instance.syncDom();
-    });
     this.instancesToRemove_ = [];
 
-    if (this.instanceTerminator_) {
-      this.templateElement.parentNode.removeChild(this.instanceTerminator_);
-      this.instanceTerminator_ = null;
-    }
-
-    if (isIterateTemplate(this) && this.firstInstance_) {
-      this.instanceTerminator_ = document.createComment('template-iterator');
-      this.templateElement.parentNode.insertBefore(
-          this.instanceTerminator_, this.lastManagedNode.nextSibling);
+    for (var inst = this.firstInstance_; inst; inst = inst.next) {
+      inst.syncDom();
     }
   },
 
@@ -668,6 +659,14 @@ TemplateIterator.prototype = {
   }
 };
 
+function createTemplateDelimiter() {
+  return document.createComment('template-instance');
+}
+
+function isTemplateDelimiter(node) {
+  return node.nodeType == Node.COMMENT_NODE &&
+      node.textContent == 'template-instance';
+}
 
 /**
  * This represents a set of nodes that have been instantiated from a template
@@ -681,7 +680,6 @@ TemplateIterator.prototype = {
 function TemplateInstance(iterator, templateScope) {
   this.templateIterator = iterator;
   this.templateScope_ = templateScope;
-  this.nodes = [];
 
   var bindingDescriptions = iterator.bindingDescriptions;
   var parentNode = iterator.templateElement.parentNode;
@@ -699,11 +697,14 @@ TemplateInstance.prototype = createObject({
   phantomBindings_: null,
 
   get firstNode() {
-    return this.nodes[0];
+    if (!this.previous)
+      return this.templateIterator.templateElement.nextSibling;
+    else
+      return this.previous.lastManagedNode.nextSibling;
   },
 
   get lastNode() {
-    return this.nodes[this.nodes.length - 1];
+    return this.lastNode_;
   },
 
   /**
@@ -757,19 +758,22 @@ TemplateInstance.prototype = createObject({
       template.templateIterator.start();
     }
 
+    var addedNodes = [];
     for (var i = 0; clone.hasChildNodes(); i++) {
       var node = clone.removeChild(clone.firstChild);
       parentNode.insertBefore(node, refNode);
       transferBindingsToNode(node, this.phantomBindings_[i], templateScope);
-      this.nodes.push(node);
+      addedNodes.push(node);
     }
 
-    var instanceTerminator = document.createComment('template-instance');
+    var instanceTerminator = createTemplateDelimiter();
     parentNode.insertBefore(instanceTerminator, refNode);
-    this.nodes.push(instanceTerminator);
 
-    for (var i = 0; i < this.nodes.length; i++) {
-      var node = this.nodes[i];
+    this.firstNode_ = addedNodes[0];
+    this.lastNode_ = instanceTerminator;
+
+    for (var i = 0; i < addedNodes.length; i++) {
+      var node = addedNodes[i];
       // Also init newly created template elements.
       if (node.tagName == 'TEMPLATE') {
         buildNestedTemplate(node);
@@ -790,8 +794,9 @@ TemplateInstance.prototype = createObject({
    * Removes the instance from the DOM and removes the bindings.
    */
   remove: function() {
+    // We don't clear previous at this point because we need to use
+    // it during removeDom_ to find the first node of this instance.
     this.next = null;
-    this.previous = null;
     this.removed_ = true;
   },
 
@@ -802,15 +807,21 @@ TemplateInstance.prototype = createObject({
   removeDom_: function() {
     var parentNode = this.templateIterator.templateElement.parentNode;
 
-    this.nodes.forEach(function(node) {
+    var node = this.firstNode;
+    while (node && !isTemplateDelimiter(node)) {
       destructTemplates(node);
       // Note: We need to remove the bindings before extracting from the
       // document, otherwise the BindingSources will re-parent to the root
       // nodes of the instance and fire.
       removeBindings(node);
+      var next = node.nextSibling;
       parentNode.removeChild(node);
       delete node.templateScope_;
-    });
+      node = next;
+    }
+    if (node)
+      parentNode.removeChild(node);
+    this.previous = null;
   },
 
   set templateScope(templateScope) {
@@ -847,9 +858,13 @@ TemplateInstance.prototype = createObject({
    */
   updateTemplateScope_: function() {
     var templateScope = this.templateScope_;
-    this.nodes.forEach(function(node) {
+    var node = this.firstNode;
+    while (node && !isTemplateDelimiter(node)) {
       node.templateScope_ = templateScope;
-    });
+      if (node.tagName == 'TEMPLATE' && node.templateIterator_)
+        node = node.templateIterator_.lastManagedNode;
+      node = node.nextSibling;
+    }
     this.dirtyTemplateScope_ = false;
   }
 });

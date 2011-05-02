@@ -231,10 +231,8 @@ function assertNodesAre() {
   // <template> is at index 0 and instances starts at 1 and use 2 nodes each.
   var startIndex = 1;
   var nodesPerInstance = 2;
-  assertEquals(
-      arguments.length * nodesPerInstance
-      + startIndex + (arguments.length ? 1 : 0),
-      div.childNodes.length);
+  assertEquals(arguments.length * nodesPerInstance + startIndex,
+               div.childNodes.length);
   var model = Model.get(div.computedModel, t.iterate);
 
   for (var i = 0; i < arguments.length; i++) {
@@ -554,7 +552,6 @@ function nestedIterateInstantiateHelper(s, start) {
   assertEquals('22', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
-  assertEquals('template-iterator', div.childNodes[i++].textContent);
 
   m.a[1] = {
     b: 3,
@@ -611,7 +608,6 @@ function nestedIterateIterateHelper(s, start) {
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('12', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
-  assertEquals('template-iterator', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('2', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
@@ -619,7 +615,6 @@ function nestedIterateIterateHelper(s, start) {
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('22', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
-  assertEquals('template-iterator', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
 
   m.a[1] = {
@@ -628,10 +623,10 @@ function nestedIterateIterateHelper(s, start) {
   };
 
   i = start + 4;
-  assertEquals('3', div.childNodes[start + 8].textContent);
-  assertEquals('31', div.childNodes[start + 10].textContent);
-  assertEquals('32', div.childNodes[start + 12].textContent);
-  assertEquals('33', div.childNodes[start + 14].textContent);
+  assertEquals('3', div.childNodes[start + 7].textContent);
+  assertEquals('31', div.childNodes[start + 9].textContent);
+  assertEquals('32', div.childNodes[start + 11].textContent);
+  assertEquals('33', div.childNodes[start + 13].textContent);
 }
 
 function testNestedIterateIterate() {
@@ -696,12 +691,10 @@ function testNestedIterateSelfRef() {
   assertEquals('Item 1.1.1', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('template-instance', div.childNodes[i++].textContent);
-  assertEquals('template-iterator', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('Item 1.2', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('template-instance', div.childNodes[i++].textContent);
-  assertEquals('template-iterator', div.childNodes[i++].textContent);
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('Item 2', div.childNodes[i++].textContent);
 
@@ -712,7 +705,8 @@ function testNestedIterateSelfRef() {
   i = 1;
   assertEquals('Item 1 changed', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
-  assertEquals('Item 2', div.childNodes[i + 1].textContent);
+  assertEquals('template-instance', div.childNodes[i++].textContent);
+  assertEquals('Item 2', div.childNodes[i++].textContent);
 }
 
 function testDeepNested() {
@@ -891,7 +885,7 @@ function testChangeFromInstantiateToIterate() {
   assertEquals('3', div.childNodes[1].textContent);
 
   template.iterate = 'a';
-  assertEquals(8, div.childNodes.length);
+  assertEquals(7, div.childNodes.length);
   assertEquals('0', div.childNodes[1].textContent);
   assertEquals('1', div.childNodes[3].textContent);
   assertEquals('2', div.childNodes[5].textContent);
@@ -917,7 +911,7 @@ function testChangeRefId() {
 
   div.model.push(1, 2);
 
-  assertEquals(12, div.childNodes.length);
+  assertEquals(11, div.childNodes.length);
   assertEquals('a:1', div.childNodes[4].textContent);
   assertEquals('a:2', div.childNodes[8].textContent);
 }
