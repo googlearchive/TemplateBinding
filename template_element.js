@@ -758,22 +758,11 @@ TemplateInstance.prototype = createObject({
       template.templateIterator.start();
     }
 
-    var addedNodes = [];
     for (var i = 0; clone.hasChildNodes(); i++) {
       var node = clone.removeChild(clone.firstChild);
       parentNode.insertBefore(node, refNode);
       transferBindingsToNode(node, this.phantomBindings_[i], templateScope);
-      addedNodes.push(node);
-    }
 
-    var instanceTerminator = createTemplateDelimiter();
-    parentNode.insertBefore(instanceTerminator, refNode);
-
-    this.firstNode_ = addedNodes[0];
-    this.lastNode_ = instanceTerminator;
-
-    for (var i = 0; i < addedNodes.length; i++) {
-      var node = addedNodes[i];
       // Also init newly created template elements.
       if (node.tagName == 'TEMPLATE') {
         buildNestedTemplate(node);
@@ -782,6 +771,10 @@ TemplateInstance.prototype = createObject({
         forEach(templates, buildNestedTemplate);
       }
     }
+
+    var instanceTerminator = createTemplateDelimiter();
+    parentNode.insertBefore(instanceTerminator, refNode);
+    this.lastNode_ = instanceTerminator;
 
     // We don't need the phantom bindings any more.
     this.phantomBindings_ = null;
