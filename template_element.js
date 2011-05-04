@@ -40,26 +40,35 @@ function getPropertyNameForBinding(nodeName) {
  * @return {Object}
  */
 function buildBindingsRepresentation(node) {
-  var bindings = {};
-  var anyBindings = false;
+  var placeHolderBindings = {};
+  var attributeBindings = {}
+  var anyPlaceHolderBindings = false;
+  var anyAttributeBindings = false;
   var anyTemplates = false;
   var modelScope = '';
   if (node.nodeType == Node.ELEMENT_NODE) {
-
     for (var i = 0; i < node.attributes.length; i++) {
       var attr = node.attributes[i];
       if (hasPlaceHolder(attr.nodeValue)) {
         var propertyName = getPropertyNameForBinding(attr.nodeName);
-        bindings[propertyName] = attr.nodeValue;
-        anyBindings = true;
+        placeHolderBindings[propertyName] = attr.nodeValue;
+        anyPlaceHolderBindings = true;
       } else if (attr.nodeName == 'modelscope') {
         modelScope = attr.nodeValue;
+      } else if (attr.nodeName == 'bind') {
+        // TODO(adamk): This is really basic at the moment, doesn't fail
+        // gracefully, etc. Make it actually usable!
+        attr.nodeValue.split(/\s*;\s*/).forEach(function(b) {
+          var attrAndValue = b.split(/\s*:\s*/);
+          attributeBindings[attrAndValue[0].trim()] = attrAndValue[1].trim();
+        });
+        anyAttributeBindings = true;
       }
     }
   } else if (node.nodeType == Node.TEXT_NODE) {
     if (hasPlaceHolder(node.textContent)) {
-      bindings['textContent'] = node.textContent;
-      anyBindings = true;
+      placeHolderBindings['textContent'] = node.textContent;
+      anyPlaceHolderBindings = true;
     }
   }
 
@@ -78,11 +87,16 @@ function buildBindingsRepresentation(node) {
     anyTemplates = true;
   }
 
-  if (!anyBindings && !anyNested && !anyTemplates)
+  if (!anyAttributeBindings &&
+      !anyPlaceHolderBindings &&
+      !anyNested &&
+      !anyTemplates)
     return null;
 
-  if (anyBindings)
-    descr.bindings_ = bindings;
+  if (anyPlaceHolderBindings)
+    descr.placeHolderBindings_ = placeHolderBindings;
+  if (anyAttributeBindings)
+    descr.attributeBindings_ = attributeBindings;
   if (modelScope)
     descr.modelScope = modelScope;
   return descr;
@@ -124,11 +138,21 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
 
   for (var key in desc) {
     switch (key) {
-      case 'bindings_':
-        phantom.bindings_ = {};
-        for (var name in desc.bindings_) {
+      case 'placeHolderBindings_':
+        phantom.bindings_ = phantom.bindings_ || {};
+        for (var name in desc.placeHolderBindings_) {
           var b = phantom.bindings_[name] =
-              new PlaceHolderBinding(desc.bindings_[name]);
+              new PlaceHolderBinding(desc.placeHolderBindings_[name]);
+          b.sync_ = false;
+          b.bindTo(phantom, name);
+        }
+        break;
+
+      case 'attributeBindings_':
+        phantom.bindings_ = phantom.bindings_ || {};
+        for (var name in desc.attributeBindings_) {
+          var b = phantom.bindings_[name] =
+              new Binding(desc.attributeBindings_[name]);
           b.sync_ = false;
           b.bindTo(phantom, name);
         }

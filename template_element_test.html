@@ -928,28 +928,29 @@ function testBindingRepresentation() {
         '</div>' +
         '<span>no<b>bindings</b></span>' +
         '{{f}}' +
+        '<a bind="href:url">link</a>' +
       '</template>');
   var t = div.firstChild;
 
   var expected = {
     '0': {
-      bindings_: {
+      placeHolderBindings_: {
         'a': '{{a}}',
         'b': '{{b}}'
       },
       '0': {
-        bindings_: {
+        placeHolderBindings_: {
           'textContent': 'text-c {{c}}'
         }
       },
       '1': {
         '0': {
-          bindings_: {
+          placeHolderBindings_: {
             'd': '{{d}}'
           }
         },
         '1': {
-          bindings_: {
+          placeHolderBindings_: {
             'textContent': 'text-e {{e}}'
           }
         },
@@ -957,8 +958,13 @@ function testBindingRepresentation() {
       }
     },
     '2': {
-      bindings_: {
+      placeHolderBindings_: {
         'textContent': '{{f}}'
+      }
+    },
+    '3': {
+      attributeBindings_: {
+        'href': 'url'
       }
     }
   };
@@ -982,6 +988,15 @@ function testBindingRepresentationWithNestedTemplate() {
   };
   var actual = t.templateIterator.bindingDescriptions;
   assertObjectEquals(expected, actual);
+}
+
+function testAttributeBinding() {
+  var div = createTestHtml(
+      '<template instantiate><a bind="href:url;target:target">link text</a>' +
+      '</template>');
+  div.model = {url: 'http://code.google.com/', target: '_blank'};
+  assertEquals('http://code.google.com/', div.childNodes[1].href);
+  assertEquals('_blank', div.childNodes[1].target);
 }
 
 </script>
