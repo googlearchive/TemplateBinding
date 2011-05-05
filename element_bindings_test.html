@@ -53,6 +53,15 @@ function testBindAttributeDeclaration() {
   document.body.removeChild(div);
 }
 
+function testBindAttributeDynamic() {
+  var div = document.createElement('div');
+  div.model = {url: 'http://a.com/'};
+  document.body.appendChild(div);
+  div.innerHTML = '<a bind="href:url">link</a>';
+  assertEquals('http://a.com/', div.children[0].href);
+  document.body.removeChild(div);
+}
+
 function testBindProperty() {
   var el = document.createElement('input');
   el.model = {text: 'hello world'};

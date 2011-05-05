@@ -36,6 +36,8 @@ function PlaceHolderBinding(tokenString) {
 
 (function() {
 
+var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
+
 Object.defineProperty(HTMLElement.prototype, 'bind', {
   get: function() {
     return this.getAttribute('bind') || '';
@@ -54,10 +56,14 @@ Object.defineProperty(HTMLElement.prototype, 'bind', {
 
 document.addEventListener('DOMContentLoaded', function(e) {
   var boundElements = document.querySelectorAll(':not(template) [bind]');
-  for (var i = 0; i < boundElements.length; i++) {
-    var elt = boundElements[i];
-    elt.bind = elt.bind;  // set up the initial binding
-  }
+  forEach(boundElements, function(elt) {
+    elt.bind = elt.getAttribute('bind');
+  });
+}, false);
+
+document.addEventListener('DOMNodeInserted', function(e) {
+  if (e.target.hasAttribute('bind'))
+    e.target.bind = e.target.getAttribute('bind');
 }, false);
 
 var placeHolderParser = new PlaceHolderParser;
