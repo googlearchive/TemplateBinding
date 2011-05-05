@@ -38,16 +38,19 @@ function PlaceHolderBinding(tokenString) {
 
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
+var bindAttributeParser = new BindAttributeParser;
+
 Object.defineProperty(HTMLElement.prototype, 'bind', {
   get: function() {
     return this.getAttribute('bind') || '';
   },
   set: function(value) {
     this.setAttribute('bind', value);
-    value.split(/\s*;\s*/).forEach(function(b) {
-      var nameAndValue = b.split(/\s*:\s*/);
-      this.addBinding(nameAndValue[0].trim(),
-                      new Binding(nameAndValue[1].trim()));
+    var tokens = bindAttributeParser.parse(value);
+    tokens.forEach(function(token) {
+      // TODO(adamk): Support exprs and transforms.
+      if (token.type == 'dep')
+        this.addBinding(token.property, new Binding(token.value.path));
     }, this);
   },
   configurable: true,

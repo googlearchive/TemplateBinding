@@ -23,6 +23,7 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../dependency_parser.js',
   '../expression_parser.js',
   '../place_holder_parser.js',
+  '../bind_attribute_parser.js',
   '../element_model.js',
   '../html5_attributes.js',
   '../element_bindings.js',

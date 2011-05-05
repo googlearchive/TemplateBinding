@@ -18,6 +18,8 @@ var HTMLTemplateElement;
 
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
+var bindAttributeParser = new BindAttributeParser;
+
 document.addEventListener('DOMContentLoaded', function(e) {
   var templates = document.querySelectorAll('template');
   forEach(templates, HTMLTemplateElement.decorate);
@@ -56,11 +58,9 @@ function buildBindingsRepresentation(node) {
       } else if (attr.nodeName == 'modelscope') {
         modelScope = attr.nodeValue;
       } else if (attr.nodeName == 'bind') {
-        // TODO(adamk): This is really basic at the moment, doesn't fail
-        // gracefully, etc. Make it actually usable!
-        attr.nodeValue.split(/\s*;\s*/).forEach(function(b) {
-          var attrAndValue = b.split(/\s*:\s*/);
-          attributeBindings[attrAndValue[0].trim()] = attrAndValue[1].trim();
+        var tokens = bindAttributeParser.parse(attr.nodeValue);
+        tokens.forEach(function(token) {
+          attributeBindings[token.property] = token;
         });
         anyAttributeBindings = true;
       }
@@ -151,8 +151,13 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
       case 'attributeBindings_':
         phantom.bindings_ = phantom.bindings_ || {};
         for (var name in desc.attributeBindings_) {
-          var b = phantom.bindings_[name] =
-              new Binding(desc.attributeBindings_[name]);
+          // This is a BindAttributeParser.Token
+          var token = desc.attributeBindings_[name];
+          var b;
+          // TODO(adamk): Support exprs and transforms.
+          if (token.type == 'dep') {
+            b = phantom.bindings_[name] = new Binding(token.value.path);
+          }
           b.sync_ = false;
           b.bindTo(phantom, name);
         }
