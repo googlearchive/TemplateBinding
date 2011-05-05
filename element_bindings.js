@@ -36,6 +36,30 @@ function PlaceHolderBinding(tokenString) {
 
 (function() {
 
+Object.defineProperty(HTMLElement.prototype, 'bind', {
+  get: function() {
+    return this.getAttribute('bind') || '';
+  },
+  set: function(value) {
+    this.setAttribute('bind', value);
+    value.split(/\s*;\s*/).forEach(function(b) {
+      var nameAndValue = b.split(/\s*:\s*/);
+      this.addBinding(nameAndValue[0].trim(),
+                      new Binding(nameAndValue[1].trim()));
+    }, this);
+  },
+  configurable: true,
+  enumerable: true
+});
+
+document.addEventListener('DOMContentLoaded', function(e) {
+  var boundElements = document.querySelectorAll(':not(template) [bind]');
+  for (var i = 0; i < boundElements.length; i++) {
+    var elt = boundElements[i];
+    elt.bind = elt.bind;  // set up the initial binding
+  }
+}, false);
+
 var placeHolderParser = new PlaceHolderParser;
 
 function prepareNewBinding(binding) {

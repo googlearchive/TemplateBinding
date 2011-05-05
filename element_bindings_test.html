@@ -35,7 +35,32 @@ goog.require('goog.testing.jsunit');
 </script>
 </head>
 <body>
+
+<div id="testLinkContainer">
+  <a bind="href:url">test link</a>
+</div>
+
 <script>
+
+function testBindAttributeDeclaration() {
+  var div = document.getElementById('testLinkContainer');
+  var anchor = div.children[0];
+  assertEquals('href:url', anchor.bind);
+  div.model = {url: 'http://code.google.com/'};
+  assertEquals('http://code.google.com/', anchor.href);
+  anchor.model = {url: 'http://github.com/'};
+  assertEquals('http://github.com/', anchor.href);
+  document.body.removeChild(div);
+}
+
+function testBindProperty() {
+  var el = document.createElement('input');
+  el.model = {text: 'hello world'};
+  el.bind = 'value: text';
+  assertEquals('hello world', el.value);
+  el.model.text = 'goodbye';
+  assertEquals('goodbye', el.value);
+}
 
 function testFormat() {
   var b = new Binding('a.b', 'a.c');
