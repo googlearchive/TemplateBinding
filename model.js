@@ -800,7 +800,7 @@ function Model() {
       this.paths.forEach(function(path) {
         removed.forEach(function(obj) {
           for (var i = 0; i < observers.length; i++) {
-            if (observers[i].model === objModel &&
+            if (observers[i].model === obj &&
                 observers[i].path == path) {
               Model.stopObserving(obj, path, observers[i].callback);
               observers.splice(i, 1);

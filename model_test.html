@@ -1220,6 +1220,11 @@ function testArrayViewObject() {
   // TODO(adamk): What do we want to do about dups in the input?
   assertArrayEquals([aliceModel, bobModel, charlesModel], v);
   assertEquals(12, count);
+
+  m.splice(0, 1);
+  assertArrayEquals([alice, charles, charles], arr);
+  assertArrayEquals([aliceModel, charlesModel], v);
+  assertEquals(13, count);
 }
 
 function testExpectValue() {
