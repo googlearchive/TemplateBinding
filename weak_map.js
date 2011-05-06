@@ -19,46 +19,56 @@
 // The ES Harmony Wiki does not include has nor delete
 
 var WeakMap;
+var HAS_REAL_WEAK_MAP = typeof WeakMap != 'undefined';
 
-if (typeof WeakMap == 'undefined') {
+if (!HAS_REAL_WEAK_MAP) {
 
-WeakMap = function() {};
-
-WeakMap.prototype = {
-  set: function(key, value) {
-    if (!this.keys_) {
-      this.keys_ = [];
-      this.values_ = [];
+  var assertObject = function(value) {
+    if (value !== Object(value)) {
+      throw TypeError('value is not a non-null object');
     }
+  };
 
-    var index = this.keys_.indexOf(key);
-    if (index != -1) {
-      this.values_[index] = value;
-    } else {
-      this.keys_.push(key);
-      this.values_.push(value);
-    }
-  },
-  get: function(key) {
-    if (!this.keys_)
-      return undefined;
-    var index = this.keys_.indexOf(key);
-    return this.values_[index];
-  },
-  has: function(key) {
-    if (!this.keys_)
-      return false;
-    return this.keys_.indexOf(key) >= 0;
-  },
-  'delete': function(key) {
-    if (this.keys_) {
+  WeakMap = function() {};
+
+  WeakMap.prototype = {
+    set: function(key, value) {
+      assertObject(key);
+      if (!this.keys_) {
+        this.keys_ = [];
+        this.values_ = [];
+      }
+
       var index = this.keys_.indexOf(key);
-      if (index >= 0) {
-        this.keys_.splice(index, 1);
-        this.values_.splice(index, 1);
+      if (index != -1) {
+        this.values_[index] = value;
+      } else {
+        this.keys_.push(key);
+        this.values_.push(value);
+      }
+    },
+    get: function(key) {
+      assertObject(key);
+      if (!this.keys_)
+        return undefined;
+      var index = this.keys_.indexOf(key);
+      return this.values_[index];
+    },
+    has: function(key) {
+      assertObject(key);
+      if (!this.keys_)
+        return false;
+      return this.keys_.indexOf(key) >= 0;
+    },
+    'delete': function(key) {
+      assertObject(key);
+      if (this.keys_) {
+        var index = this.keys_.indexOf(key);
+        if (index >= 0) {
+          this.keys_.splice(index, 1);
+          this.values_.splice(index, 1);
+        }
       }
     }
-  }
-};
-
-}  // if
+  };
+}

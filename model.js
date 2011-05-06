@@ -44,17 +44,24 @@ function Model() {
   }
 
   function getUnwrapped(wrapped) {
-    return wrappedToUnwrappedById[wrapped.__id__] ||
-           wrappedToUnwrapped.get(wrapped);
+    if (!isObject(wrapped))
+      return undefined;
+
+    return !HAS_REAL_WEAK_MAP && wrappedToUnwrappedById[wrapped.__id__] ||
+        wrappedToUnwrapped.get(wrapped);
   }
 
   function getWrapped(unwrapped) {
-    return unwrappedToWrappedById[unwrapped.__id__] ||
-           unwrappedToWrapped.get(unwrapped);
+    if (!isObject(unwrapped))
+      return undefined;
+
+    return !HAS_REAL_WEAK_MAP && unwrappedToWrappedById[unwrapped.__id__] ||
+        unwrappedToWrapped.get(unwrapped);
   }
 
   function getObservers(model) {
-    return observersById[model.__id__] || observersMap.get(model);
+    return !HAS_REAL_WEAK_MAP && observersById[model.__id__] ||
+        observersMap.get(model);
   }
 
   /**
@@ -117,7 +124,7 @@ function Model() {
 
     handler.proxy_ = proxy;
 
-    if ('__id__' in object) {
+    if (!HAS_REAL_WEAK_MAP && '__id__' in object) {
       var id = object.__id__;
       unwrappedToWrappedById[id] = proxy;
       wrappedToUnwrappedById[id] = object;
@@ -257,7 +264,7 @@ function Model() {
     var observers = getObservers(model);
     if (!observers) {
       observers = [];
-      if ('__id__' in model)
+      if (!HAS_REAL_WEAK_MAP && '__id__' in model)
         observersById[model.__id__] = observers;
       else
         observersMap.set(model, observers);
