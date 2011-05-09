@@ -157,8 +157,8 @@ function parseLabel(expr) {
   for (var i = 0; i < label.length; ++i) {
     label[i] = label[i].
         replace(/^\./, '').
-        replace(/^\'/, '').
-        replace(/\'$/, '').
+        replace(/^'/, '').
+        replace(/'$/, '').
         replace(/\\(.)/g, '$1').
         trim();
   }

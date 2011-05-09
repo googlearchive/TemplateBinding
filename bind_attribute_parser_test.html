@@ -119,7 +119,7 @@ function testQuotedProperty() {
 }
 
 function testDottedProperty() {
-  var result = p.parse("style.color: textColor");
+  var result = p.parse('style.color: textColor');
   assertEquals(1, result.length);
   assertEquals('dep', result[0].type);
   assertEquals('style.color', result[0].property);
