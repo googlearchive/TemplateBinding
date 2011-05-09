@@ -30,8 +30,12 @@ goog.require('goog.testing.jsunit');
 <body>
 <script>
 
+var p = null;
+function setUp() {
+  p = new BindAttributeParser;
+}
+
 function testBasic() {
-  var p = new BindAttributeParser;
   var result = p.parse('prop :val; prop2: val.subval ');
   assertEquals(2, result.length);
 
@@ -44,8 +48,16 @@ function testBasic() {
   assertEquals('val.subval', result[1].value.path);
 }
 
+function testQuestionMarkSeperator() {
+  // NOTE(adamk): Not treated specially yet.
+  var result = p.parse('prop?val');
+  assertEquals(1, result.length);
+  assertEquals('dep', result[0].type);
+  assertEquals('prop', result[0].property);
+  assertEquals('val', result[0].value.path);
+}
+
 function testTransform() {
-  var p = new BindAttributeParser;
   var result = p.parse(' prop:val | currency; prop2: val2 | date("usa")');
   assertEquals(2, result.length);
 
@@ -63,7 +75,6 @@ function testTransform() {
 }
 
 function testExpr() {
-  var p = new BindAttributeParser;
   var result = p.parse('prop: expr(x) x * 2');
   assertEquals(1, result.length);
 
@@ -73,23 +84,46 @@ function testExpr() {
   assertEquals(4, result[0].value.func(2));
 }
 
-function testExerciseIncorrectBehavior() {
-  var p = new BindAttributeParser;
-  try {
-    p.parse('prop: val | myTransform(":")');
-    fail();
-  } catch (e) {
-    assertEquals('Bind attribute syntax error', e.message);
-  }
+function testEmbeddedSeparators() {
+  var result = p.parse('prop: val | myTransform(":")');
+  assertEquals(1, result.length);
 
-  try {
-    // Will be split into three parts, thus making the first part
-    // fail to parse as a dependency.
-    p.parse('prop: val | myTransform(";"); prop2: otherVal');
-    fail();
-  } catch (e) {
-    assertEquals('Dependency syntax error', e.message);
-  }
+  assertEquals('dep', result[0].type);
+  assertEquals('prop', result[0].property);
+  assertEquals('val', result[0].value.path);
+  assertEquals('myTransform', result[0].value.transformName);
+  assertEquals(1, result[0].value.transformArgs.length);
+  assertEquals(':', result[0].value.transformArgs[0]);
+
+  result = p.parse('prop: val | myTransform(";"); prop2: otherVal');
+  assertEquals(2, result.length);
+
+  assertEquals('dep', result[0].type);
+  assertEquals('prop', result[0].property);
+  assertEquals('val', result[0].value.path);
+  assertEquals('myTransform', result[0].value.transformName);
+  assertEquals(1, result[0].value.transformArgs.length);
+  assertEquals(';', result[0].value.transformArgs[0]);
+
+  assertEquals('dep', result[1].type);
+  assertEquals('prop2', result[1].property);
+  assertEquals('otherVal', result[1].value.path);
+}
+
+function testQuotedProperty() {
+  var result = p.parse("'ng:attr': val");
+  assertEquals(1, result.length);
+  assertEquals('dep', result[0].type);
+  assertEquals('ng:attr', result[0].property);
+  assertEquals('val', result[0].value.path);
+}
+
+function testDottedProperty() {
+  var result = p.parse("style.color: textColor");
+  assertEquals(1, result.length);
+  assertEquals('dep', result[0].type);
+  assertEquals('style.color', result[0].property);
+  assertEquals('textColor', result[0].value.path);
 }
 
 </script>
