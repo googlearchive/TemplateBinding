@@ -1008,6 +1008,41 @@ function testAttributeBinding() {
   assertEquals('_blank', div.childNodes[1].target);
 }
 
+function testAttributeBindingTransform() {
+  function MyTrans(var_arg) {
+    this.args_ = Array.prototype.slice.call(arguments);
+  }
+  MyTrans.prototype.toTarget = function(source) {
+    return +source * this.args_[0];
+  };
+  Transform.registry.myTrans = MyTrans;
+
+  var div = createTestHtml(
+      '<template instantiate>' +
+        '<input bind="value: val | myTrans(2)">' +
+      '</template>');
+  div.model = {val: 2};
+  assertEquals('4', div.childNodes[1].value);
+
+  delete Transform.registry.myTrans;
+}
+
+function testAttributeBindingExpression() {
+  var div = createTestHtml(
+      '<template instantiate>' +
+        '<input bind="value: expr(a, b) a + b">' +
+      '</template>');
+  div.model = {a: 1, b:2};
+  var input = div.childNodes[1];
+  assertEquals('3', input.value);
+
+  div.model.a = 4;
+  assertEquals('6', input.value);
+
+  delete div.model.a;
+  assertEquals('NaN', input.value);
+}
+
 </script>
 </body>
 </html>

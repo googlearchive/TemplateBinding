@@ -584,6 +584,43 @@ function testClassListTransform() {
   assertEquals('classA selected classB', el.className);
 }
 
+function testBindAttributeTransform() {
+  var transformArgs;
+  var toTargetArgs;
+
+  function MyTrans(var_arg) {
+    transformArgs = Array.prototype.slice.call(arguments);
+  }
+  MyTrans.prototype = {
+    toTarget: function(source, elm, property) {
+      toTargetArgs = Array.prototype.slice.call(arguments);
+      return source + 1;
+    },
+
+    toSource: function(target) {
+      return +target - 1;
+    }
+  };
+
+  Transform.registry.myTrans = MyTrans;
+
+  var m = Model.get({val: 1});
+  var el = document.createElement('input');
+  el.bind = 'value: val | myTrans("a", \'b\', 1)';
+  el.model = m;
+  assertEquals('2', el.value);
+  assertArrayEquals([m.val, 'val', el, 'value'], toTargetArgs);
+
+  el.value = '3';
+  dispatchEvent('input', el);
+  assertEquals(2, m.val);
+
+  assertArrayEquals(['a', 'b', 1],
+                    transformArgs);
+
+  delete Transform.registry.myTrans;
+}
+
 function testInputElementCheckboxRadio() {
   var m = Model.get({val: true});
 
@@ -732,6 +769,22 @@ function testExpressionBinding() {
 
   el.model = null;
   assertEquals(' +  = NaN', el.foo);
+}
+
+function testExpressionAttributeBinding() {
+  var el = document.createElement('input');
+  var m = el.model = Model.get({a: 1, b: 2});
+  el.bind = 'value: expr(a, b) a + b';
+  assertEquals('3', el.value);
+
+  m.a = 4;
+  assertEquals('6', el.value);
+
+  m.b = 8;
+  assertEquals('12', el.value);
+
+  el.model = null;
+  assertEquals('NaN', el.value);
 }
 
 function testMultipleReferences() {

@@ -26,6 +26,18 @@ function PresentTransform() {}
 
 Transform.registry = {};
 
+Transform.create = function(transformName, transformArgs) {
+  var transform;
+  var transFunc = Transform.registry[transformName];
+  if (transformName && typeof transFunc == 'function') {
+     // Construct a new transform using rest args. In Harmony speak:
+     //   new transFunc(...transformArgs)
+     transform = Object.create(transFunc.prototype);
+     transFunc.apply(transform, transformArgs);
+  }
+  return transform;
+};
+
 IdentityTransform.prototype = createObject({
   __proto__: Transform.prototype,
   toTarget: function(source, sourceName, targetNode, propertyName) {

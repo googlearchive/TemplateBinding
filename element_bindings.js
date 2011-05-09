@@ -34,6 +34,20 @@ function PlaceHolderBinding(tokenString) {
   this.tokenString_ = tokenString;
 }
 
+function AttributeBinding(token) {
+  switch (token.type) {
+    case 'dep':
+      this.deps_ = [token.value];
+      break;
+    case 'expr':
+      this.deps_ = token.value.deps;
+      this.func_ = token.value.func;
+      break;
+    default:
+      throw Error('Unknown token type ' + token.type);
+  }
+}
+
 (function() {
 
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
@@ -48,9 +62,7 @@ Object.defineProperty(HTMLElement.prototype, 'bind', {
     this.setAttribute('bind', value);
     var tokens = bindAttributeParser.parse(value);
     tokens.forEach(function(token) {
-      // TODO(adamk): Support exprs and transforms.
-      if (token.type == 'dep')
-        this.addBinding(token.property, new Binding(token.value.path));
+      this.addBinding(token.property, new AttributeBinding(token));
     }, this);
   },
   configurable: true,
@@ -570,14 +582,7 @@ PlaceHolderBinding.prototype = createObject({
 
     var sources = [];
     function push(dep) {
-      var transform;
-      var transFunc = Transform.registry[dep.transformName];
-      if (dep.transformName && typeof transFunc == 'function') {
-        // Construct a new transform using rest args. In Harmony speak:
-        //   new transFunc(...dep.transformArgs)
-        transform = Object.create(transFunc.prototype);
-        transFunc.apply(transform, dep.transformArgs);
-      }
+      var transform = Transform.create(dep.transformName, dep.transformArgs);
       sources.push(new BindingSource(undefined, dep.path, transform));
     }
 
@@ -621,6 +626,38 @@ PlaceHolderBinding.prototype = createObject({
       return results[0];
 
     return results.join('');
+  }
+});
+
+AttributeBinding.prototype = createObject({
+  __proto__: Binding.prototype,
+
+  get sources() {
+    if (this.sources_)
+      return this.sources_;
+
+    var sources = [];
+    this.deps_.forEach(function(dep) {
+      var transform = Transform.create(dep.transformName, dep.transformArgs);
+      sources.push(new BindingSource(undefined, dep.path, transform));
+    });
+
+    this.sources_ = sources;
+    return this.sources_;
+  },
+
+  format: function() {
+    var args = Array.prototype.slice.apply(arguments);
+    if (this.func_) {
+      var expressionArguments = args.splice(0, this.deps_.length);
+      return this.func_.apply(this.target_, expressionArguments);
+    }
+    if (args.length == 1)
+      return args[0];
+
+    // NOTE: this should never happen, non-expr AttributeBindings only have
+    // a single BindingSource.
+    return args.join(',');
   }
 });
 

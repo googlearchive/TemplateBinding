@@ -154,10 +154,7 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
           // This is a BindAttributeParser.Token
           var token = desc.attributeBindings_[name];
           var b;
-          // TODO(adamk): Support exprs and transforms.
-          if (token.type == 'dep') {
-            b = phantom.bindings_[name] = new Binding(token.value.path);
-          }
+          b = phantom.bindings_[name] = new AttributeBinding(token);
           b.sync_ = false;
           b.bindTo(phantom, name);
         }
