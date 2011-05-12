@@ -25,11 +25,8 @@ function Model() {
   }
 
   var wrappedToUnwrapped = new WeakMap;
-  var wrappedToUnwrappedById = {};
   var unwrappedToWrapped = new WeakMap;
-  var unwrappedToWrappedById = {};
   var observersMap = new WeakMap;
-  var observersById = {};
 
   function isObject(obj) {
     return obj === Object(obj);
@@ -47,21 +44,14 @@ function Model() {
     if (!isObject(wrapped))
       return undefined;
 
-    return !HAS_REAL_WEAK_MAP && wrappedToUnwrappedById[wrapped.__id__] ||
-        wrappedToUnwrapped.get(wrapped);
+    return wrappedToUnwrapped.get(wrapped);
   }
 
   function getWrapped(unwrapped) {
     if (!isObject(unwrapped))
       return undefined;
 
-    return !HAS_REAL_WEAK_MAP && unwrappedToWrappedById[unwrapped.__id__] ||
-        unwrappedToWrapped.get(unwrapped);
-  }
-
-  function getObservers(model) {
-    return !HAS_REAL_WEAK_MAP && observersById[model.__id__] ||
-        observersMap.get(model);
+    return unwrappedToWrapped.get(unwrapped);
   }
 
   /**
@@ -124,14 +114,8 @@ function Model() {
 
     handler.proxy_ = proxy;
 
-    if (!HAS_REAL_WEAK_MAP && '__id__' in object) {
-      var id = object.__id__;
-      unwrappedToWrappedById[id] = proxy;
-      wrappedToUnwrappedById[id] = object;
-    } else {
-      unwrappedToWrapped.set(object, proxy);
-      wrappedToUnwrapped.set(proxy, object);
-    }
+    unwrappedToWrapped.set(object, proxy);
+    wrappedToUnwrapped.set(proxy, object);
     return proxy;
   }
 
@@ -261,13 +245,10 @@ function Model() {
 
     var model = Model.get(data);
 
-    var observers = getObservers(model);
+    var observers = observersMap.get(model);
     if (!observers) {
       observers = [];
-      if (!HAS_REAL_WEAK_MAP && '__id__' in model)
-        observersById[model.__id__] = observers;
-      else
-        observersMap.set(model, observers);
+      observersMap.set(model, observers);
     }
 
     // Order of |observers| is significant. All internal observers
@@ -324,7 +305,7 @@ function Model() {
     if (!model)
       return;
 
-    var observers = getObservers(model);
+    var observers = observersMap.get(model);
     if (!observers)
       return;
 

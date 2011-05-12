@@ -19,9 +19,8 @@
 // The ES Harmony Wiki does not include has nor delete
 
 var WeakMap;
-var HAS_REAL_WEAK_MAP = typeof WeakMap != 'undefined';
 
-if (!HAS_REAL_WEAK_MAP) {
+if (typeof WeakMap == 'undefined') {
 
   var assertObject = function(value) {
     if (value !== Object(value)) {
@@ -34,6 +33,11 @@ if (!HAS_REAL_WEAK_MAP) {
   WeakMap.prototype = {
     set: function(key, value) {
       assertObject(key);
+      if ('__id__' in key) {
+        this.valuesById_ = this.valuesById_ || {};
+        this.valuesById_[key.__id__] = value;
+        return;
+      }
       if (!this.keys_) {
         this.keys_ = [];
         this.values_ = [];
@@ -49,6 +53,11 @@ if (!HAS_REAL_WEAK_MAP) {
     },
     get: function(key) {
       assertObject(key);
+      if (this.valuesById_) {
+        var byId = this.valuesById_[key.__id__];
+        if (byId)
+          return byId;
+      }
       if (!this.keys_)
         return undefined;
       var index = this.keys_.indexOf(key);
@@ -56,12 +65,18 @@ if (!HAS_REAL_WEAK_MAP) {
     },
     has: function(key) {
       assertObject(key);
+      if (this.valuesById_ && key.__id__ in this.valuesById_)
+        return true;
       if (!this.keys_)
         return false;
       return this.keys_.indexOf(key) >= 0;
     },
     'delete': function(key) {
       assertObject(key);
+      if (this.valuesById_ && key.__id__ in this.valuesById_) {
+        delete this.valuesById_[key.__id__];
+        return;
+      }
       if (this.keys_) {
         var index = this.keys_.indexOf(key);
         if (index >= 0) {
