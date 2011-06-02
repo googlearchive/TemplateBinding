@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Aspect Work Queue Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="compat.js"></script>
+<script src="aspect_work_queue.js"></script>
+
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+<script>
+
+function testBasic() {
+  var q = [];
+  var count = 0;
+  var callback = function() {
+    q.splice(0);
+    count++;
+  }
+
+  AspectWorkQueue.register(q, callback);
+
+  q.push(1);
+
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(1, count);
+
+  q.push(1);
+  q.push(2);
+
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(2, count);
+}
+
+function testTwoWorkers() {
+  var q1 = [];
+  var q2 = [];
+  var callback1 = function() {
+    count1++;
+    var val = q1.shift();
+    if (val > 0)
+      q2.push(val - 1);
+  }
+
+  var callback2 = function() {
+    count2++;
+    var val = q2.shift();
+    if (val > 0)
+      q1.push(val - 1);
+  }
+
+  AspectWorkQueue.register(q1, callback1);
+  AspectWorkQueue.register(q2, callback2);
+
+  var count1 = 0;
+  var count2 = 0;
+  q1.push(0);
+  q2.push(0);
+
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(1, count1);
+  assertEquals(1, count2);
+
+  // Q1 will run, then Q2, then Q1 again, then Q2 again.
+  count1 = 0;
+  count2 = 0;
+  q1.push(1);
+  q2.push(1);
+
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(2, count1);
+  assertEquals(2, count2);
+
+  // Q1, Q2, Q1, Q2, Q1.
+  count1 = 0;
+  count2 = 0;
+  q1.push(4);
+
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(3, count1);
+  assertEquals(2, count2);
+}
+
+</script>
+</body>
+</html>
