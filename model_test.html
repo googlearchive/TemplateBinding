@@ -766,11 +766,12 @@ function testInstanceOf() {
   var n = Model.get(new Number(42));
   assertTrue(n instanceof Number);
 
-  var F = Model.get(function() {});
+  function MyClass() {};
+  var F = Model.get(MyClass);
   assertTrue(F instanceof Function);
 
   var o = new F;
-  assertTrue(o instanceof F);
+  assertTrue(o instanceof MyClass);
 }
 
 function testArrayModel() {
@@ -845,9 +846,6 @@ function testArrayModelSplice() {
   m.splice();
   assertEquals(2, count);
 
-  m.splice(0);
-  assertEquals(2, count);
-
   m.splice(0, 0);
   assertEquals(2, count);
 
@@ -871,6 +869,16 @@ function testArrayModelSplice() {
   m.splice(3, 0, zeroModel);
   assertArrayEquals([two, 1.5, three, zero], arr);
   assertArrayEquals([twoModel, 1.5, threeModel, zeroModel], m);
+
+  expected.mutation = 'splice';
+  expected.index = 0;
+  expected.removed = [twoModel, 1.5, threeModel, zeroModel];
+  expected.added = [];
+
+  m.splice(0);
+  assertEquals(5, count);
+  assertArrayEquals([], arr);
+  assertArrayEquals([], m);
 }
 
 function testArrayModelLength() {

@@ -101,7 +101,7 @@ function Model() {
         return Model.get(object.apply(getUnwrapped(this), args));
       };
       var constructTrap = function() {
-        var obj = Object.create(proxy.prototype);
+        var obj = Object.create(object.prototype);
         var rv = object.apply(obj, arguments);
         if (isObject(rv))
           obj = rv;
@@ -499,7 +499,7 @@ function Model() {
   var arrayModelImplementations = {
     splice: function(index, deleteCount, var_args) {
       var argc = arguments.length;
-      if (argc < 2)
+      if (argc < 1)
         return [];
 
       var length = this.length;
@@ -507,6 +507,9 @@ function Model() {
         index = length + index;
 
       index = Math.max(0, Math.min(index, length));
+
+      if (deleteCount === undefined)
+        deleteCount = length - index;
       deleteCount = Math.max(0, Math.min(length, deleteCount));
 
       if (deleteCount == 0 && arguments.length <= 2)
