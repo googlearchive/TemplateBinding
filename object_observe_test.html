@@ -337,7 +337,6 @@ function testArrayModelSplice() {
   var arr = [zero, one];
   var m = Object.getObservable(arr);
 
-  var expected = {};
   var log = new MutationLog();
   Object.observe(m, log);
 
@@ -409,6 +408,60 @@ function testArrayModelSplice() {
  }, log);
 }
 
+function testArrayModelSpliceDeleteTooMany() {
+
+  var arr = ['a', 'b', 'c'];
+  var m = Object.getObservable(arr);
+
+  var log = new MutationLog();
+  Object.observe(m, log);
+
+  m.splice(2, 3);
+  assertArrayEquals(['a', 'b'], m);
+
+  assertNextMutationIs({
+    mutation: 'splice',
+    index: 2,
+    deleteCount: 1,
+    addCount: 0,
+    target: m
+  }, log);
+}
+
+function testArrayModelLength() {
+  var m = Object.getObservable([0, 1]);
+  var log = new MutationLog();
+  Object.observe(m, log);
+
+  m.length = 5;
+  assertArrayEquals([0, 1, , , ,], m);
+  assertNextMutationIs({
+    mutation: 'splice',
+    index: 2,
+    deleteCount: 0,
+    addCount: 3,
+    target: m
+  }, log);
+
+  m.length = 1;
+  assertArrayEquals([0], m);
+  assertNextMutationIs({
+    mutation: 'splice',
+    index: 1,
+    deleteCount: 4,
+    addCount: 0,
+    target: m
+  }, log);
+
+  m.length = 1;
+  assertArrayEquals([0], m);
+  assertNextMutationIs({
+    mutation: 'set',
+    name: 'length',
+    target: m
+  }, log);
+}
+
 function testArrayModelLength() {
   var m = Object.getObservable([0, 1]);
 
@@ -443,7 +496,6 @@ function testArrayModelLength() {
     target: m
   }, log);
 }
-
 
 function testArrayModelPush() {
   var zero = {zero: 0};

@@ -510,7 +510,7 @@ function Model() {
 
       if (deleteCount === undefined)
         deleteCount = length - index;
-      deleteCount = Math.max(0, Math.min(length, deleteCount));
+      deleteCount = Math.max(0, Math.min(length - index, deleteCount));
 
       if (deleteCount == 0 && arguments.length <= 2)
         return [];

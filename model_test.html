@@ -881,6 +881,31 @@ function testArrayModelSplice() {
   assertArrayEquals([], m);
 }
 
+function testArrayModelSpliceDeleteTooMany() {
+
+  var arr = ['a', 'b', 'c'];
+  var m = Model.get(arr);
+
+  var expected = {};
+  var count = 0;
+  Model.observeObject(m, function(c) {
+    assertEquals(expected.mutation, c.mutation);
+    assertEquals(expected.index, c.index);
+    assertArrayEquals(expected.removed, c.removed);
+    assertArrayEquals(expected.added, c.added);
+    count++;
+  });
+
+  expected.mutation = 'splice';
+  expected.index = 2;
+  expected.removed = ['c'];
+  expected.added = [];
+
+  m.splice(2, 3);
+  assertArrayEquals(['a', 'b'], m);
+}
+
+
 function testArrayModelLength() {
   var m = Model.get([0, 1]);
 
