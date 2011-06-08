@@ -22,6 +22,8 @@ limitations under the License.
 <script src="compat.js"></script>
 <script src="forwarding_handler.js"></script>
 <script src="weak_map.js"></script>
+<script src="object_observe.js"></script>
+<script src="aspect_work_queue.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="transform.js"></script>
@@ -245,6 +247,8 @@ function assertNodesAre() {
 }
 
 function testIterate() {
+  Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
+  
   div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
   t = div.firstChild;
 

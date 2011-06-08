@@ -22,6 +22,7 @@ limitations under the License.
 <script src="forwarding_handler.js"></script>
 <script src="weak_map.js"></script>
 <script src="object_observe.js"></script>
+<script src="aspect_work_queue.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script>
@@ -30,6 +31,8 @@ goog.require('goog.testing.jsunit');
 </head>
 <body>
 <script>
+
+Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
 
 // Closure's assertArrayEquals does not handle proxies
 function assertArrayEquals() {
@@ -1103,6 +1106,7 @@ function testArrayModelIndexOf() {
 }
 
 function testArrayView() {
+  // Failing because Model.getView no longer works
   var m = Model.get([]);
 
   // Sort in lexicographic order, and only include strings
@@ -1179,6 +1183,7 @@ function testArrayView() {
 }
 
 function testArrayViewObject() {
+  // Failing because Model.getView no longer works
   var arr = [];
   var m = Model.get(arr);
 

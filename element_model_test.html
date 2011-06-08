@@ -21,6 +21,8 @@ limitations under the License.
 <script src="compat.js"></script>
 <script src="forwarding_handler.js"></script>
 <script src="weak_map.js"></script>
+<script src="object_observe.js"></script>
+<script src="aspect_work_queue.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="element_model.js"></script>
@@ -35,6 +37,8 @@ goog.require('goog.testing.jsunit');
 </div>
 
 <script>
+
+Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
 
 function testModel() {
   var d = document.createElement('div');
@@ -84,7 +88,7 @@ function testObserveOnElement() {
   var count = 0;
   function callback(c) {
     count++;
-    assertEquals(c.propertyName, 'model');
+    assertEquals('model', c.propertyName);
   }
 
   Model.observeObject(d, callback);
@@ -95,12 +99,13 @@ function testObserveOnElement() {
 }
 
 function testObserveOnElement2() {
+  // Failing because computedModel becomes visible on div.
   var div = document.createElement('div');
 
   var count = 0;
   function callback(c) {
     count++;
-    assertEquals(c.propertyName, 'model');
+    assertEquals('model', c.propertyName);
   }
 
   var divModel = Model.get(div);

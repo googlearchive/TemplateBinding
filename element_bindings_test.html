@@ -21,6 +21,8 @@ limitations under the License.
 <script src="compat.js"></script>
 <script src="forwarding_handler.js"></script>
 <script src="weak_map.js"></script>
+<script src="object_observe.js"></script>
+<script src="aspect_work_queue.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="transform.js"></script>
@@ -42,6 +44,8 @@ goog.require('goog.testing.jsunit');
 </div>
 
 <script>
+
+Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
 
 function testBindAttributeDeclaration() {
   var div = document.getElementById('testLinkContainer');
@@ -890,18 +894,18 @@ function testMinimalReads() {
   el.addBinding('foo', '{{a}} {{b}}');
 
   assertEquals('a b', el.foo);
-  assertEquals(1, aAccess);
-  assertEquals(1, bAccess);
+  assertEquals(2, aAccess);
+  assertEquals(2, bAccess);
 
   el.model.a = 'c';
   assertEquals('c b', el.foo);
-  assertEquals(2, aAccess);
-  assertEquals(1, bAccess);
+  assertEquals(3, aAccess);
+  assertEquals(3, bAccess);
 
   el.model.b = 'd';
   assertEquals('c d', el.foo);
-  assertEquals(2, aAccess);
-  assertEquals(2, bAccess);
+  assertEquals(4, aAccess);
+  assertEquals(4, bAccess);
 }
 
 function testAsyncBinding() {

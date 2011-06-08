@@ -202,6 +202,10 @@
       this.logs.forEach(function(log) {
         log.append(mutation);
       });
+      
+      // Exposed for testing.
+      if (Object.logAppendHook_)
+        Object.logAppendHook_();
     },
 
     'delete': function(name) {
@@ -324,15 +328,23 @@
         var mutation;
         try {
           mutation = arrayMutationHandlers[name].apply(this, arguments);
+          var logAppendHook;
           if (mutation) {
             handler.batchCount_++;
+            logAppendHook = Object.logAppendHook_;
+            Object.logAppendHook_ = undefined;
             objectHandlerProto.logMutation.call(handler, mutation);
           }
 
           return handler.object[name].apply(this, arguments);
         } finally {
-          if (mutation)
+          if (mutation) {
             handler.batchCount_--;
+            if (logAppendHook) {
+              logAppendHook();
+              Object.logAppendHook_ = logAppendHook;
+            }
+          }
         }
       });
     },

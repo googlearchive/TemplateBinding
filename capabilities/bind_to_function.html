@@ -55,8 +55,8 @@ document.body.model = Model.get({
   ]
 });
 
-function clickHandler() {
-  this.computedModel.selected = !this.computedModel.selected;
+function clickHandler(e) {
+  e.target.computedModel.selected = !e.target.computedModel.selected;
 }
 
 document.body.model.people.forEach(function(person) {

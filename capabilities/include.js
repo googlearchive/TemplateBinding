@@ -18,6 +18,8 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../forwarding_handler.js',
   '../weak_map.js',
   '../path.js',
+  '../object_observe.js',
+  '../aspect_work_queue.js',
   '../model.js',
   '../transform.js',
   '../dependency_parser.js',

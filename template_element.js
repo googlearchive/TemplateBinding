@@ -21,6 +21,8 @@ var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 var bindAttributeParser = new BindAttributeParser;
 
 document.addEventListener('DOMContentLoaded', function(e) {
+  Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
+  
   var templates = document.querySelectorAll('template');
   forEach(templates, HTMLTemplateElement.decorate);
 }, false);
