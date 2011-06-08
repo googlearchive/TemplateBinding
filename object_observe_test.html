@@ -74,18 +74,14 @@ function isIndex(s) {
   return +s === s >>> 0;
 }
 
-function SpliceProjection(target, originalLength, log) {
+function ArrayTracker(target) {
   this.target = target;
-  this.length = originalLength;
-  if (log) {
-    log.clear().forEach(function(mutation) {
-      this.add(mutation);
-    }, this);
-  }
+  this.copy = target.concat();
+  this.virtualLength = this.copy.length;
 }
 
-SpliceProjection.prototype = {
-  add: function(mutation) {
+ArrayTracker.prototype = {
+  addMutation: function(mutation) {
     if (this.target && mutation.target !== this.target)
       return;
     if (!this.splices)
@@ -97,7 +93,7 @@ SpliceProjection.prototype = {
         return;
 
       var index = +mutation.name;
-      if (mutation.mutation == 'delete' && index >= this.length)
+      if (mutation.mutation == 'delete' && index >= this.virtualLength)
         return;
 
       splice = newSpliceMutation(index, 1, 1, mutation.target);
@@ -145,42 +141,36 @@ SpliceProjection.prototype = {
     if (!inserted)
       this.splices.push(splice);
 
-    this.length += delta;
+    this.virtualLength += delta;
   },
 
-  get log() {
-    var retval = new MutationLog();
+  notify: function() {
     this.splices.forEach(function(splice) {
-      retval.append(splice);
-    });
+      var spliceArgs = [splice.index, splice.deleteCount];
+      var addIndex = splice.index;
+      while (addIndex < splice.index + splice.addCount) {
+        spliceArgs.push(this.target[addIndex]);
+        addIndex++;
+      }
 
-    return retval;
+      Array.prototype.splice.apply(this.copy, spliceArgs);
+    }, this);
   }
 }
 
-function assertSpliceProjection(origCopy, final, log) {
-  var projection = new SpliceProjection(final, origCopy.length, log);
-
-  projection.log.clear().forEach(function(splice) {
-    var spliceArgs = [splice.index, splice.deleteCount];
-    var addIndex = splice.index;
-    while (addIndex < splice.index + splice.addCount) {
-      spliceArgs.push(final[addIndex]);
-      addIndex++;
-    }
-
-    Array.prototype.splice.apply(origCopy, spliceArgs);
+function assertArrayTracker(tracker, log) {
+  log.clear().forEach(function(mutation) {
+    tracker.addMutation(mutation);
   });
 
-  assertArrayEquals(final, origCopy);
+  tracker.notify();
+  assertArrayEquals(tracker.target, tracker.copy);
 }
 
 function testSpliceContained() {
   var data = ['a', 'b'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
@@ -188,121 +178,105 @@ function testSpliceContained() {
   m.unshift('c', 'd', 'e');
   m.splice(1, 2, 'f');
 
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
 function testSpliceDeleteEmpty() {
   var data = [];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   delete m[0];
   m.splice(0, 0, 'a', 'b', 'c');
 
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionRightNonOverlap() {
+function testArrayTrackerRightNonOverlap() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(0, 1, 'e');
   m.splice(2, 1, 'f', 'g');
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionLeftNonOverlap() {
+function testArrayTrackerLeftNonOverlap() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(3, 1, 'f', 'g');
   m.splice(0, 1, 'e');
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionRightAdjacent() {
+function testArrayTrackerRightAdjacent() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(1, 1, 'e');
   m.splice(2, 1, 'f', 'g');
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionLeftAdjacent() {
+function testArrayTrackerLeftAdjacent() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(2, 2, 'e');
   m.splice(1, 1, 'f', 'g');
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionRightOverlap() {
+function testArrayTrackerRightOverlap() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(1, 1, 'e');
   m.splice(1, 1, 'f', 'g');
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionLeftOverlap() {
+function testArrayTrackerLeftOverlap() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(2, 1, 'e', 'f', 'g');  // a b [e f g] d
   m.splice(1, 2, 'h', 'i', 'j'); // a [h i j] f g d
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
-function testSpliceProjectionUpdateDelete() {
+function testArrayTrackerUpdateDelete() {
   var data = ['a', 'b', 'c', 'd'];
-  var dataCopy = data.concat();
-
   var m = Object.getObservable(data);
-
+  var tracker = new ArrayTracker(m);
   var log = new MutationLog();
   Object.observe(m, log);
 
   m.splice(2, 1, 'e', 'f', 'g');  // a b [e f g] d
   m[0] = 'h';
   delete m[1];
-  assertSpliceProjection(dataCopy, m, log);
+  assertArrayTracker(tracker, log);
 }
 
 var valMax = 10;
@@ -376,16 +350,17 @@ function testSpliceFuzzer() {
               ' passes with ' + operationCount + ' operations each.');
   for (var i = 0; i < testCount; i++) {
     var data = []; randArray();
-    var dataCopy = data.concat();
+    var m = Object.getObservable(data);
+    var tracker = new ArrayTracker(m);
+    var log = new MutationLog();
+    Object.observe(m, log);
+
     //  console.log('initial: ' + data.join(', '));
 
-    var m = Object.getObservable(data);
-
-    var log = new MutationLog();
     Object.observe(m, log);
     randomArrayOperations(m, operationCount);
 
-    assertSpliceProjection(dataCopy, m, log);
+    assertArrayTracker(tracker, log);
   }
 }
 
