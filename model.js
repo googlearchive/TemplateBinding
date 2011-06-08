@@ -1137,4 +1137,129 @@ function Model() {
       this.maybeDestruct_();
     }
   };
+
+  function newSpliceMutation(index, deleteCount, addCount, target) {
+    return {
+      mutation: 'splice',
+      index: index,
+      deleteCount: deleteCount,
+      addCount: addCount,
+      target: target
+    }
+  }
+
+  function intersect(start1, end1, start2, end2) {
+    if (start1 > end1 || start2 > end2)
+      throw Error('Invalid splice range provided: ' +
+                  [start1, end1, start2, end2].join(', '));
+
+    // Disjoint
+    if (end1 < start2 || end2 < start1)
+      return -1;
+
+    // Adjacent
+    if (end1 == start2 || end2 == start1)
+      return 0;
+
+    // Non-zero intersect, span1 first
+    if (start1 < start2) {
+      if (end1 < end2)
+        return end1 - start2; // Overlap
+      else
+        return end2 - start2; // Contained
+    } else {
+      // Non-zero intersect, span2 first
+      if (end2 < end1)
+        return end2 - start1; // Overlap
+      else
+        return end1 - start1; // Contained
+    }
+  }
+
+  function ArrayTracker(target) {
+    this.target = target;
+    this.copy = target.concat();
+    this.virtualLength = this.copy.length;
+  }
+
+  // Only exposed for testing.
+  this.ArrayTracker = ArrayTracker;
+
+  ArrayTracker.prototype = {
+    addMutation: function(mutation) {
+      if (this.target && mutation.target !== this.target)
+        return;
+      if (!this.splices)
+        this.splices = [];
+
+      var splice;
+      if (mutation.mutation == 'set' || mutation.mutation == 'delete') {
+        if (!isIndex(mutation.name))
+          return;
+
+        var index = +mutation.name;
+        if (mutation.mutation == 'delete' && index >= this.virtualLength)
+          return;
+
+        splice = newSpliceMutation(index, 1, 1, mutation.target);
+      } else {
+        splice = newSpliceMutation(mutation.index,
+                                   mutation.deleteCount,
+                                   mutation.addCount,
+                                   mutation.target);
+      }
+
+      var range = splice.index + splice.deleteCount;
+      var delta = splice.addCount - splice.deleteCount;
+      var inserted = false;
+
+      for (var i = 0; i < this.splices.length; i++) {
+        var current = this.splices[i];
+        var currentRange = current.index + current.addCount;
+        var intersectCount = intersect(splice.index,
+                                       range,
+                                       current.index,
+                                       currentRange);
+
+        if (intersectCount >= 0) {
+          // Merge the two splices
+          splice.index = Math.min(splice.index, current.index);
+          splice.deleteCount = splice.deleteCount +
+                               current.deleteCount -
+                               intersectCount;
+          splice.addCount = splice.addCount +
+                            current.addCount -
+                            intersectCount;
+          this.splices.splice(i, 1);
+          i--;
+        } else if (splice.index <= current.index) {
+          current.index += delta;
+          if (!inserted) {
+            // Insert splice here.
+            this.splices.splice(i, 0, splice);
+            i++;
+            inserted = true;
+          }
+        }
+      }
+
+      if (!inserted)
+        this.splices.push(splice);
+
+      this.virtualLength += delta;
+    },
+
+    notify: function() {
+      this.splices.forEach(function(splice) {
+        var spliceArgs = [splice.index, splice.deleteCount];
+        var addIndex = splice.index;
+        while (addIndex < splice.index + splice.addCount) {
+          spliceArgs.push(this.target[addIndex]);
+          addIndex++;
+        }
+
+        Array.prototype.splice.apply(this.copy, spliceArgs);
+      }, this);
+    }
+  }
 })();
