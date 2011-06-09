@@ -245,53 +245,6 @@ function Model() {
     }
   };
 
-  function notifySplice(data, index, removed, added) {
-    var change = {
-      mutation: 'splice',
-      index: index,
-      added: added.map(function(item) {
-        return Model.get(item);
-      }),
-      removed: removed.map(function(item) {
-        return Model.get(item);
-      })
-    };
-
-    notifyChange(data, change);
-  }
-
-  function notifyChange(data, change) {
-    if (!isObject(data))
-      return;
-
-    var model = Object.getObservable(data);
-
-    var observers = observersMap.get(model);
-    if (!observers)
-      return;
-
-    change.model = model;
-
-    observers.forEach(function(callback) {
-      MutationQueue.add(function() {
-        callback(change);
-      });
-    });
-
-    MutationQueue.runUntilEmpty();
-  }
-
-  function notify(data, propertyName, mutation, value, oldValue) {
-    var change = {
-      propertyName: propertyName,
-      mutation: mutation,
-      oldValue: Model.get(oldValue),
-      value: Model.get(value)
-    }
-
-    notifyChange(data, change);
-  }
-
   function checkIsValid(pathValue) {
     if (!pathValue.valid)
       throw Error('Unknown state: Observers must remain for value to be ' +
@@ -661,6 +614,7 @@ function Model() {
 
   ObjectTracker.prototype = {
     addMutation: function(mutation) {}, // noop for object
+    
     notify: function() {
       var newCopy = shallowClone(this.target);
       for (var prop in this.copy) {
@@ -668,9 +622,9 @@ function Model() {
         var newVal = newCopy[prop];
 
         if (!(prop in newCopy)) {
-          notify(this.target, prop, 'delete', newVal, oldVal);
+          this.notifyPropertyChange(prop, 'delete', newVal, oldVal);
         } else if (newVal !== oldVal) {
-          notify(this.target, prop, 'update', newVal, oldVal);
+          this.notifyPropertyChange(prop, 'update', newVal, oldVal);
           this.copy[prop] = newCopy[prop];
         }
 
@@ -679,9 +633,35 @@ function Model() {
       
       for (var prop in newCopy) {
         var val = newCopy[prop];
-        notify(this.target, prop, 'add', val, undefined);
+        this.notifyPropertyChange(prop, 'add', val, undefined);
         this.copy[prop] = val;
       }
+    },
+    
+    notifyPropertyChange: function(name, mutation, value, oldValue) {
+      this.notifyChange({
+        propertyName: name,
+        mutation: mutation,
+        oldValue: Model.get(oldValue),
+        value: Model.get(value)
+      });
+    },
+    
+    notifyChange: function(change) {
+      var model = this.target;
+      var observers = observersMap.get(model);
+      if (!observers)
+        return;
+
+      change.model = model;
+
+      observers.forEach(function(callback) {
+        MutationQueue.add(function() {
+          callback(change);
+        });
+      });
+
+      MutationQueue.runUntilEmpty();
     }
   };
 
@@ -701,7 +681,9 @@ function Model() {
   // Only exposed for testing.
   this.ArrayTracker = ArrayTracker;
 
-  ArrayTracker.prototype = {
+  ArrayTracker.prototype = createObject({
+    __proto__: ObjectTracker.prototype,
+    
     addMutation: function(mutation) {
       if (this.target && mutation.target !== this.target)
         return;
@@ -777,8 +759,21 @@ function Model() {
 
         var removed = Array.prototype.splice.apply(this.copy, spliceArgs);
         var added = Array.prototype.slice.call(spliceArgs, 2);
-        notifySplice(this.target, splice.index, removed, added);        
+        this.notifySplice(splice.index, removed, added);        
       }
+    },
+    
+    notifySplice: function(index, removed, added) {
+      this.notifyChange({
+        mutation: 'splice',
+        index: index,
+        added: added.map(function(item) {
+          return Model.get(item);
+        }),
+        removed: removed.map(function(item) {
+          return Model.get(item);
+        })
+      });
     }
-  };
+  });
 })();
