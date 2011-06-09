@@ -95,9 +95,11 @@ function setModel(model) {
     ownerAndPath = getModelOwnerAndPath(this);
 
   this.model_ = model;
-
-  Model.notify(this, 'model', 'update', model, oldModel);
-
+  
+  // Notify listeners. This will be a noop because of first check in this
+  // function.
+  Object.getObservable(this).model = model;
+  
   if (this.model_ === undefined)
     resetBindingSources(this);
   else if (oldModel === undefined)

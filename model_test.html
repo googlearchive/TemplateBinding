@@ -136,60 +136,6 @@ function testIdentity2() {
   assertTrue(m1.a.c === m2.c);
 }
 
-function testWrapping() {
-  var data = {};
-
-  var eventCount = 0;
-  var expect = {
-    propertyName: 'id'
-  };
-
-  var callback = function(c) {
-    ++eventCount;
-    assertEquals(expect.propertyName, c.propertyName);
-    assertEquals(expect.mutation, c.mutation);
-    assertEquals(expect.oldValue, c.oldValue);
-    assertEquals(expect.value, c.value);
-  };
-
-  Model.observeObject(data, callback);
-
-  expect.mutation = 'add';
-  expect.value = 0;
-  data.id = 0;
-  Model.notify(data, 'id', 'add', 0, undefined);
-  assertEquals(1, eventCount);
-
-  expect.mutation = 'update';
-  expect.oldValue = 0;
-  expect.value = -1;
-  data.id = -1;
-  Model.notify(data, 'id', 'update', -1, 0);
-  assertEquals(2, eventCount);
-
-  expect.mutation = 'delete';
-  expect.oldValue = -1;
-  expect.value = undefined;
-  delete data.id;
-  Model.notify(data, 'id', 'delete', undefined, -1);
-  assertEquals(3, eventCount);
-
-  // Stop observing -- shouldn't see an event.
-  Model.stopObservingObject(data, callback);
-  data.id = 101;
-  Model.notify(data, 'id', 'add', 101, undefined);
-  assertEquals(3, eventCount);
-
-  // Re-observe -- should see an new event again.
-  Model.observeObject(data, callback);
-  expect.mutation = 'update';
-  expect.oldValue = 101;
-  expect.value = 100;
-  data.id = 100;
-  Model.notify(data, 'id', 'update', 100, 101);
-  assertEquals(4, eventCount);
-}
-
 function testGetPath() {
   var m = Model.get({a: {b: {c: 'xyz'}}});
 

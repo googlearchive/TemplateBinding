@@ -29,7 +29,7 @@ function Model() {
 
     mutationQueue.push(mutation);
     return mutation.handle;
-  }
+  };
 
   var mutationQueueIsRunning = false;
 
@@ -56,7 +56,7 @@ function Model() {
 
     if (exception)
       throw exception;
-  }
+  };
 
   var proxiesImplemented = !!this.Proxy;
   if (!proxiesImplemented) {
@@ -281,7 +281,7 @@ function Model() {
     MutationQueue.runUntilEmpty();
   }
 
-  Model.notify = function(data, propertyName, mutation, value, oldValue) {
+  function notify(data, propertyName, mutation, value, oldValue) {
     var change = {
       propertyName: propertyName,
       mutation: mutation,
@@ -290,7 +290,7 @@ function Model() {
     }
 
     notifyChange(data, change);
-  };
+  }
 
   function checkIsValid(pathValue) {
     if (!pathValue.valid)
@@ -668,9 +668,9 @@ function Model() {
         var newVal = newCopy[prop];
 
         if (!(prop in newCopy)) {
-          Model.notify(this.target, prop, 'delete', newVal, oldVal);
+          notify(this.target, prop, 'delete', newVal, oldVal);
         } else if (newVal !== oldVal) {
-          Model.notify(this.target, prop, 'update', newVal, oldVal);
+          notify(this.target, prop, 'update', newVal, oldVal);
           this.copy[prop] = newCopy[prop];
         }
 
@@ -679,11 +679,11 @@ function Model() {
       
       for (var prop in newCopy) {
         var val = newCopy[prop];
-        Model.notify(this.target, prop, 'add', val, undefined);
+        notify(this.target, prop, 'add', val, undefined);
         this.copy[prop] = val;
       }
     }
-  }
+  };
 
   function createTracker(model) {
     if (model instanceof Array)
@@ -780,5 +780,5 @@ function Model() {
         notifySplice(this.target, splice.index, removed, added);        
       }
     }
-  }
+  };
 })();
