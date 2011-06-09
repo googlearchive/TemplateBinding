@@ -64,7 +64,6 @@ function Model() {
         'Proxy are not available. Changes to models will not be observable.');
   }
 
-  var observersMap = new WeakMap;
   var objectTrackerMap = new WeakMap;
 
   function isObject(obj) {
@@ -181,17 +180,14 @@ function Model() {
 
     var model = Object.getObservable(data);
 
-    var observers = observersMap.get(model);
-    if (!observers) {
-      observers = [];
-      observersMap.set(model, observers);
-      objectTrackerMap.set(model, createTracker(model));
+    var tracker = objectTrackerMap.get(model);
+    if (!tracker) {
+      var tracker = createTracker(model);
+      objectTrackerMap.set(model, tracker);
       Object.observe(model, mutationLog);
     }
 
-    var index = observers.indexOf(callback);
-    if (index < 0)
-      observers.push(callback);
+    tracker.addCallback(callback);
   };
 
   Model.stopObserving = function(data, path, callback) {
@@ -229,17 +225,12 @@ function Model() {
 
     var model = Object.getObservable(data);
 
-    var observers = observersMap.get(model);
-    if (!observers)
+    var tracker = objectTrackerMap.get(model);
+    if (!tracker)
       return;
 
-    var index = observers.indexOf(callback);
-    if (index < 0)
-      return;
-
-    observers.splice(index, 1);
-    if (observers.length == 0) {
-      observersMap.delete(model);
+    tracker.removeCallback(callback);
+    if (!tracker.hasCallbacks) {
       objectTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
     }
@@ -615,6 +606,32 @@ function Model() {
   ObjectTracker.prototype = {
     addMutation: function(mutation) {}, // noop for object
     
+    addCallback: function(callback) {
+      if (!this.observers)
+        this.observers = [];
+      var index = this.observers.indexOf(callback);
+      if (index < 0)
+        this.observers.push(callback);
+    },
+    
+    removeCallback: function(callback) {
+      if (!this.observers)
+        return;
+
+      var index = this.observers.indexOf(callback);
+      if (index < 0)
+        return;
+
+      this.observers.splice(index, 1);
+      if (this.observers.length == 0) {
+        this.observers = undefined;
+      }
+    },
+
+    get hasCallbacks() {
+      return !!this.observers;
+    },
+
     notify: function() {
       var newCopy = shallowClone(this.target);
       for (var prop in this.copy) {
@@ -649,13 +666,12 @@ function Model() {
     
     notifyChange: function(change) {
       var model = this.target;
-      var observers = observersMap.get(model);
-      if (!observers)
+      if (!this.observers)
         return;
 
       change.model = model;
 
-      observers.forEach(function(callback) {
+      this.observers.forEach(function(callback) {
         MutationQueue.add(function() {
           callback(change);
         });
