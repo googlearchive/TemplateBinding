@@ -22,6 +22,11 @@
 // http://lists.w3.org/Archives/Public/public-webapps/2009AprJun/0779.html
 //
 // The big difference is that callbacks are replaced by MutationLogs.
+//
+// Other differences from the spec:
+//   - For ChildlistChanged mutations, the nodes added and/or removed are
+//     included in the mutation.
+//   - For AttributeChanged mutations, the changed attribute name is included.
 
 (function() {
 
@@ -72,11 +77,8 @@ types.forEach(function(type) {
   };
 });
 
-function logMutations(node, localType, subtreeType, attrName) {
+function logMutations(mutation, localType, subtreeType) {
   var dirtyLogs = new WeakMap;
-  var mutation = {target: node, type: localType || subtreeType};
-  if (attrName)
-    mutation.attrName = attrName;
 
   function logOneMutation(node, listenerType) {
     if (node.logs_ && node.logs_[listenerType]) {
@@ -89,6 +91,7 @@ function logMutations(node, localType, subtreeType, attrName) {
     }
   }
 
+  var node = mutation.target;
   if (localType)
     logOneMutation(node, localType);
   while (node) {
@@ -98,22 +101,40 @@ function logMutations(node, localType, subtreeType, attrName) {
 }
 
 document.addEventListener('DOMNodeInserted', function(event) {
-  logMutations(event.target.parentNode, 'ChildlistChanged', 'SubtreeChanged');
+  var mutation = {
+    target: event.target.parentNode,
+    type: 'ChildlistChanged',
+    added: [event.target],
+    removed: []
+  };
+  logMutations(mutation, 'ChildlistChanged', 'SubtreeChanged');
 }, false);
 
 document.addEventListener('DOMNodeRemoved', function(event) {
-  logMutations(event.target.parentNode, 'ChildlistChanged', 'SubtreeChanged');
+  var mutation = {
+    target: event.target.parentNode,
+    type: 'ChildlistChanged',
+    added: [],
+    removed: [event.target]
+  };
+  logMutations(mutation, 'ChildlistChanged', 'SubtreeChanged');
 }, false);
 
 document.addEventListener('DOMAttrModified', function(event) {
-  logMutations(event.target,
-               'AttributeChanged',
-               'SubtreeAttributeChanged',
-               event.attrName);
+  var mutation = {
+    target: event.target,
+    type: 'AttributeChanged',
+    attrName: event.attrName
+  };
+  logMutations(mutation, 'AttributeChanged', 'SubtreeAttributeChanged');
 }, false);
 
 document.addEventListener('DOMCharacterDataModified', function(event) {
-  logMutations(event.target, null, 'TextDataChanged');
+  var mutation = {
+    target: event.target,
+    type: 'TextDataChanged'
+  };
+  logMutations(mutation, null, 'TextDataChanged');
 }, false);
 
 })()

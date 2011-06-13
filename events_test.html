@@ -41,7 +41,12 @@ function assertNextMutationIs(expected, log) {
 
   var count = 0;
   for (prop in expected) {
-    assertEquals('mutation prop ' + prop, expected[prop], mutation[prop]);
+    if (Array.isArray(expected[prop]) && Array.isArray(mutation[prop])) {
+      assertArrayEquals('mutation prop ' + prop,
+                        expected[prop], mutation[prop]);
+    } else {
+      assertEquals('mutation prop ' + prop, expected[prop], mutation[prop]);
+    }
     count++;
   }
 
@@ -104,19 +109,25 @@ function testChildlistChanged() {
   assertEquals(1, divLog.length);
   assertNextMutationIs({
     type: 'ChildlistChanged',
-    target: div
+    target: div,
+    added: [span],
+    removed: []
   }, divLog);
 
   span.appendChild(b);
   assertEquals(1, log.length);
   assertNextMutationIs({
     type: 'ChildlistChanged',
-    target: span
+    target: span,
+    added: [b],
+    removed: [],
   }, log);
   assertEquals(1, divLog.length);
   assertNextMutationIs({
     type: 'ChildlistChanged',
-    target: span
+    target: span,
+    added: [b],
+    removed: [],
   }, divLog);
 
   document.body.removeChild(div);
