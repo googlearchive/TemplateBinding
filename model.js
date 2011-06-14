@@ -576,7 +576,7 @@ function Model() {
         return end1 - start1; // Contained
     }
   }
-  
+
   // TODO(rafaelw): This can go away when we move to Model.observeProperty.
   function observableProps(obj) {
     var retval = [];
@@ -586,7 +586,7 @@ function Model() {
         continue;
       retval.push(prop);
     }
-    
+
     return retval;
   }
 
@@ -605,7 +605,7 @@ function Model() {
 
   ObjectTracker.prototype = {
     addMutation: function(mutation) {}, // noop for object
-    
+
     addCallback: function(callback) {
       if (!this.observers)
         this.observers = [];
@@ -613,7 +613,7 @@ function Model() {
       if (index < 0)
         this.observers.push(callback);
     },
-    
+
     removeCallback: function(callback) {
       if (!this.observers)
         return;
@@ -637,9 +637,11 @@ function Model() {
       for (var prop in this.copy) {
         var oldVal = this.copy[prop];
         var newVal = newCopy[prop];
+        var propsDeleted = false;
 
         if (!(prop in newCopy)) {
           this.notifyPropertyChange(prop, 'delete', newVal, oldVal);
+          propsDeleted = true;
         } else if (newVal !== oldVal) {
           this.notifyPropertyChange(prop, 'update', newVal, oldVal);
           this.copy[prop] = newCopy[prop];
@@ -647,14 +649,20 @@ function Model() {
 
         delete newCopy[prop];
       }
-      
+
       for (var prop in newCopy) {
         var val = newCopy[prop];
         this.notifyPropertyChange(prop, 'add', val, undefined);
         this.copy[prop] = val;
       }
+
+      // Handle the 'any props deleted' case seperately. Make a new copy
+      // rather than deleting properties from copy, because deleting properties
+      // in modern VMs may put the object in the "slow bucket".
+      if (propsDeleted)
+        this.copy = shallowClone(this.target);
     },
-    
+
     notifyPropertyChange: function(name, mutation, value, oldValue) {
       this.notifyChange({
         propertyName: name,
@@ -663,7 +671,7 @@ function Model() {
         value: Model.get(value)
       });
     },
-    
+
     notifyChange: function(change) {
       var model = this.target;
       if (!this.observers)
@@ -699,7 +707,7 @@ function Model() {
 
   ArrayTracker.prototype = createObject({
     __proto__: ObjectTracker.prototype,
-    
+
     addMutation: function(mutation) {
       if (this.target && mutation.target !== this.target)
         return;
@@ -775,10 +783,10 @@ function Model() {
 
         var removed = Array.prototype.splice.apply(this.copy, spliceArgs);
         var added = Array.prototype.slice.call(spliceArgs, 2);
-        this.notifySplice(splice.index, removed, added);        
+        this.notifySplice(splice.index, removed, added);
       }
     },
-    
+
     notifySplice: function(index, removed, added) {
       this.notifyChange({
         mutation: 'splice',

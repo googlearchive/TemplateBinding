@@ -119,6 +119,18 @@ function testBasic() {
   assertEquals(4, eventCount);
 }
 
+function testObjectDeleteAddDelete() {
+  var model = Model.get({ id: 1 });
+  var eventCount = 0;
+  Model.observeObject(model, function() {
+    eventCount++;
+  })
+
+  delete model.id;
+  model.id = 1;
+  assertEquals(2, eventCount);
+}
+
 function testIdentity() {
   var obj = {};
   var m1 = Model.get(obj);
