@@ -139,6 +139,13 @@ function Model() {
 
   var pathValueMap = new WeakMap;
 
+  /**
+   * Observes the value at a path from an object. |callback| is invoked
+   * IFF the value changes.
+   * @param {object} data The reference object.
+   * @param {Path} path The path from the reference object to monitor a value.
+   * @return {*} The current value of the observed path from the object.
+   */
   Model.observe = function(data, path, callback) {
     path = new Path(path);
 
@@ -171,7 +178,7 @@ function Model() {
     }
 
     pathValue.observe(callback);
-    return pathValue;
+    return pathValue.value;
   };
 
   Model.observeObject = function(data, callback) {
@@ -276,49 +283,6 @@ function Model() {
     get value() {
       checkIsValid(this);
       return this.value_;
-    },
-
-    set value(value) {
-      checkIsValid(this);
-      var ref = this.ref_;
-      if (ref) {
-        // Update the property value of the reference object.
-        ref[this.propertyName_] = value;
-      } else {
-        // Directly update the value of the "root". This should not ever affect
-        // listeners at deeper paths because PathValues retrieved with empty
-        // paths are never used as parents of longer paths.
-        this.value_ = value;
-      }
-    },
-
-    /**
-     * Allows an observer to query for its last observed value at this path.
-     * @param {function} callback The registered callback for which the last
-     *     observed value is requested
-     * @return {*} The value as of callback registration or last notification
-     */
-    lastObservedValue: function(callback) {
-      checkIsValid(this);
-      var index = getObserverIndex(this.observers_, callback);
-      if (index < 0)
-        return;
-      return this.observers_[index].lastObservedValue;
-    },
-
-    /**
-     * Allows an observer to set the value of its lastObservedValue. This is
-     * primarily useful immediately before setting the value via the value
-     * property, so as to avoid being notified that the value changed.
-     * @param {Function} callback The registered callback for which the last
-     *     observed value is requested
-     */
-    expectValue: function(callback, value) {
-      checkIsValid(this);
-      var index = getObserverIndex(this.observers_, callback);
-      if (index < 0)
-        return;
-      this.observers_[index].lastObservedValue = value;
     },
 
     /**
@@ -634,10 +598,11 @@ function Model() {
 
     notify: function() {
       var newCopy = shallowClone(this.target);
+      var propsDeleted = false;
+
       for (var prop in this.copy) {
         var oldVal = this.copy[prop];
         var newVal = newCopy[prop];
-        var propsDeleted = false;
 
         if (!(prop in newCopy)) {
           this.notifyPropertyChange(prop, 'delete', newVal, oldVal);

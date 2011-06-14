@@ -54,6 +54,10 @@ var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
 var bindAttributeParser = new BindAttributeParser;
 
+function isObject(obj) {
+  return obj === Object(obj);
+}
+
 Object.defineProperty(HTMLElement.prototype, 'bind', {
   get: function() {
     return this.getAttribute('bind') || '';
@@ -214,11 +218,15 @@ BindingSource.prototype = {
   },
 
   bindTo: function(target, property, callback, ignoreModelScope) {
-    this.target = target,
-    this.property = property,
+    this.target = target;
+    this.property = property;
     // We need a locally bound function in case our binding has multiple
     // sources observing at the same path.
+    var self = this;
     this.callback = function(value, oldValue) {
+      if (self.observation.value === value)
+        return;
+      self.observation.value = value;
       callback(value, oldValue);
     };
     this.ignoreModelScope = ignoreModelScope;
@@ -230,9 +238,11 @@ BindingSource.prototype = {
   },
 
   unbind: function() {
-    if (this.pathValue) {
-      this.pathValue.stopObserving(this.callback);
-      this.pathValue = null;
+    if (this.observation) {
+      Model.stopObserving(this.observation.source,
+                          this.observation.path,
+                          this.callback);
+      this.observation = undefined;
     }
 
     if (this.modelOwner) {
@@ -251,7 +261,7 @@ BindingSource.prototype = {
     // Model source isn't DOM-bound
     if (this.path.isNamed || !sourceIsDOMNode(source)) {
       // Already listening. Non-DOM-bound models don't change path.
-      if (this.pathValue)
+      if (this.observation)
         return;
 
       if (this.path.isNamed) {
@@ -293,28 +303,30 @@ BindingSource.prototype = {
       this.pathToOwner = path;
     }
 
-    // Save lastObservedValue, if any
-    var wasBound = false;
-    var lastObservedValue;
-    if (this.pathValue) {
-      wasBound = true;
-      lastObservedValue = this.pathValue.lastObservedValue(this.callback);
-      this.pathValue.stopObserving(this.callback);
-    }
+    if (this.observation) {
+      Model.stopObserving(this.observation.source,
+                          this.observation.path,
+                          this.callback);
 
-    // Find new PathValue
-    this.pathValue = Model.observe(source, path, this.callback);
-
-    if (wasBound && lastObservedValue != this.pathValue.value) {
-      // Don't leak this.
-      this.callback.call(null, this.pathValue.value, lastObservedValue);
     }
+    var newValue = Model.observe(source, path, this.callback);
+    this.observation = this.observation || {};
+    this.observation.source = source;
+    this.observation.path = path;
+
+    if (this.observation.hasOwnProperty('value') &&
+        this.observation.value !== newValue)
+      this.callback.call(null, newValue, this.observation.value);
+    else
+      this.observation.value = newValue; // Happens on first-time bind.
+                                         // Binding.bindTo triggers
+                                         // dependencyChanged
   },
 
   get value() {
     var value;
     try {
-      value = this.transform.toTarget(this.pathValue.value,
+      value = this.transform.toTarget(this.observation.value,
                                       this.sourceName,
                                       this.target,
                                       this.property);
@@ -336,8 +348,23 @@ BindingSource.prototype = {
       console.error('Uncaught exception within binding: ', ex);
     }
 
-    this.pathValue.expectValue(this.callback, value);
-    this.pathValue.value = value;
+    this.observation.value = value;
+
+    var source = this.observation.source;
+    var property = this.observation.path;
+
+    if (property.length == 0)
+      return; // Can't assign to an object with no path.
+
+    if (property.length > 1) {
+      source = Model.get(source, property.slice(0, property.length - 1));
+      property = property.slice(property.length - 1);
+    }
+
+    if (!isObject(source))
+      return; // Can't assign to a scalar.
+
+    source[property.toString()] = value;
   }
 }
 

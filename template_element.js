@@ -22,7 +22,7 @@ var bindAttributeParser = new BindAttributeParser;
 
 document.addEventListener('DOMContentLoaded', function(e) {
   Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
-  
+
   var templates = document.querySelectorAll('template');
   forEach(templates, HTMLTemplateElement.decorate);
 }, false);
@@ -469,7 +469,7 @@ TemplateIterator.prototype = {
                               '',  // property (can safely be ignored)
                               this.boundHandleNewModel);
     // Begin observing model
-    this.handleNewModel(this.bindingSource.pathValue.value);
+    this.handleNewModel(this.bindingSource.value);
   },
 
   handleNewModel: function(model, oldModel) {

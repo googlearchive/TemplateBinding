@@ -157,88 +157,6 @@ function testGetPath() {
   assertEquals(m.a, Model.get(m, 'a'));
 }
 
-function testPathValue() {
-  var m = Model.get({ id: 1});
-  var eventCount = 0;
-
-  var observer = function(value, oldValue) {
-    eventCount++;
-  };
-
-  var pv = Model.observe(m, 'id', observer);
-
-  assertEquals(m.id, pv.value);
-  assertEquals(0, eventCount);
-
-  m.id = 2;
-  assertEquals(m.id, pv.value);
-  assertEquals(1, eventCount);
-
-  Model.stopObserving(m, 'id', observer);
-  m.id = 3;
-  assertThrows(function() { return pv.value; });
-  assertEquals(1, eventCount);
-}
-
-function testPathValueScalar() {
-  var eventCount = 0;
-  var pv = Model.observe("foo", function() {
-    eventCount++;
-  });
-
-  assertEquals('foo', pv.value);
-  pv.value = 'bar';
-  assertEquals('bar', pv.value);
-  assertEquals(0, eventCount);
-}
-
-function testPathValueSet() {
-  var m = Model.get({foo: {bar: 1}});
-  var eventCount1 = 0;
-  var eventCount2 = 0;
-  var eventCount3 = 0;
-
-  var pv1 = Model.observe(m, 'foo.bar', function() {
-    eventCount1++;
-  });
-  var pv2 = Model.observe(m, 'foo', function() {
-    eventCount2++;
-  })
-  var pv3 = Model.observe(m, '', function() {
-    eventCount3++;
-  })
-
-  pv1.value = 2;
-  assertEquals(2, m.foo.bar);
-  assertEquals(2, pv1.value);
-  assertEquals(1, eventCount1);
-  assertEquals(0, eventCount2);
-  assertEquals(0, eventCount3);
-
-  pv2.value = 4;
-  assertEquals(4, m.foo);
-  assertEquals(4, pv2.value);
-  assertEquals(undefined, pv1.value);
-  assertEquals(2, eventCount1);
-  assertEquals(1, eventCount2);
-  assertEquals(0, eventCount3);
-
-  // pv3 is an "anonymous root" PathValue (i.e. it is *not* the parent of pv1
-  // and pv2). Setting its will not affect m or it's decendants and observers
-  // above.
-  pv3.value = 6;
-  assertEquals(4, m.foo);
-  assertEquals(4, pv2.value);
-  assertEquals(undefined, pv1.value);
-  assertEquals(2, eventCount1);
-  assertEquals(1, eventCount2);
-  assertEquals(0, eventCount3);
-
-  assertThrows(function() {
-    Model.observe('foo', 'bar', function(){});
-  })
-}
-
 function testPathValueDepthFirstNotification() {
   var m = Model.get({
     data: {
@@ -319,7 +237,6 @@ function testPathValueDescendantsCanBeRemovedDuringNotification() {
   // First test that the splice actually propagates down.
   m.unshift({a: 3});
   assertEquals(1, eventCount);
-  assertEquals(2, pv.value);
 
   // Now remove the observation above while a higher-level is receiving the
   // notification.
@@ -344,7 +261,6 @@ function testPathValueDescendantsCanBeResetDuringNotification() {
   // First test that the splice actually propagates down.
   m.unshift({a: 3});
   assertEquals(1, eventCount);
-  assertEquals(2, pv.value);
 
   // Now reset the observation above while a higher-level is receiving the
   // notification. The 're-observe' should reset the lastObservedValue,
@@ -1222,30 +1138,6 @@ function testArrayViewObject() {
   assertArrayEquals([alice, charles, charles], arr);
   assertArrayEquals([aliceModel, charlesModel], v);
   assertEquals(13, count);
-}
-
-function testExpectValue() {
-  var m = Model.get({a: 1});
-  var count = 0;
-  function counter(value, oldValue) {
-    count++;
-  }
-  var pathValue = Model.observe(m, 'a', counter);
-
-  m.a = 2;
-  assertEquals(1, count);
-
-  pathValue.expectValue(counter, 3);
-  m.a = 3;
-  assertEquals(1, count);
-
-  Model.stopObserving(m, 'a', counter);
-  try {
-    pathValue.expectValue(counter, 3);
-    fail('expectValue should throw if called on an invalid PathValue');
-  } catch (e) {
-    // expected an exception to be thrown
-  }
 }
 
 function assertArrayTracker(tracker, log) {
