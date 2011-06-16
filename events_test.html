@@ -92,6 +92,11 @@ function testAttributeChanged() {
     attrName: 'id',
   }, divLog);
 
+  b.removeAttributeChangedListener(log);
+  b.removeSubtreeAttributeChangedListener(log);
+  b.id = 'notobserved';
+  assertEquals(0, log.length);
+
   document.body.removeChild(div);
 }
 
@@ -130,6 +135,10 @@ function testChildlistChanged() {
     removed: [],
   }, divLog);
 
+  div.removeSubtreeChangedListener(divLog);
+  div.appendChild(document.createElement('p'));
+  assertEquals(0, divLog.length);
+
   document.body.removeChild(div);
 }
 
@@ -149,6 +158,11 @@ function testTextDataChanged() {
     type: 'TextDataChanged',
     target: text
   }, log);
+
+  div.removeTextDataChangedListener(log);
+  text.removeTextDataChangedListener(log);
+  text.textContent = 'Not observed';
+  assertEquals(0, log.length);
 
   document.body.removeChild(div);
 }

@@ -55,17 +55,15 @@ function removeListener(node, type, log) {
   if (!node.logs_)
     return;
 
-  if (!node.logs_[type])
+  var logs = node.logs_[type];
+  if (!logs || !logs.length)
     return;
 
-  if (!node.logs_[type].length)
-    return;
-
-  var index = node.logs_.indexOf(log);
+  var index = logs.indexOf(log);
   if (index < 0)
     return;
 
-  node.logs_[type].splice(index, 1);
+  logs.splice(index, 1);
 }
 
 types.forEach(function(type) {
