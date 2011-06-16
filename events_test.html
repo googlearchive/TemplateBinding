@@ -70,7 +70,6 @@ function testAttributeChanged() {
   var div = document.createElement('div');
   var span = div.appendChild(document.createElement('span'));
   var b = span.appendChild(document.createElement('b'));
-  document.body.appendChild(div);
 
   var log = new MutationLog;
   var divLog = new MutationLog;
@@ -96,15 +95,12 @@ function testAttributeChanged() {
   b.removeSubtreeAttributeChangedListener(log);
   b.id = 'notobserved';
   assertEquals(0, log.length);
-
-  document.body.removeChild(div);
 }
 
 function testChildlistChanged() {
   var div = document.createElement('div');
   var span = document.createElement('span');
   var b = document.createElement('b');
-  document.body.appendChild(div);
 
   var log = new MutationLog;
   var divLog = new MutationLog;
@@ -138,8 +134,6 @@ function testChildlistChanged() {
   div.removeSubtreeChangedListener(divLog);
   div.appendChild(document.createElement('p'));
   assertEquals(0, divLog.length);
-
-  document.body.removeChild(div);
 }
 
 function testTextDataChanged() {
@@ -147,7 +141,6 @@ function testTextDataChanged() {
   var span = div.appendChild(document.createElement('span'));
   span.innerHTML = 'Hello, world';
   var text = span.childNodes[0];
-  document.body.appendChild(div);
 
   var log = new MutationLog;
   div.addTextDataChangedListener(log);
@@ -163,8 +156,6 @@ function testTextDataChanged() {
   text.removeTextDataChangedListener(log);
   text.textContent = 'Not observed';
   assertEquals(0, log.length);
-
-  document.body.removeChild(div);
 }
 
 </script>

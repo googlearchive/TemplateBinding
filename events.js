@@ -47,8 +47,25 @@ function addListener(node, type, log) {
     return;
   node.logs_ = node.logs_ || {};
   node.logs_[type] = node.logs_[type] || [];
-  if (node.logs_[type].indexOf(log) < 0)
+  if (node.logs_[type].indexOf(log) < 0) {
     node.logs_[type].push(log);
+
+    switch (type) {
+      case 'AttributeChanged':
+      case 'SubtreeAttributeChanged':
+        node.addEventListener('DOMAttrModified', attrHandler, false);
+        break;
+      case 'ChildlistChanged':
+      case 'SubtreeChanged':
+        node.addEventListener('DOMNodeInserted', addHandler, false);
+        node.addEventListener('DOMNodeRemoved', removeHandler, false);
+        break;
+      case 'TextDataChanged':
+        node.addEventListener('DOMCharacterDataModified',
+                              charDataHandler, false);
+        break;
+    }
+  }
 }
 
 function removeListener(node, type, log) {
@@ -64,6 +81,23 @@ function removeListener(node, type, log) {
     return;
 
   logs.splice(index, 1);
+  if (!logs.length) {
+    switch (type) {
+      case 'AttributeChanged':
+      case 'SubtreeAttributeChanged':
+        node.removeEventListener('DOMAttrModified', attrHandler, false);
+        break;
+      case 'ChildlistChanged':
+      case 'SubtreeChanged':
+        node.removeEventListener('DOMNodeInserted', addHandler, false);
+        node.removeEventListener('DOMNodeRemoved', removeHandler, false);
+        break;
+      case 'TextDataChanged':
+        node.removeEventListener('DOMCharacterDataModified',
+                                 charDataHandler, false);
+        break;
+    }
+  }
 }
 
 types.forEach(function(type) {
@@ -75,9 +109,8 @@ types.forEach(function(type) {
   };
 });
 
-function logMutations(mutation, localType, subtreeType) {
-  var dirtyLogs = new WeakMap;
-
+function logMutations(event, mutation, localType, subtreeType) {
+  var dirtyLogs = getDirtyLogs(event);
   function logOneMutation(node, listenerType) {
     if (node.logs_ && node.logs_[listenerType]) {
       node.logs_[listenerType].forEach(function(log) {
@@ -98,41 +131,54 @@ function logMutations(mutation, localType, subtreeType) {
   }
 }
 
-document.addEventListener('DOMNodeInserted', function(event) {
+// A WeakMap of Event -> WeakMap
+// TODO(adamk): Use a different solution, since this will be deathly
+// slow without a native WeakMap.
+var eventToDirtyLogs = new WeakMap;
+function getDirtyLogs(event) {
+  var dirtyLogs = eventToDirtyLogs.get(event);
+  if (!dirtyLogs) {
+    dirtyLogs = new WeakMap;
+    eventToDirtyLogs.set(event, dirtyLogs);
+  }
+  return dirtyLogs;
+}
+
+function addHandler(event) {
   var mutation = {
     target: event.target.parentNode,
     type: 'ChildlistChanged',
     added: [event.target],
     removed: []
   };
-  logMutations(mutation, 'ChildlistChanged', 'SubtreeChanged');
-}, false);
+  logMutations(event, mutation, 'ChildlistChanged', 'SubtreeChanged');
+}
 
-document.addEventListener('DOMNodeRemoved', function(event) {
+function removeHandler(event) {
   var mutation = {
     target: event.target.parentNode,
     type: 'ChildlistChanged',
     added: [],
     removed: [event.target]
   };
-  logMutations(mutation, 'ChildlistChanged', 'SubtreeChanged');
-}, false);
+  logMutations(event, mutation, 'ChildlistChanged', 'SubtreeChanged');
+}
 
-document.addEventListener('DOMAttrModified', function(event) {
+function attrHandler(event) {
   var mutation = {
     target: event.target,
     type: 'AttributeChanged',
     attrName: event.attrName
   };
-  logMutations(mutation, 'AttributeChanged', 'SubtreeAttributeChanged');
-}, false);
+  logMutations(event, mutation, 'AttributeChanged', 'SubtreeAttributeChanged');
+}
 
-document.addEventListener('DOMCharacterDataModified', function(event) {
+function charDataHandler(event) {
   var mutation = {
     target: event.target,
     type: 'TextDataChanged'
   };
-  logMutations(mutation, null, 'TextDataChanged');
-}, false);
+  logMutations(event, mutation, null, 'TextDataChanged');
+}
 
 })()
