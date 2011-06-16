@@ -477,7 +477,7 @@ TemplateIterator.prototype = {
     var instantiate = this.templateElement.instantiate != null;
 
     if (oldModel)
-      Model.stopObservingObject(oldModel, this.boundHandleModelMutation);
+      Model.stopObservingPropertySet(oldModel, this.boundHandleModelMutation);
 
     if (!iterate && !instantiate)
       this.rootModelChanged_(0);
@@ -487,7 +487,7 @@ TemplateIterator.prototype = {
       this.rootModelChanged_(model == undefined ? 0 : 1);
 
     if (model)
-      Model.observeObject(model, this.boundHandleModelMutation);
+      Model.observePropertySet(model, this.boundHandleModelMutation);
   },
 
   rootModelChanged_: function(count) {

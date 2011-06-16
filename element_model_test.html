@@ -88,10 +88,9 @@ function testObserveOnElement() {
   var count = 0;
   function callback(c) {
     count++;
-    assertEquals('model', c.propertyName);
   }
 
-  Model.observeObject(d, callback);
+  Model.observe(d, 'model', callback);
 
   d.model = Model.get({});
 
@@ -99,18 +98,16 @@ function testObserveOnElement() {
 }
 
 function testObserveOnElement2() {
-  // Failing because computedModel becomes visible on div.
   var div = document.createElement('div');
 
   var count = 0;
   function callback(c) {
     count++;
-    assertEquals('model', c.propertyName);
   }
 
   var divModel = Model.get(div);
 
-  Model.observeObject(divModel, callback);
+  Model.observe(divModel, 'model', callback);
 
   divModel.model = Model.get({});
   assertEquals(1, count);

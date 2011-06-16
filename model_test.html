@@ -53,9 +53,8 @@ function testEvent() {
   var model = Model.get(data);
   var eventCount = 0;
 
-  Model.observeObject(model, function(c) {
+  Model.observe(model, 'id', function(c) {
     ++eventCount;
-    assertEquals(model, c.model);
   });
 
   // Event should fire.
@@ -69,7 +68,7 @@ function testEvent() {
   assertEquals(model.id, data.id);
 }
 
-function testBasic() {
+function testObjectPropertySet() {
   var data = {};
   var model = Model.get(data);
 
@@ -82,47 +81,34 @@ function testBasic() {
     ++eventCount;
     assertEquals(expect.propertyName, c.propertyName);
     assertEquals(expect.mutation, c.mutation);
-    assertEquals(expect.oldValue, c.oldValue);
-    assertEquals(expect.value, c.value);
   };
 
-  Model.observeObject(model, callback);
+  Model.observePropertySet(model, callback);
 
   expect.mutation = 'add';
-  expect.value = 0;
   model.id = 0;
   assertEquals(1, eventCount);
 
-  expect.mutation = 'update';
-  expect.oldValue = 0;
-  expect.value = -1;
-  model.id = -1;
+  expect.mutation = 'delete';
+  delete model.id;
   assertEquals(2, eventCount);
 
-  expect.mutation = 'delete';
-  expect.oldValue = -1;
-  expect.value = undefined;
-  delete model.id;
-  assertEquals(3, eventCount);
-
-  // Stop observing -- shouldn't see an event.
-  Model.stopObservingObject(model, callback);
+  // Stop observing -- shouldn't see an event
+  Model.stopObservingPropertySet(model, callback);
   model.id = 101;
-  assertEquals(3, eventCount);
+  assertEquals(2, eventCount);
 
   // Re-observe -- should see an new event again.
-  Model.observeObject(model, callback);
-  expect.mutation = 'update';
-  expect.oldValue = 101;
-  expect.value = 100;
-  model.id = 100;
-  assertEquals(4, eventCount);
+  Model.observePropertySet(model, callback);
+  expect.mutation = 'delete';
+  delete model.id;
+  assertEquals(3, eventCount);
 }
 
 function testObjectDeleteAddDelete() {
   var model = Model.get({ id: 1 });
   var eventCount = 0;
-  Model.observeObject(model, function() {
+  Model.observePropertySet(model, function() {
     eventCount++;
   })
 
@@ -157,30 +143,8 @@ function testGetPath() {
   assertEquals(m.a, Model.get(m, 'a'));
 }
 
-function testPathValueDepthFirstNotification() {
-  var m = Model.get({
-    data: {
-      val: '0',
-      a: {
-        val: '1',
-        c: {
-          val: '2'
-        },
-        d: {
-          val: '2'
-        }
-      },
-      b: {
-        val: '1',
-        e: {
-          val: '2'
-        },
-        f: {
-          val: '2'
-        }
-      }
-    }
-  });
+function testPathValueBreadthFirstNotification() {
+  var m = Model.get({});
 
   var notificationSequence = '';
   function createCallback() {
@@ -196,8 +160,8 @@ function testPathValueDepthFirstNotification() {
   Model.observe(m, 'data.b', createCallback());
   Model.observe(m, 'data.a', createCallback());
   Model.observe(m, 'data', createCallback())
-  Model.observeObject(m, function(c) {
-    notificationSequence += 'Mutation,';
+  Model.observePropertySet(m, function(c) {
+    notificationSequence += 'add,';
   });
 
   m.data = {
@@ -222,7 +186,7 @@ function testPathValueDepthFirstNotification() {
     }
   }
 
-  assertEquals('Mutation,0112222', notificationSequence);
+  assertEquals('add,0112222', notificationSequence);
 }
 
 function testPathValueDescendantsCanBeRemovedDuringNotification() {
@@ -240,7 +204,7 @@ function testPathValueDescendantsCanBeRemovedDuringNotification() {
 
   // Now remove the observation above while a higher-level is receiving the
   // notification.
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     Model.stopObserving(m, '[1].a', observer);
   });
 
@@ -265,7 +229,7 @@ function testPathValueDescendantsCanBeResetDuringNotification() {
   // Now reset the observation above while a higher-level is receiving the
   // notification. The 're-observe' should reset the lastObservedValue,
   // and prevent the notification from firing.
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     Model.stopObserving(m, '[1].a', observer);
     Model.observe(m, '[1].a', observer);
   });
@@ -391,7 +355,7 @@ function testCatchCallbackException() {
 function testSetSame() {
   var m = Model.get({id: 1});
   var fired = false;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     fired = true;
   });
   m.id = 1;
@@ -405,7 +369,7 @@ function testSetToSameAsPrototype() {
     }
   }));
   var fired = false;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     fired = true;
   });
   m.id = 1;
@@ -422,7 +386,7 @@ function testSetReadOnly() {
   var m = Model.get(obj);
 
   var fired = false;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     fired = true;
   });
   m.x = 2;
@@ -433,7 +397,7 @@ function testSetUndefined() {
   var m = Model.get({});
 
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals('x', c.propertyName);
     assertEquals('add', c.mutation);
     assertUndefined(c.value);
@@ -452,11 +416,9 @@ function testSetShadows() {
   }));
 
   var count = 0;
-  Model.observeObject(m, function(c) {
-    assertEquals('x', c.propertyName);
-    assertEquals('update', c.mutation);
-    assertEquals(2, c.value);
-    assertEquals(1, c.oldValue);
+  Model.observe(m, 'x', function(newValue, oldValue) {
+    assertEquals(2, newValue);
+    assertEquals(1, oldValue);
     count++;
   });
   m.x = 2;
@@ -472,7 +434,7 @@ function testDeleteWithSameValueOnPrototype() {
   }));
 
   var fired = false;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     fired = true;
   });
   assertTrue(delete m.x);
@@ -488,12 +450,10 @@ function testDeleteWithDifferentValueOnPrototype() {
   }));
 
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observe(m, 'x', function(newValue, oldValue) {
     count++;
-    assertEquals('x', c.propertyName);
-    assertEquals('update', c.mutation);
-    assertEquals(1, c.value);
-    assertEquals(2, c.oldValue);
+    assertEquals(1, newValue);
+    assertEquals(2, oldValue);
   });
   assertTrue(delete m.x);
   assertEquals(1, count);
@@ -508,7 +468,7 @@ function testDeleteOfNonConfigurable() {
   var m = Model.get(obj);
 
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     count++;
   });
   assertFalse(delete m.x);
@@ -548,14 +508,14 @@ function testModelWithFunctions() {
   assertEquals(42, f());
 
   var count = 0;
-  Model.observeObject(f, function(c) {
+  Model.observePropertySet(f, function(c) {
     assertEquals('test', c.propertyName);
     count++;
   });
   f.test = 1;
   assertEquals(1, count);
 
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals('field', c.propertyName);
     count++;
   });
@@ -563,7 +523,7 @@ function testModelWithFunctions() {
   assertEquals(1, count);
 
   var innerObject = m.getInnerObject();
-  Model.observeObject(innerObject, function(c) {
+  Model.observePropertySet(innerObject, function(c) {
     count++;
   });
 
@@ -597,7 +557,7 @@ function testModelFunctionConstruct() {
   var object = new m('x', 'y', 'z');
 
   var count = 0;
-  Model.observeObject(object, function(c) {
+  Model.observePropertySet(object, function(c) {
     assertEquals('test', c.propertyName);
     count++;
   });
@@ -632,7 +592,7 @@ function testModelFunctionConstructReturnObject() {
   var object = new m('x', 'y', 'z');
 
   var count = 0;
-  Model.observeObject(object, function(c) {
+  Model.observePropertySet(object, function(c) {
     assertEquals('test', c.propertyName);
     count++;
   });
@@ -658,7 +618,7 @@ function testArrayModel() {
   var m = Model.get([zero, one]);
 
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals('splice', c.mutation);
     count++;
   });
@@ -691,7 +651,7 @@ function testArrayModelSplice() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -766,7 +726,7 @@ function testArrayModelSpliceDeleteTooMany() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -789,7 +749,7 @@ function testArrayModelLength() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -830,7 +790,7 @@ function testArrayModelPush() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -862,7 +822,7 @@ function testArrayModelPop() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -898,7 +858,7 @@ function testArrayModelShift() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -934,7 +894,7 @@ function testArrayModelUnshift() {
 
   var expected = {};
   var count = 0;
-  Model.observeObject(m, function(c) {
+  Model.observePropertySet(m, function(c) {
     assertEquals(expected.mutation, c.mutation);
     assertEquals(expected.index, c.index);
     assertArrayEquals(expected.removed, c.removed);
@@ -998,7 +958,7 @@ function testArrayView() {
   var v = Model.getView(m, sortFunc, filterFunc);
   var count = 0;
   var lastMutation;
-  Model.observeObject(v, function(c) {
+  Model.observePropertySet(v, function(c) {
     lastMutation = c.mutation;
     count++;
   });
@@ -1074,7 +1034,7 @@ function testArrayViewObject() {
   var v = Model.getView(m, sortFunc, filterFunc, ['name', 'age']);
   var count = 0;
   var lastMutation;
-  Model.observeObject(v, function(c) {
+  Model.observePropertySet(v, function(c) {
     lastMutation = c.mutation;
     count++;
   });
@@ -1145,7 +1105,7 @@ function assertArrayTracker(tracker, log) {
     tracker.addMutation(mutation);
   });
 
-  tracker.notify();
+  tracker.dirtyCheck();
   assertArrayEquals(tracker.target, tracker.copy);
 }
 

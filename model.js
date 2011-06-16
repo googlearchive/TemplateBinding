@@ -17,46 +17,6 @@ function Model() {
 }
 
 (function() {
-  function MutationQueue() {};
-
-  var mutationQueue = [];
-
-  MutationQueue.add = function(callback) {
-    var mutation = {
-      callback: callback,
-      handle: {cancelled: false}
-    };
-
-    mutationQueue.push(mutation);
-    return mutation.handle;
-  };
-
-  var mutationQueueIsRunning = false;
-
-  MutationQueue.runUntilEmpty = function() {
-    if (mutationQueueIsRunning)
-      return;
-    mutationQueueIsRunning = true;
-
-    var exception;
-    for (var i = 0; i < mutationQueue.length; i++) {
-      var mutation = mutationQueue[i];
-      if (!mutation.handle.cancelled) {
-        try {
-          mutation.callback();
-        } catch (ex) {
-          if (!exception)
-            exception = ex;
-        }
-      }
-    }
-
-    mutationQueue = [];
-    mutationQueueIsRunning = false;
-
-    if (exception)
-      throw exception;
-  };
 
   var proxiesImplemented = !!this.Proxy;
   if (!proxiesImplemented) {
@@ -95,27 +55,44 @@ function Model() {
         tracker.addMutation(mutation);
         if (!dirtyObjectsSet.has(target)) {
           dirtyObjectsSet.set(target, true);
-          trackers.push(tracker);
+          addPendingCallback(tracker.dirtyCheck.bind(tracker));
         }
       }
     });
 
-    trackers.forEach(function(tracker) {
-      tracker.notify();
-    });
+    runCallbackQueue();
   }
 
-  function getObserverIndex(observers, callback) {
-    for (var i = 0; i < observers.length; i++) {
-      if (observers[i].callback === callback)
-        return i;
+  var callbackQueue = [];
+
+  function addPendingCallback(callback) {
+    callbackQueue.push(callback);
+  };
+
+  var callbackQueueIsRunning = false;
+
+  function runCallbackQueue() {
+    if (callbackQueueIsRunning)
+      return;
+    callbackQueueIsRunning = true;
+
+    var exception;
+    for (var i = 0; i < callbackQueue.length; i++) {
+      var callback = callbackQueue[i];
+      try {
+        callback();
+      } catch (ex) {
+        if (!exception)
+          exception = ex;
+      }
     }
-    return -1;
-  }
 
-  function createNewObserver(callback) {
-    return {callback: callback};
-  }
+    callbackQueue = [];
+    callbackQueueIsRunning = false;
+
+    if (exception)
+      throw exception;
+  };
 
   Model.get = function(data, path) {
     if (path) {
@@ -181,12 +158,8 @@ function Model() {
     return pathValue.value;
   };
 
-  Model.observeObject = function(data, callback) {
-    if (!isObject(data))
-      return;
-
+  function getModelTracker(data) {
     var model = Object.getObservable(data);
-
     var tracker = objectTrackerMap.get(model);
     if (!tracker) {
       var tracker = createTracker(model);
@@ -194,7 +167,21 @@ function Model() {
       Object.observe(model, mutationLog);
     }
 
-    tracker.addCallback(callback);
+    return tracker;
+  }
+
+  function observePropertyValue(data, name, callback) {
+    if (!isObject(data))
+      return;
+
+    getModelTracker(data).addValueObserver(name, callback);
+  }
+
+  Model.observePropertySet = function(data, callback) {
+    if (!isObject(data))
+      return;
+
+    getModelTracker(data).addPropertySetObserver(callback);
   };
 
   Model.stopObserving = function(data, path, callback) {
@@ -221,12 +208,12 @@ function Model() {
     }
 
     pathValue.stopObserving(callback);
-    if (!rootValue.hasObservers_) {
+    if (!rootValue.hasObservers) {
       pathValueMap['delete'](model);
     }
   };
 
-  Model.stopObservingObject = function(data, callback) {
+  function stopObservingPropertyValue(data, name, callback) {
     if (!isObject(data))
       return;
 
@@ -236,30 +223,40 @@ function Model() {
     if (!tracker)
       return;
 
-    tracker.removeCallback(callback);
-    if (!tracker.hasCallbacks) {
+    tracker.removeValueObserver(name, callback);
+    if (!tracker.observerCount) {
+      objectTrackerMap.delete(model);
+      Object.stopObserving(model, mutationLog);
+    }
+  }
+
+  Model.stopObservingPropertySet = function(data, callback) {
+    if (!isObject(data))
+      return;
+
+    var model = Object.getObservable(data);
+
+    var tracker = objectTrackerMap.get(model);
+    if (!tracker)
+      return;
+
+    tracker.removePropertySetObserver(callback);
+    if (!tracker.observerCount) {
       objectTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
     }
   };
 
-  function checkIsValid(pathValue) {
-    if (!pathValue.valid)
-      throw Error('Unknown state: Observers must remain for value to be ' +
-                  'valid.');
-  }
-
   /**
-   * PathValue is an (externally) immutable representation of a value from a
-   * reference object to a Path. As long as observers are present on a PathValue
-   * or any of its descendants (at deeper paths), its value is consistent.
-   * All paths from the same reference object are structured as a tree,
-   * with each deeper path represented as a set of descendants from the previous
-   * depth level. Each PathValue is observing mutations to its reference object
-   * (if it is current observable, i.e. an object), and when the propertyName of
-   * its reference object changes value, it immediately propogates that change
-   * to its descendants, then schedules notifications to fire (see notification
-   * sequence above in comments of notifyChange()).
+   * PathValue is an representation of a value from a reference object to a
+   * Path. As long as observers are present on a PathValue or any of its
+   * descendants (at deeper paths), its value is consistent. All paths from the
+   * same reference object are structured as a tree, with each deeper path
+   * represented as a set of descendants from the previous depth level. Each
+   * PathValue is observing mutations to its reference object (if it is current
+   * observable, i.e. an object), and when the propertyName of its reference
+   * object changes value, it immediately propogates that change to its
+   * descendants, then schedules notifications to fire.
    * @param {*} root The value with is the reference of this PathValue.
    *     This will always either be a value, in which case this is the "root"
    *     value, or it will be a parent PathValue.
@@ -269,87 +266,69 @@ function Model() {
    */
   function PathValue(root, propertyName) {
     if (propertyName) {
-      this.boundRefChanged_ = this.refChanged_.bind(this);
-      this.boundNotify_ = this.notify_.bind(this);
-      this.propertyName_ = propertyName;
-      this.setRoot_(root); // Sets up the observer and initial value
+      this.boundRefChanged = this.refChanged.bind(this);
+      this.boundNotify = this.notify.bind(this);
+      this.propertyName = propertyName;
+      this.setRoot(root); // Sets up the observer and initial value
     } else {
       // This PathValue is the root (holds onto the top-level model)
-      this.value_ = root;
+      this.value = root;
     }
   }
 
   PathValue.prototype = {
-    get value() {
-      checkIsValid(this);
-      return this.value_;
-    },
-
-    /**
-     * A PathValue is valid when there is at least one observer registered at
-     * this depth or deeper -- or if it is an "anonymous root" (i.e. retrieved
-     * via Model.observe() and an empty path).
-     * @return {boolean} valid Returns whether the |value| property of this
-     *     PathValue is valid and can be read.
-     */
-    get valid() {
-      return this.root_ === undefined || this.hasObservers_;
-    },
-
-    get ref_() {
+    get ref() {
       // The reference object will always be a PathValue except when it's the
       // root object.
-      return this.root_ instanceof PathValue ? this.root_.value : this.root_;
+      return this.root instanceof PathValue ? this.root.value : this.root;
     },
 
-    setRoot_: function(root) {
+    setRoot: function(root) {
       // Deregister observation of old reference.
-      if (this.observing_) {
-        Model.stopObservingObject(this.observing_, this.boundRefChanged_);
-        this.observing_ = null;
+      if (this.observing) {
+        stopObservingPropertyValue(this.observing,
+                                   this.propertyName,
+                                   this.boundRefChanged);
+        this.observing = undefined;
       }
-      this.root_ = root;
-      var ref = this.ref_;
+      this.root = root;
+      var ref = this.ref;
 
       if (isObject(ref)) {
-        Model.observeObject(ref, this.boundRefChanged_);
-        this.observing_ = ref;
+        this.observing = ref;
+        observePropertyValue(this.observing,
+                             this.propertyName,
+                             this.boundRefChanged);
       }
 
-      var newValue = Model.get(ref, this.propertyName_);
-
-      this.valueMaybeChanged_(newValue);
+      this.valueMaybeChanged(Model.get(ref, this.propertyName));
     },
 
-    valueMaybeChanged_: function(newValue) {
-      if (this.value_ === newValue)
+    valueMaybeChanged: function(newValue) {
+      if (this.value === newValue)
         return false;
 
-      var oldValue = this.value_;
-      var newValue = this.value_ = newValue;
+      var oldValue = this.value;
+      this.value = newValue;
 
-      if (this.descendants_) {
-        Object.keys(this.descendants_).forEach(function(propertyName) {
-          this.descendants_[propertyName].setRoot_(this);
+      if (this.descendants) {
+        Object.keys(this.descendants).forEach(function(propertyName) {
+          this.descendants[propertyName].setRoot(this);
         }, this);
       }
 
       return true;
     },
 
-    notify_: function() {
-      // Notify Listeners
+    notify: function() {
       var exception;
-      if (this.observers_) {
-        var self = this;
-        this.observers_.concat().forEach(function(observer) {
+      if (this.observers && this.value !== this.lastValue) {
+        var oldValue = this.lastValue;
+        var newValue = this.lastValue = this.value;
+
+        this.observers.concat().forEach(function(callback) {
           try {
-            var newValue = self.value;
-            var oldValue = observer.lastObservedValue;
-            if (newValue !== oldValue) {
-              observer.lastObservedValue = newValue;
-              observer.callback(newValue, oldValue);
-            }
+            callback(newValue, oldValue);
           } catch (ex) {
             if (!exception)
               exception = ex;
@@ -358,11 +337,11 @@ function Model() {
       }
 
       // Schedule descendants to notify
-      if (this.descendants_) {
-        var keys = Object.keys(this.descendants_);
+      if (this.descendants) {
+        var keys = Object.keys(this.descendants);
         for (var i = 0; i < keys.length; i++) {
-          var descendant = this.descendants_[keys[i]];
-          MutationQueue.add(descendant.boundNotify_);
+          var descendant = this.descendants[keys[i]];
+          addPendingCallback(descendant.boundNotify);
         }
       }
 
@@ -370,136 +349,116 @@ function Model() {
         throw exception;
     },
 
-    refChanged_: function(change) {
-      if (this.dead_) {
-        // TODO(rafaelw): Re-enable this check when we convert to using an
-        // inert MutationQueue (don't have to cancel pending callbacks on
-        // Model.stopObservingObject).
-        // throw Error('refChanged_ callback received at dead PathValue');
-        return;
+    refChanged: function(change) {
+      if (this.dead) {
+        throw Error('refChanged callback received at dead PathValue');
       }
-      // refChanged_ is called as an observer (Model.observeObject) of this
+      // refChanged is called as an observer (Model.observePropertySet) of this
       // PathValue's reference object (if any). The behavior is to update
       // value_, propagate all updates to descendants, then schedule a single
       // new observer to fire
       // notifications from this
-      if (change.propertyName === this.propertyName_) {
-        if (this.valueMaybeChanged_(change.value))
-          MutationQueue.add(this.boundNotify_);
-      }
-
-      // Handle array notification
-      if (change.mutation != 'splice' || !isIndex(this.propertyName_))
-        return;
-
-      var index = +this.propertyName_;
-      if (change.index > index)
-        return;
-
-      if (index < (change.index + change.removed.length) ||
-          change.removed.length != change.added.length) {
-        if (this.valueMaybeChanged_(Model.get(this.ref_, this.propertyName_)))
-          MutationQueue.add(this.boundNotify_);
-      }
+      if (this.valueMaybeChanged(change.value))
+        addPendingCallback(this.boundNotify);
     },
 
     observe: function(callback) {
       // Nothing to be observed. This is either the root object or a PathValue
       // holding a scalar value.
-      if (!this.root_)
+      if (!this.root)
         return;
 
-      // This is tricky: We have to wait to call this.value until we have at
-      // least one observer registered. Otherwise, this.value will throw
-      // in inconsistency.
-      var observer;
-      this.observers_ = this.observers_ || [];
-      var index = getObserverIndex(this.observers_, callback);
-      if (index < 0) {
-        observer = createNewObserver(callback);
-        this.observers_.push(observer);
-      } else {
-        observer = this.observers_[index];
+      if (!this.observers) {
+        this.observers = [callback];
+        this.lastValue = this.value
+        return;
       }
 
-      observer.lastObservedValue = this.value;
+      var index = this.observers.indexOf(callback);
+      if (index >= 0)
+        return;
+
+      this.observers.push(callback);
     },
 
     stopObserving: function(callback) {
-      if (!this.observers_)
+      if (!this.observers)
         return;
 
-      var index = getObserverIndex(this.observers_, callback);
+      var index = this.observers.indexOf(callback);
       if (index < 0)
         return;
 
-      this.observers_.splice(index, 1);
+      this.observers.splice(index, 1);
 
       // PathValue becomes invalid when last observer is removed.
-      if (this.observers_.length == 0) {
-        delete this.observers_;
-        this.maybeDestruct_();
+      if (this.observers.length == 0) {
+        this.observers = undefined;
+        this.lastValue = undefined;
+        this.maybeDestruct();
       }
     },
 
-    get hasObservers_() {
-      return this.observers_ ||
-             (this.descendants_ && Object.keys(this.descendants_).length);
+    get hasObservers() {
+      return this.observers ||
+             (this.descendants && Object.keys(this.descendants).length);
     },
 
-    maybeDestruct_: function() {
-      // maybeDestruct_ is called every time an observer or descendant is
+    maybeDestruct: function() {
+      // maybeDestruct is called every time an observer or descendant is
       // removed. If a PathValue has neither, then it is no longer valid and
       // must stop observation of its reference object, tear-down and remove
       // itself from its parent.
-      if (this.hasObservers_)
+      if (this.hasObservers)
         return;
 
-      if (this.observing_) {
-        Model.stopObservingObject(this.observing_, this.boundRefChanged_);
-        this.observing_ = null;
+      if (this.observing) {
+        stopObservingPropertyValue(this.observing,
+                                   this.propertyName,
+                                   this.boundRefChanged);
+        this.observing = null;
       }
 
       // This path value doesn't have observers or descendants, remove it
       // from its parent, if it has one
-      if (this.root_ instanceof PathValue) {
-        this.root_.removeDescendant_(this.propertyName_);
+      if (this.root instanceof PathValue) {
+        this.root.removeDescendant_(this.propertyName);
       } else {
         // Make sure the main pathValueMap isn't holding onto a dead root
         // PathValue.
-        pathValueMap['delete'](this.value_);
+        pathValueMap['delete'](this.value);
       }
-      this.value_ = null;
-      this.root_ = null;
-      this.propertyName_ = null;
-      this.descendants_ = null;
-      this.dead_ = true;
+      this.value = null;
+      this.root = null;
+      this.propertyName = null;
+      this.descendants = null;
+      this.dead = true;
     },
 
     hasDescendant_: function(propertyName) {
-      return this.descendants_ && propertyName in this.descendants_;
+      return this.descendants && propertyName in this.descendants;
     },
 
     getDescendant_: function(propertyName) {
       if (this.hasDescendant_(propertyName)) {
-        return this.descendants_[propertyName];
+        return this.descendants[propertyName];
       }
 
-      // It's important that we create the key in this.descendants_
+      // It's important that we create the key in this.descendants
       // before initializing the new PathValue because the new PathValue
       // will attempt to access the |value| property of |this| and
       // we need to let it know that it has at least one descendant, so it
       // won't throw.
-      this.descendants_ = this.descendants_ || {};
-      this.descendants_[propertyName] = undefined;
+      this.descendants = this.descendants || {};
+      this.descendants[propertyName] = undefined;
       var pv = new PathValue(this, propertyName);
-      this.descendants_[propertyName] = pv;
+      this.descendants[propertyName] = pv;
       return pv;
     },
 
     removeDescendant_: function(propertyName) {
-      delete this.descendants_[propertyName];
-      this.maybeDestruct_();
+      delete this.descendants[propertyName];
+      this.maybeDestruct();
     }
   };
 
@@ -541,116 +500,152 @@ function Model() {
     }
   }
 
-  // TODO(rafaelw): This can go away when we move to Model.observeProperty.
-  function observableProps(obj) {
-    var retval = [];
-    var htmlElement = !!obj.tagName;
+  function createPropertySet(obj) {
+    var set = {};
     for (var prop in obj) {
-      if (htmlElement && prop != 'model')
-        continue;
-      retval.push(prop);
+      set[prop] = true;
     }
-
-    return retval;
-  }
-
-  function shallowClone(obj) {
-    var clone = {};
-    observableProps(obj).forEach(function(prop) {
-      clone[prop] = obj[prop];
-    });
-    return clone;
+    return set;
   }
 
   function ObjectTracker(model) {
     this.target = model;
-    this.copy = shallowClone(model);
   }
 
   ObjectTracker.prototype = {
+    observerCount: 0,
     addMutation: function(mutation) {}, // noop for object
 
-    addCallback: function(callback) {
-      if (!this.observers)
-        this.observers = [];
-      var index = this.observers.indexOf(callback);
-      if (index < 0)
-        this.observers.push(callback);
-    },
-
-    removeCallback: function(callback) {
-      if (!this.observers)
-        return;
-
-      var index = this.observers.indexOf(callback);
-      if (index < 0)
-        return;
-
-      this.observers.splice(index, 1);
-      if (this.observers.length == 0) {
-        this.observers = undefined;
+    addPropertySetObserver: function(observer) {
+      if (!this.propertySetObservers) {
+        this.propertySetObservers = [];
+        this.lastPropertySet = createPropertySet(this.target);
+      }
+      var index = this.propertySetObservers.indexOf(observer);
+      if (index < 0) {
+        this.propertySetObservers.push(observer);
+        this.observerCount++;
       }
     },
 
-    get hasCallbacks() {
-      return !!this.observers;
+    removePropertySetObserver: function(observer) {
+      if (!this.propertySetObservers)
+        return;
+
+      var index = this.propertySetObservers.indexOf(observer);
+      if (index < 0)
+        return;
+
+      this.propertySetObservers.splice(index, 1);
+      this.observerCount--;
+      if (this.propertySetObservers.length == 0) {
+        this.propertySetObservers = undefined;
+        this.lastPropertySet = undefined;
+      }
     },
 
-    notify: function() {
-      var newCopy = shallowClone(this.target);
-      var propsDeleted = false;
+    addValueObserver: function(name, observer) {
+      if (!this.valueObservers) {
+        this.valueObservers = {};
+        this.lastValues = {};
+      }
 
-      for (var prop in this.copy) {
-        var oldVal = this.copy[prop];
-        var newVal = newCopy[prop];
+      var observers = this.valueObservers[name];
+      if (!observers) {
+        observers = [];
+        this.valueObservers[name] = observers;
+        this.lastValues[name] = this.target[name];
+      }
 
-        if (!(prop in newCopy)) {
-          this.notifyPropertyChange(prop, 'delete', newVal, oldVal);
-          propsDeleted = true;
-        } else if (newVal !== oldVal) {
-          this.notifyPropertyChange(prop, 'update', newVal, oldVal);
-          this.copy[prop] = newCopy[prop];
+      var index = observers.indexOf(observer);
+      if (index < 0) {
+        observers.push(observer);
+        this.observerCount++;
+      }
+    },
+
+    removeValueObserver: function(name, observer) {
+      if (!this.valueObservers)
+        return;
+
+      var observers = this.valueObservers[name];
+      if (!observers)
+        return;
+
+      var index = observers.indexOf(observer);
+      if (index < 0)
+        return;
+
+      observers.splice(index, 1);
+      this.observerCount--;
+      if (observers.length == 0) {
+        this.valueObservers[name] = undefined;
+        delete this.lastValues[name];
+        if (Object.keys(this.lastValues).length == 0) {
+          this.valueObservers = undefined;
+          this.lastValues = undefined;
+        }
+      }
+    },
+
+    dirtyCheck: function() {
+      this.notifyValueObservers();
+
+      if (this.lastPropertySet) {
+        var currentSet = createPropertySet(this.target);
+        for (var prop in this.lastPropertySet) {
+          if (!(prop in currentSet))
+            this.notifyPropertySetChange(prop, 'delete');
+          else
+            currentSet[prop] = false; // not new
         }
 
-        delete newCopy[prop];
-      }
+        for (var prop in currentSet) {
+          if (currentSet[prop])
+            this.notifyPropertySetChange(prop, 'add');
 
-      for (var prop in newCopy) {
-        var val = newCopy[prop];
-        this.notifyPropertyChange(prop, 'add', val, undefined);
-        this.copy[prop] = val;
-      }
+          currentSet[prop] = true;
+        }
 
-      // Handle the 'any props deleted' case seperately. Make a new copy
-      // rather than deleting properties from copy, because deleting properties
-      // in modern VMs may put the object in the "slow bucket".
-      if (propsDeleted)
-        this.copy = shallowClone(this.target);
+        this.lastPropertySet = currentSet;
+      }
     },
 
-    notifyPropertyChange: function(name, mutation, value, oldValue) {
+    notifyValueObservers: function() {
+      if (this.lastValues) {
+        for (var prop in this.lastValues) {
+          var newValue = this.target[prop];
+          var oldValue = this.lastValues[prop];
+          if (newValue !== oldValue)
+            this.notifyValueChange(prop, newValue, oldValue);
+        }
+      }
+    },
+
+    notifyPropertySetChange: function(name, type) {
       this.notifyChange({
         propertyName: name,
-        mutation: mutation,
-        oldValue: Model.get(oldValue),
-        value: Model.get(value)
-      });
+        mutation: type
+      }, this.propertySetObservers);
     },
 
-    notifyChange: function(change) {
-      var model = this.target;
-      if (!this.observers)
+    notifyValueChange: function(name, value, oldValue) {
+      this.notifyChange({
+        propertyName: name,
+        mutation: 'valueChange',
+        oldValue: Model.get(oldValue),
+        value: Model.get(value)
+      }, this.valueObservers[name]);
+    },
+
+    notifyChange: function(change, observers) {
+      if (!observers || !observers.length)
         return;
+      change.model = this.target;
 
-      change.model = model;
-
-      this.observers.forEach(function(callback) {
-        MutationQueue.add(function() {
-          callback(change);
-        });
+      observers.concat().forEach(function(callback) {
+        callback(change);
       });
-
-      MutationQueue.runUntilEmpty();
     }
   };
 
@@ -736,7 +731,9 @@ function Model() {
       this.virtualLength += delta;
     },
 
-    notify: function() {
+    dirtyCheck: function() {
+      this.notifyValueObservers();
+
       while(this.splices.length) {
         var splice = this.splices.shift();
         var spliceArgs = [splice.index, splice.deleteCount];
@@ -762,7 +759,7 @@ function Model() {
         removed: removed.map(function(item) {
           return Model.get(item);
         })
-      });
+      }, this.propertySetObservers);
     }
   });
 })();
