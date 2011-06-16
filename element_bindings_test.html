@@ -894,18 +894,18 @@ function testMinimalReads() {
   el.addBinding('foo', '{{a}} {{b}}');
 
   assertEquals('a b', el.foo);
-  assertEquals(2, aAccess);
-  assertEquals(2, bAccess);
+  assertEquals(1, aAccess);
+  assertEquals(1, bAccess);
 
   el.model.a = 'c';
   assertEquals('c b', el.foo);
-  assertEquals(3, aAccess);
-  assertEquals(3, bAccess);
+  assertEquals(2, aAccess);
+  assertEquals(2, bAccess);
 
   el.model.b = 'd';
   assertEquals('c d', el.foo);
-  assertEquals(4, aAccess);
-  assertEquals(4, bAccess);
+  assertEquals(3, aAccess);
+  assertEquals(3, bAccess);
 }
 
 function testAsyncBinding() {

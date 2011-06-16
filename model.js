@@ -170,11 +170,11 @@ function Model() {
     return tracker;
   }
 
-  function observePropertyValue(data, name, callback) {
+  function observePropertyValue(data, name, pathValue) {
     if (!isObject(data))
       return;
 
-    getModelTracker(data).addValueObserver(name, callback);
+    getModelTracker(data).addValueObserver(name, pathValue);
   }
 
   Model.observePropertySet = function(data, callback) {
@@ -213,7 +213,7 @@ function Model() {
     }
   };
 
-  function stopObservingPropertyValue(data, name, callback) {
+  function stopObservingPropertyValue(data, name, pathValue) {
     if (!isObject(data))
       return;
 
@@ -223,7 +223,7 @@ function Model() {
     if (!tracker)
       return;
 
-    tracker.removeValueObserver(name, callback);
+    tracker.removeValueObserver(name, pathValue);
     if (!tracker.observerCount) {
       objectTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
@@ -266,7 +266,6 @@ function Model() {
    */
   function PathValue(root, propertyName) {
     if (propertyName) {
-      this.boundRefChanged = this.refChanged.bind(this);
       this.boundNotify = this.notify.bind(this);
       this.propertyName = propertyName;
       this.setRoot(root); // Sets up the observer and initial value
@@ -288,7 +287,7 @@ function Model() {
       if (this.observing) {
         stopObservingPropertyValue(this.observing,
                                    this.propertyName,
-                                   this.boundRefChanged);
+                                   this);
         this.observing = undefined;
       }
       this.root = root;
@@ -298,7 +297,7 @@ function Model() {
         this.observing = ref;
         observePropertyValue(this.observing,
                              this.propertyName,
-                             this.boundRefChanged);
+                             this);
       }
 
       this.valueMaybeChanged(Model.get(ref, this.propertyName));
@@ -349,7 +348,7 @@ function Model() {
         throw exception;
     },
 
-    refChanged: function(change) {
+    refChanged: function(newValue) {
       if (this.dead) {
         throw Error('refChanged callback received at dead PathValue');
       }
@@ -358,7 +357,7 @@ function Model() {
       // value_, propagate all updates to descendants, then schedule a single
       // new observer to fire
       // notifications from this
-      if (this.valueMaybeChanged(change.value))
+      if (this.valueMaybeChanged(newValue))
         addPendingCallback(this.boundNotify);
     },
 
@@ -415,7 +414,7 @@ function Model() {
       if (this.observing) {
         stopObservingPropertyValue(this.observing,
                                    this.propertyName,
-                                   this.boundRefChanged);
+                                   this);
         this.observing = null;
       }
 
@@ -545,16 +544,13 @@ function Model() {
     },
 
     addValueObserver: function(name, observer) {
-      if (!this.valueObservers) {
+      if (!this.valueObservers)
         this.valueObservers = {};
-        this.lastValues = {};
-      }
 
       var observers = this.valueObservers[name];
       if (!observers) {
         observers = [];
         this.valueObservers[name] = observers;
-        this.lastValues[name] = this.target[name];
       }
 
       var index = observers.indexOf(observer);
@@ -578,12 +574,17 @@ function Model() {
 
       observers.splice(index, 1);
       this.observerCount--;
-      if (observers.length == 0) {
-        this.valueObservers[name] = undefined;
-        delete this.lastValues[name];
-        if (Object.keys(this.lastValues).length == 0) {
-          this.valueObservers = undefined;
-          this.lastValues = undefined;
+      if (observers.length == 0)
+        delete this.valueObservers[name];
+    },
+
+    notifyValueObservers: function() {
+      if (this.valueObservers) {
+        for (var prop in this.valueObservers) {
+          var newValue = this.target[prop];
+          this.valueObservers[prop].forEach(function(pathValue) {
+            pathValue.refChanged(newValue);
+          });
         }
       }
     },
@@ -611,31 +612,11 @@ function Model() {
       }
     },
 
-    notifyValueObservers: function() {
-      if (this.lastValues) {
-        for (var prop in this.lastValues) {
-          var newValue = this.target[prop];
-          var oldValue = this.lastValues[prop];
-          if (newValue !== oldValue)
-            this.notifyValueChange(prop, newValue, oldValue);
-        }
-      }
-    },
-
     notifyPropertySetChange: function(name, type) {
       this.notifyChange({
         propertyName: name,
         mutation: type
       }, this.propertySetObservers);
-    },
-
-    notifyValueChange: function(name, value, oldValue) {
-      this.notifyChange({
-        propertyName: name,
-        mutation: 'valueChange',
-        oldValue: Model.get(oldValue),
-        value: Model.get(value)
-      }, this.valueObservers[name]);
     },
 
     notifyChange: function(change, observers) {
