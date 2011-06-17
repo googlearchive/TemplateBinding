@@ -334,7 +334,7 @@ function testMultipleObservationsAreCollapsed() {
   assertEquals(1, count);
 }
 
-function testCatchCallbackException() {
+function testExceptionDoesntStopNotification() {
   var m = Model.get({ id: 1 });
   var count = 0;;
   Model.observe(m, 'id', function() {
@@ -343,13 +343,20 @@ function testCatchCallbackException() {
   });
   Model.observe(m, 'id', function() {
     count++;
+    throw 'News';
+  });
+  Model.observePropertySet(m, function() {
+    count++;
+    throw 'Bears';
+  });
+  Model.observePropertySet(m, function() {
+    count++;
+    throw 'Rule!';
   });
 
-  var ex = assertThrows(function() {
-    m.id = 2;
-  });
-  assertEquals('Bad', ex);
-  assertEquals(2, count);
+  m.id = 2;
+  m.id2 = 2;
+  assertEquals(4, count);
 }
 
 function testSetSame() {
@@ -1105,7 +1112,7 @@ function assertArrayTracker(tracker, log) {
     tracker.addMutation(mutation);
   });
 
-  tracker.dirtyCheck();
+  tracker.notify();
   assertArrayEquals(tracker.target, tracker.copy);
 }
 

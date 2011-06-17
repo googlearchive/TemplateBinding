@@ -24,7 +24,10 @@ function Model() {
         'Proxy are not available. Changes to models will not be observable.');
   }
 
-  var objectTrackerMap = new WeakMap;
+  function isIndex(s) {
+    // toUint32: s >>> 0
+    return +s === s >>> 0;
+  }
 
   function isObject(obj) {
     return obj === Object(obj);
@@ -33,16 +36,6 @@ function Model() {
   var mutationLog = new MutationLog;
 
   AspectWorkQueue.register(mutationLog, projectMutations);
-
-  /**
-   * @param {*} s The value to test.
-   * @return {boolean} Whether a value is a considered an indexed property name.
-   *     Indexes are uint32.
-   */
-  function isIndex(s) {
-    // toUint32: s >>> 0
-    return +s === s >>> 0;
-  }
 
   function projectMutations() {
     var dirtyObjectsSet = new WeakMap;
@@ -55,44 +48,41 @@ function Model() {
         tracker.addMutation(mutation);
         if (!dirtyObjectsSet.has(target)) {
           dirtyObjectsSet.set(target, true);
-          addPendingCallback(tracker.dirtyCheck.bind(tracker));
+          addNotification(tracker);
         }
       }
     });
 
-    runCallbackQueue();
+    startNotifications();
   }
 
-  var callbackQueue = [];
+  var notificationQueue = [];
 
-  function addPendingCallback(callback) {
-    callbackQueue.push(callback);
+  function addNotification(tracker) {
+    if (!tracker)
+      throw Error('Added empty tracker');
+    notificationQueue.push(tracker);
   };
 
-  var callbackQueueIsRunning = false;
+  var notificationQueueIsRunning = false;
 
-  function runCallbackQueue() {
-    if (callbackQueueIsRunning)
+  function startNotifications() {
+    if (notificationQueueIsRunning)
       return;
-    callbackQueueIsRunning = true;
+    notificationQueueIsRunning = true;
 
-    var exception;
-    for (var i = 0; i < callbackQueue.length; i++) {
-      var callback = callbackQueue[i];
-      try {
-        callback();
-      } catch (ex) {
-        if (!exception)
-          exception = ex;
-      }
+    for (var i = 0; i < notificationQueue.length; i++) {
+      var tracker = notificationQueue[i];
+      if (tracker.dead)
+        continue;
+      tracker.notify();
     }
 
-    callbackQueue = [];
-    callbackQueueIsRunning = false;
-
-    if (exception)
-      throw exception;
+    notificationQueue = [];
+    notificationQueueIsRunning = false;
   };
+
+  var objectTrackerMap = new WeakMap;
 
   Model.get = function(data, path) {
     if (path) {
@@ -114,8 +104,6 @@ function Model() {
     return Object.getObservable(data);
   };
 
-  var pathValueMap = new WeakMap;
-
   /**
    * Observes the value at a path from an object. |callback| is invoked
    * IFF the value changes.
@@ -126,37 +114,26 @@ function Model() {
   Model.observe = function(data, path, callback) {
     path = new Path(path);
 
-    // Return an "anonymous root" PathValue which is not (and can not) be
-    // observed, but whose value can be read and written
-    // TODO(rafaelw): This is a bit unfortunate when data isn't a scalar.
-    // it means that there may be more than one PathValue pointing at the
-    // same root object. Perhaps its better to allow root pathValues to be
-    // valid without observers, and if their value is set, the pathValueMap
-    // is updated with the new key.
-    if (path.length == 0)
-      return new PathValue(data);
-
     // If the data is unobservable
     if (!isObject(data))
       throw Error('Invalid path from unobservable data');
 
-    var model = Model.get(data);
-
-    var pathValue = pathValueMap.get(model);
-    if (!pathValue) {
-      pathValue = new PathValue(model);
-
-      if (isObject(model))
-        pathValueMap.set(model, pathValue);
-    }
+    var pathTracker = getModelTracker(data)
 
     for (var i = 0; i < path.length; i++) {
-      pathValue = pathValue.getDescendant_(path.get(i));
+      pathTracker = pathTracker.getDescendant(path.get(i));
     }
 
-    pathValue.observe(callback);
-    return pathValue.value;
+    pathTracker.addObserver(callback);
+    return pathTracker.value;
   };
+
+  function createTracker(model) {
+    if (model instanceof Array)
+      return new ArrayTracker(model);
+
+    return new ObjectTracker(model);
+  }
 
   function getModelTracker(data) {
     var model = Object.getObservable(data);
@@ -170,51 +147,23 @@ function Model() {
     return tracker;
   }
 
-  function observePropertyValue(data, name, pathValue) {
-    if (!isObject(data))
-      return;
-
-    getModelTracker(data).addValueObserver(name, pathValue);
+  function observePropertyValue(data, name, pathTracker) {
+    getModelTracker(data).addValueObserver(name, pathTracker);
   }
 
   Model.observePropertySet = function(data, callback) {
     if (!isObject(data))
       return;
 
-    getModelTracker(data).addPropertySetObserver(callback);
+    getModelTracker(data).addObserver(callback);
   };
 
   Model.stopObserving = function(data, path, callback) {
    if (!isObject(data))
       return;
 
-    var model = Object.getObservable(data);
-
     path = new Path(path);
     if (path.length == 0)
-      return;
-
-    var rootValue = pathValueMap.get(model);
-    if (!rootValue)
-      return;
-
-    var pathValue = rootValue;
-    for (var i = 0; i < path.length; i++) {
-      var propertyName = path.get(i);
-      if (!pathValue.hasDescendant_(propertyName))
-        return;
-
-      pathValue = pathValue.getDescendant_(propertyName);
-    }
-
-    pathValue.stopObserving(callback);
-    if (!rootValue.hasObservers) {
-      pathValueMap['delete'](model);
-    }
-  };
-
-  function stopObservingPropertyValue(data, name, pathValue) {
-    if (!isObject(data))
       return;
 
     var model = Object.getObservable(data);
@@ -223,8 +172,31 @@ function Model() {
     if (!tracker)
       return;
 
-    tracker.removeValueObserver(name, pathValue);
-    if (!tracker.observerCount) {
+    var pathTracker = tracker;
+    for (var i = 0; i < path.length; i++) {
+      var propertyName = path.get(i);
+      if (!pathTracker.hasDescendant(propertyName))
+        return;
+
+      pathTracker = pathTracker.getDescendant(propertyName);
+    }
+
+    pathTracker.removeObserver(callback);
+
+    if (!tracker.dependants) {
+      objectTrackerMap.delete(model);
+      Object.stopObserving(model, mutationLog);
+    }
+  };
+
+  function stopObservingPropertyValue(data, name, pathTracker) {
+    var model = Object.getObservable(data);
+    var tracker = objectTrackerMap.get(model);
+    if (!tracker)
+      return;
+
+    tracker.removeValueObserver(name, pathTracker);
+    if (!tracker.dependants) {
       objectTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
     }
@@ -240,224 +212,10 @@ function Model() {
     if (!tracker)
       return;
 
-    tracker.removePropertySetObserver(callback);
-    if (!tracker.observerCount) {
+    tracker.removeObserver(callback);
+    if (!tracker.dependants) {
       objectTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
-    }
-  };
-
-  /**
-   * PathValue is an representation of a value from a reference object to a
-   * Path. As long as observers are present on a PathValue or any of its
-   * descendants (at deeper paths), its value is consistent. All paths from the
-   * same reference object are structured as a tree, with each deeper path
-   * represented as a set of descendants from the previous depth level. Each
-   * PathValue is observing mutations to its reference object (if it is current
-   * observable, i.e. an object), and when the propertyName of its reference
-   * object changes value, it immediately propogates that change to its
-   * descendants, then schedules notifications to fire.
-   * @param {*} root The value with is the reference of this PathValue.
-   *     This will always either be a value, in which case this is the "root"
-   *     value, or it will be a parent PathValue.
-   * @return {string} propertyName If present, the property from the root that
-   *     this PathValue represents. If absent, this PathValue is the root of an
-   *     observation tree.
-   */
-  function PathValue(root, propertyName) {
-    if (propertyName) {
-      this.boundNotify = this.notify.bind(this);
-      this.propertyName = propertyName;
-      this.setRoot(root); // Sets up the observer and initial value
-    } else {
-      // This PathValue is the root (holds onto the top-level model)
-      this.value = root;
-    }
-  }
-
-  PathValue.prototype = {
-    get ref() {
-      // The reference object will always be a PathValue except when it's the
-      // root object.
-      return this.root instanceof PathValue ? this.root.value : this.root;
-    },
-
-    setRoot: function(root) {
-      // Deregister observation of old reference.
-      if (this.observing) {
-        stopObservingPropertyValue(this.observing,
-                                   this.propertyName,
-                                   this);
-        this.observing = undefined;
-      }
-      this.root = root;
-      var ref = this.ref;
-
-      if (isObject(ref)) {
-        this.observing = ref;
-        observePropertyValue(this.observing,
-                             this.propertyName,
-                             this);
-      }
-
-      this.valueMaybeChanged(Model.get(ref, this.propertyName));
-    },
-
-    valueMaybeChanged: function(newValue) {
-      if (this.value === newValue)
-        return false;
-
-      var oldValue = this.value;
-      this.value = newValue;
-
-      if (this.descendants) {
-        Object.keys(this.descendants).forEach(function(propertyName) {
-          this.descendants[propertyName].setRoot(this);
-        }, this);
-      }
-
-      return true;
-    },
-
-    notify: function() {
-      var exception;
-      if (this.observers && this.value !== this.lastValue) {
-        var oldValue = this.lastValue;
-        var newValue = this.lastValue = this.value;
-
-        this.observers.concat().forEach(function(callback) {
-          try {
-            callback(newValue, oldValue);
-          } catch (ex) {
-            if (!exception)
-              exception = ex;
-          }
-        });
-      }
-
-      // Schedule descendants to notify
-      if (this.descendants) {
-        var keys = Object.keys(this.descendants);
-        for (var i = 0; i < keys.length; i++) {
-          var descendant = this.descendants[keys[i]];
-          addPendingCallback(descendant.boundNotify);
-        }
-      }
-
-      if (exception)
-        throw exception;
-    },
-
-    refChanged: function(newValue) {
-      if (this.dead) {
-        throw Error('refChanged callback received at dead PathValue');
-      }
-      // refChanged is called as an observer (Model.observePropertySet) of this
-      // PathValue's reference object (if any). The behavior is to update
-      // value_, propagate all updates to descendants, then schedule a single
-      // new observer to fire
-      // notifications from this
-      if (this.valueMaybeChanged(newValue))
-        addPendingCallback(this.boundNotify);
-    },
-
-    observe: function(callback) {
-      // Nothing to be observed. This is either the root object or a PathValue
-      // holding a scalar value.
-      if (!this.root)
-        return;
-
-      if (!this.observers) {
-        this.observers = [callback];
-        this.lastValue = this.value
-        return;
-      }
-
-      var index = this.observers.indexOf(callback);
-      if (index >= 0)
-        return;
-
-      this.observers.push(callback);
-    },
-
-    stopObserving: function(callback) {
-      if (!this.observers)
-        return;
-
-      var index = this.observers.indexOf(callback);
-      if (index < 0)
-        return;
-
-      this.observers.splice(index, 1);
-
-      // PathValue becomes invalid when last observer is removed.
-      if (this.observers.length == 0) {
-        this.observers = undefined;
-        this.lastValue = undefined;
-        this.maybeDestruct();
-      }
-    },
-
-    get hasObservers() {
-      return this.observers ||
-             (this.descendants && Object.keys(this.descendants).length);
-    },
-
-    maybeDestruct: function() {
-      // maybeDestruct is called every time an observer or descendant is
-      // removed. If a PathValue has neither, then it is no longer valid and
-      // must stop observation of its reference object, tear-down and remove
-      // itself from its parent.
-      if (this.hasObservers)
-        return;
-
-      if (this.observing) {
-        stopObservingPropertyValue(this.observing,
-                                   this.propertyName,
-                                   this);
-        this.observing = null;
-      }
-
-      // This path value doesn't have observers or descendants, remove it
-      // from its parent, if it has one
-      if (this.root instanceof PathValue) {
-        this.root.removeDescendant_(this.propertyName);
-      } else {
-        // Make sure the main pathValueMap isn't holding onto a dead root
-        // PathValue.
-        pathValueMap['delete'](this.value);
-      }
-      this.value = null;
-      this.root = null;
-      this.propertyName = null;
-      this.descendants = null;
-      this.dead = true;
-    },
-
-    hasDescendant_: function(propertyName) {
-      return this.descendants && propertyName in this.descendants;
-    },
-
-    getDescendant_: function(propertyName) {
-      if (this.hasDescendant_(propertyName)) {
-        return this.descendants[propertyName];
-      }
-
-      // It's important that we create the key in this.descendants
-      // before initializing the new PathValue because the new PathValue
-      // will attempt to access the |value| property of |this| and
-      // we need to let it know that it has at least one descendant, so it
-      // won't throw.
-      this.descendants = this.descendants || {};
-      this.descendants[propertyName] = undefined;
-      var pv = new PathValue(this, propertyName);
-      this.descendants[propertyName] = pv;
-      return pv;
-    },
-
-    removeDescendant_: function(propertyName) {
-      delete this.descendants[propertyName];
-      this.maybeDestruct();
     }
   };
 
@@ -507,40 +265,215 @@ function Model() {
     return set;
   }
 
+  function ValueTracker() {}
+
+  ValueTracker.prototype = {
+    dependants_: 0,
+
+    // notify: function() {} -- Abstract.
+
+    set hasDependants(hasDependants) {},
+
+    set dependants(dependants) {
+      var hadDependants = !!this.dependants_;
+      var hasDependants = dependants;
+      this.dependants_ = dependants;
+
+      if (hasDependants != hadDependants)
+        this.hasDependants = hasDependants;
+    },
+
+    get dependants() { return this.dependants_; },
+
+    initObservationState: function() {},
+    clearObservationState: function() {},
+
+    addObserver: function(callback) {
+      if (!this.observers) {
+        this.observers = [callback];
+        this.initObservationState();
+        return;
+      }
+
+      var index = this.observers.indexOf(callback);
+      if (index >= 0)
+        return;
+
+      this.observers.push(callback);
+      this.dependants++;
+    },
+
+    removeObserver: function(callback) {
+      if (!this.observers)
+        return;
+
+      var index = this.observers.indexOf(callback);
+      if (index < 0)
+        return;
+
+      this.observers.splice(index, 1);
+      this.dependants--;
+      if (this.observers.length == 0) {
+        this.observers = undefined;
+        this.clearObservationState();
+      }
+    },
+
+    notifyObservers: function() {
+      if (!this.observers)
+        return;
+      var args = arguments;
+      this.observers.concat().forEach(function(callback) {
+        try {
+          callback.apply(undefined, args);
+        } catch (ex) {
+          console.error('Exception during Model mutation notification:', ex);
+        }
+      });
+    },
+
+    getDescendant: function(name) {
+      if (!this.descendants)
+        this.descendants = {};
+
+      if (this.descendants[name])
+        return this.descendants[name];
+
+      var tracker = new PathTracker(this, name);
+      this.addDescendant(name, tracker);
+      return tracker;
+    },
+
+    addDescendant: function(name, tracker) {
+      this.descendants[name] = tracker;
+      this.dependants++;
+    },
+
+    removeDescendant: function(name) {
+      delete this.descendants[name];
+      this.dependants--;
+    },
+
+    hasDescendant: function(name) {
+      return this.descendants && this.descendants[name];
+    }
+  }
+
+  function PathTracker(root, propertyName) {
+    this.propertyName = propertyName;
+    this.setRoot(root); // Sets up the observer and initial value
+  }
+
+  PathTracker.prototype = createObject({
+    __proto__: ValueTracker.prototype,
+
+    setRoot: function(root) {
+      if (this.observing) {
+        stopObservingPropertyValue(this.observing, this.propertyName, this);
+        this.observing = undefined;
+      }
+
+      this.root = root;
+
+      var newValue = undefined;
+      if (isObject(root.value)) {
+        this.observing = root.value;
+        observePropertyValue(this.observing, this.propertyName, this);
+        newValue = this.observing[this.propertyName];
+      }
+
+      this.dirtyCheck(newValue);
+    },
+
+    dirtyCheck: function(newValue) {
+      if (this.value === newValue)
+        return false;
+
+      var oldValue = this.value;
+      this.value = newValue;
+
+      if (this.descendants) {
+        Object.keys(this.descendants).forEach(function(propertyName) {
+          this.descendants[propertyName].setRoot(this);
+        }, this);
+      }
+
+      return true;
+    },
+
+    notify: function() {
+      if (this.observers && this.value !== this.lastValue) {
+        var oldValue = this.lastValue;
+        this.lastValue = this.value;
+        exception = this.notifyObservers(this.value, oldValue);
+      }
+
+      // Schedule descendants to notify
+      if (this.descendants) {
+        var keys = Object.keys(this.descendants);
+        for (var i = 0; i < keys.length; i++) {
+          addNotification(this.descendants[keys[i]]);
+        }
+      }
+    },
+
+    dirtyCheckAndNotify: function(newValue) {
+      if (this.dead)
+        throw Error('dirtyCheckAndNotify callback received at dead tracker');
+
+      // dirtyCheck will allow all descendants to dirtyCheck. Notifications
+      // are scheduled.
+      if (this.dirtyCheck(newValue))
+        addNotification(this);
+    },
+
+    initObservationState: function() {
+      this.lastValue = this.value;
+    },
+
+    clearObservationState: function() {
+      this.lastValue = undefined;
+    },
+
+    set hasDependants(hasDependants) {
+      if (hasDependants)
+        return;
+
+      if (this.observing) {
+        stopObservingPropertyValue(this.observing,
+                                   this.propertyName,
+                                   this);
+        this.observing = null;
+      }
+
+      this.root.removeDescendant(this.propertyName);
+
+      this.value = undefined;
+      this.root = undefined;
+      this.propertyName = undefined;
+      this.dead = true;
+    }
+  });
+
   function ObjectTracker(model) {
     this.target = model;
   }
 
-  ObjectTracker.prototype = {
-    observerCount: 0,
+  ObjectTracker.prototype = createObject({
+    __proto__: ValueTracker.prototype,
+
     addMutation: function(mutation) {}, // noop for object
 
-    addPropertySetObserver: function(observer) {
-      if (!this.propertySetObservers) {
-        this.propertySetObservers = [];
-        this.lastPropertySet = createPropertySet(this.target);
-      }
-      var index = this.propertySetObservers.indexOf(observer);
-      if (index < 0) {
-        this.propertySetObservers.push(observer);
-        this.observerCount++;
-      }
+    get value() {
+      return this.target;
     },
 
-    removePropertySetObserver: function(observer) {
-      if (!this.propertySetObservers)
-        return;
+    initObservationState: function() {
+      this.lastPropertySet = createPropertySet(this.target);
+    },
 
-      var index = this.propertySetObservers.indexOf(observer);
-      if (index < 0)
-        return;
-
-      this.propertySetObservers.splice(index, 1);
-      this.observerCount--;
-      if (this.propertySetObservers.length == 0) {
-        this.propertySetObservers = undefined;
-        this.lastPropertySet = undefined;
-      }
+    clearObservationState: function() {
+      this.lastPropertySet = undefined;
     },
 
     addValueObserver: function(name, observer) {
@@ -556,7 +489,7 @@ function Model() {
       var index = observers.indexOf(observer);
       if (index < 0) {
         observers.push(observer);
-        this.observerCount++;
+        this.dependants++;
       }
     },
 
@@ -573,7 +506,7 @@ function Model() {
         return;
 
       observers.splice(index, 1);
-      this.observerCount--;
+      this.dependants--;
       if (observers.length == 0)
         delete this.valueObservers[name];
     },
@@ -582,14 +515,14 @@ function Model() {
       if (this.valueObservers) {
         for (var prop in this.valueObservers) {
           var newValue = this.target[prop];
-          this.valueObservers[prop].forEach(function(pathValue) {
-            pathValue.refChanged(newValue);
+          this.valueObservers[prop].forEach(function(pathTracker) {
+            pathTracker.dirtyCheckAndNotify(newValue);
           });
         }
       }
     },
 
-    dirtyCheck: function() {
+    notify: function() {
       this.notifyValueObservers();
 
       if (this.lastPropertySet) {
@@ -613,29 +546,13 @@ function Model() {
     },
 
     notifyPropertySetChange: function(name, type) {
-      this.notifyChange({
+      return this.notifyObservers({
         propertyName: name,
-        mutation: type
-      }, this.propertySetObservers);
-    },
-
-    notifyChange: function(change, observers) {
-      if (!observers || !observers.length)
-        return;
-      change.model = this.target;
-
-      observers.concat().forEach(function(callback) {
-        callback(change);
+        mutation: type,
+        model: this.target
       });
-    }
-  };
-
-  function createTracker(model) {
-    if (model instanceof Array)
-      return new ArrayTracker(model);
-
-    return new ObjectTracker(model);
-  }
+    },
+  });
 
   function ArrayTracker(target) {
     this.target = target;
@@ -712,7 +629,7 @@ function Model() {
       this.virtualLength += delta;
     },
 
-    dirtyCheck: function() {
+    notify: function() {
       this.notifyValueObservers();
 
       while(this.splices.length) {
@@ -731,7 +648,7 @@ function Model() {
     },
 
     notifySplice: function(index, removed, added) {
-      this.notifyChange({
+      this.notifyObservers({
         mutation: 'splice',
         index: index,
         added: added.map(function(item) {
@@ -740,7 +657,7 @@ function Model() {
         removed: removed.map(function(item) {
           return Model.get(item);
         })
-      }, this.propertySetObservers);
+      });
     }
   });
 })();
