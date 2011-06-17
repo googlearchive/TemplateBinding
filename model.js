@@ -33,6 +33,9 @@ function Model() {
     return obj === Object(obj);
   }
 
+  // Right now, there's only one global "observation context" which all
+  // observers share. This means that changes made by one observer may not be
+  // seen by others until the next cycle.
   var mutationLog = new MutationLog;
 
   AspectWorkQueue.register(mutationLog, projectMutations);
@@ -43,7 +46,7 @@ function Model() {
 
     mutationLog.clear().forEach(function(mutation) {
       var target = mutation.target;
-      var tracker = objectTrackerMap.get(target);
+      var tracker = modelTrackerMap.get(target);
       if (tracker) {
         tracker.addMutation(mutation);
         if (!dirtyObjectsSet.has(target)) {
@@ -56,6 +59,11 @@ function Model() {
     startNotifications();
   }
 
+  // Within a "notification context", notifications happen in particular order:
+  //   1) All propertySet add/deletes for all observed objects
+  //   2) "Path" values for all observed paths, depth-first from mutated objects
+  //
+  // The notificationQueue manages this sequencing.
   var notificationQueue = [];
 
   function addNotification(tracker) {
@@ -82,8 +90,35 @@ function Model() {
     notificationQueueIsRunning = false;
   };
 
-  var objectTrackerMap = new WeakMap;
+  // Map: { model -> Tracker(model) };
+  var modelTrackerMap = new WeakMap;
 
+  function createTracker(model) {
+    if (model instanceof Array)
+      return new ArrayTracker(model);
+
+    return new ObjectTracker(model);
+  }
+
+  function getModelTracker(data) {
+    var model = Object.getObservable(data);
+    var tracker = modelTrackerMap.get(model);
+    if (!tracker) {
+      var tracker = createTracker(model);
+      modelTrackerMap.set(model, tracker);
+      Object.observe(model, mutationLog);
+    }
+
+    return tracker;
+  }
+
+  /**
+   * Returns the observable "model" at |path| from |data|.
+   * @param {object} data The reference object.
+   * @param {Path} path The path from the reference object to retrieve a value.
+   * @return {*} The current value at |path| from |data| -- If the value is
+   *     an object, then an "observable" (proxy) is returned.
+   */
   Model.get = function(data, path) {
     if (path) {
       path = new Path(path);
@@ -105,10 +140,47 @@ function Model() {
   };
 
   /**
+   * Observes adds/deletes of properties on |data|.
+   * @param {object} data The reference object.
+   * @param {function} callback Function to be called when a property is added
+   *     or deleted from |data|.
+   */
+  Model.observePropertySet = function(data, callback) {
+    if (!isObject(data))
+      return;
+
+    getModelTracker(data).addObserver(callback);
+  };
+
+  /**
+   * Stops observation of adds/deletes on |data|.
+   * @param {object} data The reference object.
+   * @param {function} callback Function previously registered with |data| via
+   *     Model.observePropertySet().
+   */
+  Model.stopObservingPropertySet = function(data, callback) {
+    if (!isObject(data))
+      return;
+
+    var model = Object.getObservable(data);
+
+    var tracker = modelTrackerMap.get(model);
+    if (!tracker)
+      return;
+
+    tracker.removeObserver(callback);
+    if (!tracker.dependants) {
+      modelTrackerMap.delete(model);
+      Object.stopObserving(model, mutationLog);
+    }
+  };
+
+  /**
    * Observes the value at a path from an object. |callback| is invoked
    * IFF the value changes.
    * @param {object} data The reference object.
    * @param {Path} path The path from the reference object to monitor a value.
+   * @param {function} callback Function to be called when the value changes.
    * @return {*} The current value of the observed path from the object.
    */
   Model.observe = function(data, path, callback) {
@@ -128,36 +200,13 @@ function Model() {
     return pathTracker.value;
   };
 
-  function createTracker(model) {
-    if (model instanceof Array)
-      return new ArrayTracker(model);
-
-    return new ObjectTracker(model);
-  }
-
-  function getModelTracker(data) {
-    var model = Object.getObservable(data);
-    var tracker = objectTrackerMap.get(model);
-    if (!tracker) {
-      var tracker = createTracker(model);
-      objectTrackerMap.set(model, tracker);
-      Object.observe(model, mutationLog);
-    }
-
-    return tracker;
-  }
-
-  function observePropertyValue(data, name, pathTracker) {
-    getModelTracker(data).addValueObserver(name, pathTracker);
-  }
-
-  Model.observePropertySet = function(data, callback) {
-    if (!isObject(data))
-      return;
-
-    getModelTracker(data).addObserver(callback);
-  };
-
+  /**
+   * Stops observation of changes to the value at a path from an object.
+   * @param {object} data The reference object.
+   * @param {Path} path The path from the reference object to monitor a value.
+   * @param {function} callback Function previously registered with |data|  and
+   *     |path| via Model.observe().
+   */
   Model.stopObserving = function(data, path, callback) {
    if (!isObject(data))
       return;
@@ -168,7 +217,7 @@ function Model() {
 
     var model = Object.getObservable(data);
 
-    var tracker = objectTrackerMap.get(model);
+    var tracker = modelTrackerMap.get(model);
     if (!tracker)
       return;
 
@@ -184,94 +233,50 @@ function Model() {
     pathTracker.removeObserver(callback);
 
     if (!tracker.dependants) {
-      objectTrackerMap.delete(model);
+      modelTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
     }
   };
 
+  function observePropertyValue(data, name, pathTracker) {
+    getModelTracker(data).addValueObserver(name, pathTracker);
+  }
+
   function stopObservingPropertyValue(data, name, pathTracker) {
     var model = Object.getObservable(data);
-    var tracker = objectTrackerMap.get(model);
+    var tracker = modelTrackerMap.get(model);
     if (!tracker)
       return;
 
     tracker.removeValueObserver(name, pathTracker);
     if (!tracker.dependants) {
-      objectTrackerMap.delete(model);
+      modelTrackerMap.delete(model);
       Object.stopObserving(model, mutationLog);
     }
   }
 
-  Model.stopObservingPropertySet = function(data, callback) {
-    if (!isObject(data))
-      return;
-
-    var model = Object.getObservable(data);
-
-    var tracker = objectTrackerMap.get(model);
-    if (!tracker)
-      return;
-
-    tracker.removeObserver(callback);
-    if (!tracker.dependants) {
-      objectTrackerMap.delete(model);
-      Object.stopObserving(model, mutationLog);
-    }
-  };
-
-  function newSpliceMutation(index, deleteCount, addCount, target) {
-    return {
-      mutation: 'splice',
-      index: index,
-      deleteCount: deleteCount,
-      addCount: addCount,
-      target: target
-    }
-  }
-
-  function intersect(start1, end1, start2, end2) {
-    if (start1 > end1 || start2 > end2)
-      throw Error('Invalid splice range provided: ' +
-                  [start1, end1, start2, end2].join(', '));
-
-    // Disjoint
-    if (end1 < start2 || end2 < start1)
-      return -1;
-
-    // Adjacent
-    if (end1 == start2 || end2 == start1)
-      return 0;
-
-    // Non-zero intersect, span1 first
-    if (start1 < start2) {
-      if (end1 < end2)
-        return end1 - start2; // Overlap
-      else
-        return end2 - start2; // Contained
-    } else {
-      // Non-zero intersect, span2 first
-      if (end2 < end1)
-        return end2 - start1; // Overlap
-      else
-        return end1 - start1; // Contained
-    }
-  }
-
-  function createPropertySet(obj) {
-    var set = {};
-    for (var prop in obj) {
-      set[prop] = true;
-    }
-    return set;
-  }
-
+  // ValueTracker is the root of the "tracker" classes. It is "abstract".
+  // It provides common implementations of adding, removing & notifying
+  // observers, as well as "descendants". Note that all concrete subclasses
+  // can have descendants which are Path(Value)Trackers.
   function ValueTracker() {}
 
   ValueTracker.prototype = {
     dependants_: 0,
 
-    // notify: function() {} -- Abstract.
+    // Trackers marked as dead will be skipped in the notificationQueue.
+    // This will most likely result because an earlier callback caused an
+    // observer to observe a different path.
+    dead: false,
 
+    // Invoked by the notificationQueue during the main loop of dirtyChecking/
+    // projecting mutationLog changes. A tracker should call notifyObservers
+    // on itself any number of times, but only schedule notifications for its
+    // descendants via addNotification(descendant);
+    notify: function() {},
+
+    // Called when the sum of observers and descendants is greater than 0,
+    // and when it returns to zero. Trackers may want to use to setup/tear down.
     set hasDependants(hasDependants) {},
 
     set dependants(dependants) {
@@ -285,7 +290,12 @@ function Model() {
 
     get dependants() { return this.dependants_; },
 
+    // Called when observers.length becomes greater than 0. Trackers may want to
+    // initialize some state (like a lastValue) when this occurs.
     initObservationState: function() {},
+
+    // Called when observers.length returns to 0. Trackers may want to abandon
+    // any observation state.
     clearObservationState: function() {},
 
     addObserver: function(callback) {
@@ -359,6 +369,11 @@ function Model() {
     }
   }
 
+  // PathTracker represents a value at a path from an observable object.
+  // Multiple observations along similar paths will create a graph of
+  // PathTrackers with nodes being propertyNames. Node that this graph will
+  // "overlay" the underlying objects in different ways as the object property
+  // values change.
   function PathTracker(root, propertyName) {
     this.propertyName = propertyName;
     this.setRoot(root); // Sets up the observer and initial value
@@ -366,6 +381,34 @@ function Model() {
 
   PathTracker.prototype = createObject({
     __proto__: ValueTracker.prototype,
+
+    initObservationState: function() {
+      this.lastValue = this.value;
+    },
+
+    clearObservationState: function() {
+      this.lastValue = undefined;
+    },
+
+    set hasDependants(hasDependants) {
+      if (hasDependants)
+        return;
+
+      // Tear down.
+      if (this.observing) {
+        stopObservingPropertyValue(this.observing,
+                                   this.propertyName,
+                                   this);
+        this.observing = null;
+      }
+
+      this.root.removeDescendant(this.propertyName);
+
+      this.value = undefined;
+      this.root = undefined;
+      this.propertyName = undefined;
+      this.dead = true;
+    },
 
     setRoot: function(root) {
       if (this.observing) {
@@ -425,48 +468,25 @@ function Model() {
       // are scheduled.
       if (this.dirtyCheck(newValue))
         addNotification(this);
-    },
-
-    initObservationState: function() {
-      this.lastValue = this.value;
-    },
-
-    clearObservationState: function() {
-      this.lastValue = undefined;
-    },
-
-    set hasDependants(hasDependants) {
-      if (hasDependants)
-        return;
-
-      if (this.observing) {
-        stopObservingPropertyValue(this.observing,
-                                   this.propertyName,
-                                   this);
-        this.observing = null;
-      }
-
-      this.root.removeDescendant(this.propertyName);
-
-      this.value = undefined;
-      this.root = undefined;
-      this.propertyName = undefined;
-      this.dead = true;
     }
   });
 
+  // ObjectTracker is responsible for tracking changes to the set of properties
+  // on an object. It is also always the "root" of any graph of PathTrackers.
   function ObjectTracker(model) {
     this.target = model;
   }
 
+  function createPropertySet(obj) {
+    var set = {};
+    for (var prop in obj) {
+      set[prop] = true;
+    }
+    return set;
+  }
+
   ObjectTracker.prototype = createObject({
     __proto__: ValueTracker.prototype,
-
-    addMutation: function(mutation) {}, // noop for object
-
-    get value() {
-      return this.target;
-    },
 
     initObservationState: function() {
       this.lastPropertySet = createPropertySet(this.target);
@@ -474,6 +494,15 @@ function Model() {
 
     clearObservationState: function() {
       this.lastPropertySet = undefined;
+    },
+
+    // Called in projectMutations. Adds underlying Object.observe() log events.
+    // ObjectTracker does nothing with this because it treats any mutation
+    // as a signal to dirty check the object.
+    addMutation: function(mutation) {},
+
+    get value() {
+      return this.target;
     },
 
     addValueObserver: function(name, observer) {
@@ -554,10 +583,51 @@ function Model() {
     },
   });
 
+  // ArrayTracker is specialized because it "projects" all underlying "splice"
+  // mutations into the most compact set of splices needed to represent the
+  // union of changes.
   function ArrayTracker(target) {
     this.target = target;
     this.copy = target.concat();
     this.virtualLength = this.copy.length;
+  }
+
+  function newSpliceMutation(index, deleteCount, addCount, target) {
+    return {
+      mutation: 'splice',
+      index: index,
+      deleteCount: deleteCount,
+      addCount: addCount,
+      target: target
+    }
+  }
+
+  function intersect(start1, end1, start2, end2) {
+    if (start1 > end1 || start2 > end2)
+      throw Error('Invalid splice range provided: ' +
+                  [start1, end1, start2, end2].join(', '));
+
+    // Disjoint
+    if (end1 < start2 || end2 < start1)
+      return -1;
+
+    // Adjacent
+    if (end1 == start2 || end2 == start1)
+      return 0;
+
+    // Non-zero intersect, span1 first
+    if (start1 < start2) {
+      if (end1 < end2)
+        return end1 - start2; // Overlap
+      else
+        return end2 - start2; // Contained
+    } else {
+      // Non-zero intersect, span2 first
+      if (end2 < end1)
+        return end2 - start1; // Overlap
+      else
+        return end1 - start1; // Contained
+    }
   }
 
   // Only exposed for testing.
@@ -630,6 +700,8 @@ function Model() {
     },
 
     notify: function() {
+      // TODO(rafaelw): Optimize. ArrayTracker only needs to notify a subset
+      // of its value observers.
       this.notifyValueObservers();
 
       while(this.splices.length) {
