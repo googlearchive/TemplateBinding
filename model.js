@@ -885,26 +885,7 @@ function Model() {
     },
 
     generateSplices: function() {
-      var projectedSplices = this.splices;
       this.splices = calcSplices(this.copy, this.target);
-
-      // Only happens during testing.
-      if (projectedSplices && ArrayTracker.forceSpliceRecalc) {
-        var addCount = 0;
-        var deleteCount = 0;
-        projectedSplices.forEach(function(splice) {
-          addCount += splice.addCount;
-          deleteCount += splice.deleteCount;
-        });
-
-        this.splices.forEach(function(splice) {
-          addCount -= splice.addCount;
-          deleteCount -= splice.deleteCount;
-        });
-
-        if (addCount || deleteCount)
-          throw 'Different edit distances: ' + addCount + ', ' + deleteCount;
-      }
     }
   });
 })();

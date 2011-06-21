@@ -1228,15 +1228,14 @@ function testArrayTrackerUpdateDelete() {
   assertArrayTracker(tracker, log);
 }
 
-var valMax = 10;
-var arrayLengthMax = 10;
+var valMax = 16;
+var arrayLengthMax = 16;
 
 function randInt(start, end) {
   return Math.round(Math.random()*(end-start) + start);
 }
 
 function randArray() {
-
   var args = [];
   var count = randInt(0, arrayLengthMax);
 
@@ -1281,7 +1280,8 @@ function randomArrayOperation(arr) {
     arr[randInt(0, arr.length - 1)] = randInt(0, valMax);
   } else {
     var opArgs = operations[operation]();
-    Array.prototype[operation].apply(arr, opArgs);
+    var func = arr[operation];
+    func.apply(arr, opArgs);
   }
 }
 
@@ -1291,22 +1291,19 @@ function randomArrayOperations(arr, count) {
   }
 }
 
-var testCount = 128;
+var testCount = 32;
 var operationCount = 128;
 
 function testArrayTrackerFuzzer() {
   console.log('Fuzzing spliceProjection ' + testCount +
               ' passes with ' + operationCount + ' operations each.');
   for (var i = 0; i < testCount; i++) {
-    var data = []; randArray();
+    var data = randArray();
     var m = Object.getObservable(data);
     var tracker = new ArrayTracker(m);
     var log = new MutationLog();
     Object.observe(m, log);
 
-    //  console.log('initial: ' + data.join(', '));
-
-    Object.observe(m, log);
     randomArrayOperations(m, operationCount);
 
     assertArrayTracker(tracker, log);
@@ -1319,6 +1316,40 @@ function testArrayTrackerFuzzerNoProxies() {
   testArrayTrackerFuzzer();
 
   ArrayTracker.forceSpliceRecalc = false;
+}
+
+function assertEditDistance(tracker, distance) {
+  var splices = tracker.splices || [];
+  var calcDistance = 0;
+  splices.forEach(function(splice) {
+    calcDistance += splice.addCount;
+    calcDistance += splice.deleteCount;
+  });
+
+  assertEquals(distance, calcDistance);
+}
+
+function testArrayTrackerNoProxiesEdits() {
+  var data;
+  var tracker;
+
+  data = '';
+  tracker = new ArrayTracker(data);
+  tracker.target = '123';
+  tracker.generateSplices();
+  assertEditDistance(tracker, 3);
+
+  data = 'xxxx123';
+  tracker = new ArrayTracker(data);
+  tracker.target = '123yyyy';
+  tracker.generateSplices();
+  assertEditDistance(tracker, 8);
+
+  data = '12345';
+  tracker = new ArrayTracker(data);
+  tracker.target = 'a2yy45zz';
+  tracker.generateSplices();
+  assertEditDistance(tracker, 7);
 }
 
 </script>

@@ -202,7 +202,7 @@
       this.logs.forEach(function(log) {
         log.append(mutation);
       });
-      
+
       // Exposed for testing.
       if (Object.logAppendHook_)
         Object.logAppendHook_();
