@@ -588,17 +588,17 @@ function Model() {
   // union of changes.
   function ArrayTracker(target) {
     this.target = target;
+    // TODO(rafaelw): Shouldn't need to keep a copy for the proxied case.
     this.copy = target.concat();
     this.virtualLength = this.copy.length;
   }
 
-  function newSpliceMutation(index, deleteCount, addCount, target) {
+  function newSpliceMutation(index, deleteCount, addCount) {
     return {
       mutation: 'splice',
       index: index,
       deleteCount: deleteCount,
-      addCount: addCount,
-      target: target
+      addCount: addCount
     }
   }
 
@@ -630,6 +630,154 @@ function Model() {
     }
   }
 
+  // "Synthesizes" the splices which, when applied to |old|, will
+  // transform it into |current|.
+  function calcSplices(old, current) {
+    var LEAVE = 0;
+    var UPDATE = 1;
+    var ADD = 2;
+    var DELETE = 3;
+
+    function minThree(one, two, three) {
+      return Math.min(one, Math.min(two, three));
+    }
+
+    // Note: This function is *based* on the computation of the Levenshtein
+    // "edit" distance. The one change is that "updates" are treated as two
+    // edits - not one. With Array splices, an update is really a delete
+    // followed by an add. By retaining this, we optimize for "keeping" the
+    // maximum array items in the original array. For example:
+    //
+    //   'xxxx123' -> '123yyyy'
+    //
+    // With 1-edit updates, the shortest path would be just to update all seven
+    // characters. With 2-edit updates, we delete 4, leave 3, and add 4. This
+    // leaves the substring '123' intact.
+    function calcEditDistances(old, current) {
+      // "Deletion" columns
+      var distances = new Array(old.length + 1);
+
+      // "Addition" rows. Initialize null column.
+      for (var i = 0; i < distances.length; i++) {
+        distances[i] = new Array(current.length + 1)
+        distances[i][0] = i;
+      }
+
+      // Initialize null row
+      for (var j = 0; j < distances[0].length; j++) {
+        distances[0][j] = j;
+      }
+
+      for (var i = 1; i < distances.length; i++) {
+        for (var j = 1; j < distances[i].length; j++) {
+          if (old[i - 1] === current[j - 1])
+            distances[i][j] = distances[i - 1][j - 1];
+          else
+            distances[i][j] = minThree(distances[i - 1][j] + 1,      // 1 Edit
+                                       distances[i][j - 1] + 1,      // 1 Edit
+                                       distances[i - 1][j - 1] + 2); // 2 Edits
+        }
+      }
+
+      return distances;
+    }
+
+    // This starts at the final weight, and walks "backward" by finding
+    // the minimum previous weight recursively until the origin of the weight
+    // matrix.
+    function operations(distances) {
+      var i = distances.length - 1;
+      var j = distances[0].length - 1;
+      var last = distances[i][j];
+      var edits = [];
+      while(i > 0 || j > 0) {
+        if (i == 0) {
+          edits.push(ADD);
+          j--;
+          continue;
+        }
+        if (j == 0) {
+          edits.push(DELETE);
+          i--;
+          continue;
+        }
+        var updateOrNoop = distances[i - 1][j - 1];
+        var deletion = distances[i - 1][j];
+        var addition = distances[i][j - 1];
+
+        var min = minThree(updateOrNoop, deletion, addition);
+        if (min == updateOrNoop) {
+          if (updateOrNoop == last) {
+            edits.push(LEAVE);
+          } else {
+            edits.push(UPDATE);
+            last = updateOrNoop;
+          }
+          i--;
+          j--;
+        } else if (min == deletion) {
+          edits.push(DELETE);
+          i--;
+          last = deletion;
+        } else {
+          edits.push(ADD);
+          j--;
+          last = addition;
+        }
+      }
+
+      edits.reverse();
+      return edits;
+    }
+
+    var ops = operations(calcEditDistances(old, current));
+
+    var splice = undefined;
+    var splices = [];
+    var index = 0;
+    for (var i = 0; i < ops.length; i++) {
+      switch(ops[i]) {
+        case LEAVE:
+          if (splice) {
+            splices.push(splice);
+            splice = undefined;
+          }
+          index++;
+          break;
+        case UPDATE:
+          if (!splice) {
+            splice = newSpliceMutation(index, 1, 1);
+          } else {
+            splice.addCount++;
+            splice.deleteCount++;
+          }
+          index++;
+          break;
+        case ADD:
+          if (!splice) {
+            splice = newSpliceMutation(index, 0, 1);
+          } else {
+            splice.addCount++;
+          }
+          index++;
+          break;
+        case DELETE:
+          if (!splice) {
+            splice = newSpliceMutation(index, 1, 0);
+          } else {
+            splice.deleteCount++;
+          }
+          break;
+      }
+    }
+
+    if (splice) {
+      splices.push(splice);
+    }
+
+    return splices;
+  }
+
   // Only exposed for testing.
   this.ArrayTracker = ArrayTracker;
 
@@ -651,12 +799,11 @@ function Model() {
         if (mutation.mutation == 'delete' && index >= this.virtualLength)
           return;
 
-        splice = newSpliceMutation(index, 1, 1, mutation.target);
+        splice = newSpliceMutation(index, 1, 1);
       } else {
         splice = newSpliceMutation(mutation.index,
                                    mutation.deleteCount,
-                                   mutation.addCount,
-                                   mutation.target);
+                                   mutation.addCount);
       }
 
       var range = splice.index + splice.deleteCount;
@@ -700,6 +847,9 @@ function Model() {
     },
 
     notify: function() {
+      if (!proxiesImplemented || ArrayTracker.forceSpliceRecalc)
+        this.generateSplices();
+
       // TODO(rafaelw): Optimize. ArrayTracker only needs to notify a subset
       // of its value observers.
       this.notifyValueObservers();
@@ -717,6 +867,8 @@ function Model() {
         var added = Array.prototype.slice.call(spliceArgs, 2);
         this.notifySplice(splice.index, removed, added);
       }
+
+      this.splices = undefined;
     },
 
     notifySplice: function(index, removed, added) {
@@ -730,6 +882,29 @@ function Model() {
           return Model.get(item);
         })
       });
+    },
+
+    generateSplices: function() {
+      var projectedSplices = this.splices;
+      this.splices = calcSplices(this.copy, this.target);
+
+      // Only happens during testing.
+      if (projectedSplices && ArrayTracker.forceSpliceRecalc) {
+        var addCount = 0;
+        var deleteCount = 0;
+        projectedSplices.forEach(function(splice) {
+          addCount += splice.addCount;
+          deleteCount += splice.deleteCount;
+        });
+
+        this.splices.forEach(function(splice) {
+          addCount -= splice.addCount;
+          deleteCount -= splice.deleteCount;
+        });
+
+        if (addCount || deleteCount)
+          throw 'Different edit distances: ' + addCount + ', ' + deleteCount;
+      }
     }
   });
 })();

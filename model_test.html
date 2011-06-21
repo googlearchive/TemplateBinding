@@ -1313,6 +1313,14 @@ function testArrayTrackerFuzzer() {
   }
 }
 
+function testArrayTrackerFuzzerNoProxies() {
+  ArrayTracker.forceSpliceRecalc = true;
+
+  testArrayTrackerFuzzer();
+
+  ArrayTracker.forceSpliceRecalc = false;
+}
+
 </script>
 </body>
 </html>
