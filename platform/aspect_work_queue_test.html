@@ -28,6 +28,10 @@ goog.require('goog.testing.jsunit');
 <body>
 <script>
 
+Array.prototype.clear = function() {
+  return this.splice(0, this.length);
+};
+
 function testBasic() {
   var q = [];
   var count = 0;
@@ -53,18 +57,21 @@ function testBasic() {
 function testTwoWorkers() {
   var q1 = [];
   var q2 = [];
-  var callback1 = function() {
+
+  var callback1 = function(log) {
     count1++;
-    var val = q1.shift();
-    if (val > 0)
-      q2.push(val - 1);
+    log.forEach(function(val) {
+      if (val > 0)
+        q2.push(val - 1);
+    });
   }
 
-  var callback2 = function() {
+  var callback2 = function(log) {
     count2++;
-    var val = q2.shift();
-    if (val > 0)
-      q1.push(val - 1);
+    log.forEach(function(val) {
+      if (val > 0)
+        q1.push(val - 1);
+    });
   }
 
   AspectWorkQueue.register(q1, callback1);
@@ -79,7 +86,7 @@ function testTwoWorkers() {
   assertEquals(1, count1);
   assertEquals(1, count2);
 
-  // Q1 will run, then Q2, then Q1 again, then Q2 again.
+  // Q1 will run, then Q2, then Q1.
   count1 = 0;
   count2 = 0;
   q1.push(1);
@@ -87,7 +94,7 @@ function testTwoWorkers() {
 
   AspectWorkQueue.runUntilEmpty();
   assertEquals(2, count1);
-  assertEquals(2, count2);
+  assertEquals(1, count2);
 
   // Q1, Q2, Q1, Q2, Q1.
   count1 = 0;

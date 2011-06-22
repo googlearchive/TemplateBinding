@@ -59,7 +59,7 @@ function AspectWorkQueue() {}
         queueRecords.concat().forEach(function(record) {
           if (record.workQueue.length) {
             workDone = true;
-            record.callback();
+            record.callback(record.workQueue.clear());
           }
         });
       }

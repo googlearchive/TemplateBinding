@@ -46,7 +46,7 @@ function assertArrayEquals() {
 }
 
 function assertNextMutationIs(expected, log) {
-  var mutation = log.next();
+  var mutation = log.clear()[0];
   if (!expected) {
     assertUndefined('mutation exists', mutation);
     return;

@@ -40,11 +40,11 @@ function Model() {
 
   AspectWorkQueue.register(mutationLog, projectMutations);
 
-  function projectMutations() {
+  function projectMutations(mutations) {
     var dirtyObjectsSet = new WeakMap;
     var trackers = [];
 
-    mutationLog.clear().forEach(function(mutation) {
+    mutations.forEach(function(mutation) {
       var target = mutation.target;
       var tracker = modelTrackerMap.get(target);
       if (tracker) {

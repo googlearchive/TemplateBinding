@@ -45,10 +45,6 @@
       get: function() { return log.length; }
     });
 
-    this.next = function() {
-      return log.shift();
-    };
-
     this.clear = function() {
       var retval = log;
       log = [];
