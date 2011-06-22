@@ -93,7 +93,7 @@ function testObserveOnElement() {
   Model.observe(d, 'model', callback);
 
   d.model = Model.get({});
-
+  AspectWorkQueue.runUntilEmpty();
   assertEquals(1, count);
 }
 
@@ -110,6 +110,7 @@ function testObserveOnElement2() {
   Model.observe(divModel, 'model', callback);
 
   divModel.model = Model.get({});
+  AspectWorkQueue.runUntilEmpty();
   assertEquals(1, count);
 }
 
@@ -119,6 +120,7 @@ function testModelCleared() {
 
   parent.model = 'a';
   child.model = 'b';
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('b', child.model);
   assertEquals('b', child.computedModel);
 
@@ -131,6 +133,7 @@ function testModelCleared() {
   });
 
   child.model = undefined;
+  AspectWorkQueue.runUntilEmpty();
   assertUndefined(child.model);
   assertEquals('a', child.computedModel);
 

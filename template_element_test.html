@@ -208,6 +208,7 @@ function testModelScopeAttributeBinding() {
   assertEquals('Hi Leela',
       div.firstElementChild.nextElementSibling.textContent);
   div.model.scope = 'XY';
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('Hi Fry', div.firstElementChild.nextElementSibling.textContent);
 }
 
@@ -220,10 +221,10 @@ function testBindToClassName() {
 
   div.model = Model.get({ val: false});
   t.instantiate = '';
-
   assertEquals('foo ', div.childNodes[1].className);
 
   div.model.val = true;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('foo bar', div.childNodes[1].className);
 }
 
@@ -263,24 +264,31 @@ function testIterate() {
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
   m.contacts.push({name: 'Alex'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
 
   m.contacts.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
 
   m.contacts.splice(1, 2);
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Rafael', 'Hi Alex');
 
   m.contacts.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m.contacts.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m.contacts = [{name: 'Alex'}];
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Alex');
 
   m.contacts.length = 0;
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre();
 }
 
@@ -345,21 +353,27 @@ function testIterateEmptyIteratePath() {
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
   m.push({name: 'Alex'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
 
   m.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
 
   m.splice(1, 2);
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Rafael', 'Hi Alex');
 
   m.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m = div.model = [{name: 'Alex'}];
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Alex');
 }
 
@@ -442,9 +456,11 @@ function testIterateDoesNotCallFormat() {
   };
 
   m.splice(0, 0, {name: 'Alex'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Arv', 'Hi Neal');
 
   m.splice(0, 2);
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Arv', 'Hi Neal');
 
   // Restore format.
@@ -453,6 +469,7 @@ function testIterateDoesNotCallFormat() {
   delete b3.format;
 
   m[0].name = 'Erik';
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Erik', 'Hi Neal');
 }
 
@@ -503,9 +520,11 @@ function nestedHelper(s, start) {
   assertEquals('2', div.childNodes[i++].textContent);
 
   m.a.b = 11;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('11', div.childNodes[start].textContent);
 
   m.a.c = {d: 22};
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('22', div.childNodes[start + 2].textContent);
 }
 
@@ -563,6 +582,7 @@ function nestedIterateInstantiateHelper(s, start) {
     c: {d: 33}
   };
 
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('3', div.childNodes[start + 5].textContent);
   assertEquals('33', div.childNodes[start + 7].textContent);
 }
@@ -628,6 +648,7 @@ function nestedIterateIterateHelper(s, start) {
   };
 
   i = start + 4;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('3', div.childNodes[start + 7].textContent);
   assertEquals('31', div.childNodes[start + 9].textContent);
   assertEquals('32', div.childNodes[start + 11].textContent);
@@ -708,6 +729,7 @@ function testNestedIterateSelfRef() {
   };
 
   i = 1;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('Item 1 changed', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('template-instance', div.childNodes[i++].textContent);
@@ -833,10 +855,12 @@ function testInstantiateNested() {
   assertEquals('Wife: LaBarbara', div.childNodes[3].textContent);
 
   m.child = {name: 'Dwight'};
+  AspectWorkQueue.runUntilEmpty();
   assertEquals(9, div.childNodes.length);
   assertEquals('Child: Dwight', div.childNodes[6].textContent);
 
   delete m.wife;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals(7, div.childNodes.length);
   assertEquals('Child: Dwight', div.childNodes[4].textContent);
 }
@@ -860,10 +884,12 @@ function testInstantiateRecursive() {
   assertEquals('Name: Bender', div.childNodes[3].textContent);
 
   m.friend.friend = {name: 'Leela'};
+  AspectWorkQueue.runUntilEmpty();
   assertEquals(10, div.childNodes.length);
   assertEquals('Name: Leela', div.childNodes[5].textContent);
 
   m.friend = {name: 'Leela'};
+  AspectWorkQueue.runUntilEmpty();
   assertEquals(7, div.childNodes.length);
   assertEquals('Name: Leela', div.childNodes[3].textContent);
 }
@@ -1041,9 +1067,11 @@ function testAttributeBindingExpression() {
   assertEquals('3', input.value);
 
   div.model.a = 4;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('6', input.value);
 
   delete div.model.a;
+  AspectWorkQueue.runUntilEmpty();
   assertEquals('NaN', input.value);
 }
 
