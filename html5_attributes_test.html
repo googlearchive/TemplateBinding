@@ -28,26 +28,26 @@ goog.require('goog.testing.jsunit');
 <script>
 
 function testEventHandler() {
-  assertEquals(AttributeKind.EVENT_HANDLER, getAtttributeKind('', 'onclick'));
-  assertEquals(AttributeKind.EVENT_HANDLER, getAtttributeKind('', 'onClick'));
-  assertEquals(AttributeKind.UNKNOWN, getAtttributeKind('', 'onfoo'));
+  assertEquals(AttributeKind.EVENT_HANDLER, getAttributeKind('', 'onclick'));
+  assertEquals(AttributeKind.EVENT_HANDLER, getAttributeKind('', 'onClick'));
+  assertEquals(AttributeKind.UNKNOWN, getAttributeKind('', 'onfoo'));
 }
 
 function testBoolean() {
-  assertEquals(AttributeKind.BOOLEAN, getAtttributeKind('', 'hidden'));
-  assertEquals(AttributeKind.BOOLEAN, getAtttributeKind('input', 'disabled'));
-  assertNotEquals(AttributeKind.BOOLEAN, getAtttributeKind('span', 'disabled'));
+  assertEquals(AttributeKind.BOOLEAN, getAttributeKind('', 'hidden'));
+  assertEquals(AttributeKind.BOOLEAN, getAttributeKind('input', 'disabled'));
+  assertNotEquals(AttributeKind.BOOLEAN, getAttributeKind('span', 'disabled'));
 }
 
 function testKnown() {
-  assertEquals(AttributeKind.KNOWN, getAtttributeKind('', 'class'));
-  assertEquals(AttributeKind.KNOWN, getAtttributeKind('input', 'value'));
-  assertNotEquals(AttributeKind.KNOWN, getAtttributeKind('input', 'foo'));
+  assertEquals(AttributeKind.KNOWN, getAttributeKind('', 'class'));
+  assertEquals(AttributeKind.KNOWN, getAttributeKind('input', 'value'));
+  assertNotEquals(AttributeKind.KNOWN, getAttributeKind('input', 'foo'));
 }
 
 function testUnknown() {
-  assertEquals(AttributeKind.UNKNOWN, getAtttributeKind('', 'foo'));
-  assertEquals(AttributeKind.UNKNOWN, getAtttributeKind('a', 'value'));
+  assertEquals(AttributeKind.UNKNOWN, getAttributeKind('', 'foo'));
+  assertEquals(AttributeKind.UNKNOWN, getAttributeKind('a', 'value'));
 }
 
 </script>

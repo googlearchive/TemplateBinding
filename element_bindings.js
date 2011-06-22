@@ -375,7 +375,7 @@ var BOOL_ATTR = 3;
 function getPropertyKind(object, name) {
   if (object instanceof Element) {
     var lcName = name.toLowerCase();
-    var kind = getAtttributeKind(object.tagName, name);
+    var kind = getAttributeKind(object.tagName, name);
     switch (kind) {
       case (AttributeKind.BOOLEAN):
         if (lcName == 'checked')

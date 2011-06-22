@@ -19,7 +19,7 @@ var AttributeKind = {
   EVENT_HANDLER: 3
 };
 
-var getAtttributeKind = (function() {
+var getAttributeKind = (function() {
 
   // This is generated using data from:
   // http://simon.html5.org/html-elements
@@ -527,7 +527,7 @@ var getAtttributeKind = (function() {
     truespeed: true
   };
 
-  function getAtttributeKind(tagName, name) {
+  function getAttributeKind(tagName, name) {
     var lcName = name.toLowerCase();
 
     if (isEventHandler(lcName))
@@ -570,5 +570,5 @@ var getAtttributeKind = (function() {
     return name in booleanMap;
   }
 
-  return getAtttributeKind;
+  return getAttributeKind;
 })();
