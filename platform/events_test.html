@@ -17,7 +17,7 @@ limitations under the License.
 -->
 <head>
 <title>Mutation Events Tests</title>
-<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="../third_party/closure/closure/goog/base.js"></script>
 <script src="compat.js"></script>
 <script src="weak_map.js"></script>
 <script src="forwarding_handler.js"></script>
@@ -31,7 +31,7 @@ goog.require('goog.testing.jsunit');
 <script>
 
 function assertNextMutationIs(expected, log) {
-  var mutation = log.next();
+  var mutation = log.clear()[0];
   if (!expected) {
     assertUndefined('mutation exists', mutation);
     return;
