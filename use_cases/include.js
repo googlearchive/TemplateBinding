@@ -14,12 +14,12 @@
 
 document.write('<link rel="stylesheet" href="../template_element.css">');
 [
-  '../compat.js',
-  '../forwarding_handler.js',
-  '../weak_map.js',
+  '../platform/compat.js',
+  '../platform/forwarding_handler.js',
+  '../platform/weak_map.js',
+  '../platform/aspect_work_queue.js',
+  '../platform/object_observe.js',
   '../path.js',
-  '../object_observe.js',
-  '../aspect_work_queue.js',
   '../model.js',
   '../transform.js',
   '../dependency_parser.js',
