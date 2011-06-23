@@ -19,14 +19,17 @@
   }
 
   function deepFreeze(obj) {
-    if (!isObject(obj) || Object.isFrozen(obj))
-      return;
+    // NOTE: JSC doesn't implement Object.isFrozen/freeze, so for now
+    // just don't do anything in safari.
+    if (Object.isFrozen) {
+      if (!isObject(obj) || Object.isFrozen(obj))
+        return;
 
-    Object.freeze(obj);
-    Object.keys(obj).forEach(function(key) {
-      deepFreeze(obj[key]);
-    });
-
+      Object.freeze(obj);
+      Object.keys(obj).forEach(function(key) {
+        deepFreeze(obj[key]);
+      });
+    }
     return obj;
   }
 
@@ -55,7 +58,9 @@
     // WeakMap is missing.
     this.__id__ = idCounter++;
 
-    Object.freeze(this);
+    // Same issue as above with JSC/safari
+    if (Object.freeze)
+      Object.freeze(this);
     mutationLogs.set(this, true);
   };
 
@@ -204,7 +209,7 @@
     },
 
     'delete': function(name) {
-      var retval = ForwardingHandler.prototype.delete.call(this, name);
+      var retval = ForwardingHandler.prototype['delete'].call(this, name);
       this.logMutation({mutation: 'delete', name: name});
       return retval;
     },

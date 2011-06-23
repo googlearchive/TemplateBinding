@@ -203,7 +203,7 @@ function Model() {
     tracker.removeObserver(callback);
     if (!tracker.dependants) {
       objectStopObserving(model, mutationLog);
-      modelTrackerMap.delete(model);
+      modelTrackerMap['delete'](model);
     }
   };
 
@@ -266,7 +266,7 @@ function Model() {
 
     if (!tracker.dependants) {
       objectStopObserving(model, mutationLog);
-      modelTrackerMap.delete(model);
+      modelTrackerMap['delete'](model);
     }
   };
 
@@ -283,7 +283,7 @@ function Model() {
     tracker.removeValueObserver(name, pathTracker);
     if (!tracker.dependants) {
       objectStopObserving(model, mutationLog);
-      modelTrackerMap.delete(model);
+      modelTrackerMap['delete'](model);
     }
   }
 
