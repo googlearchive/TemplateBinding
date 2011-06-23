@@ -248,8 +248,6 @@ function assertNodesAre() {
 }
 
 function testIterate() {
-  Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
-
   div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
   t = div.firstChild;
 
@@ -405,6 +403,7 @@ function testIterateReuse() {
   var node3 = div.childNodes[5];
 
   m.splice(1, 1, {name: 'Erik'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Raf', 'Hi Erik', 'Hi Neal');
   assertEquals('model[0] did not change so the node should not have changed',
                node1, div.childNodes[1]);
@@ -414,6 +413,7 @@ function testIterateReuse() {
 
   node2 = div.childNodes[3];
   m.splice(0, 0, {name: 'Alex'});
+  AspectWorkQueue.runUntilEmpty();
   assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Erik', 'Hi Neal');
   assertEquals('Should reuse node1', node1, div.childNodes[3]);
   assertEquals('Should reuse node2', node2, div.childNodes[5]);
@@ -941,6 +941,7 @@ function testChangeRefId() {
   document.getElementById('b').id = 'a';
 
   div.model.push(1, 2);
+  AspectWorkQueue.runUntilEmpty();
 
   assertEquals(11, div.childNodes.length);
   assertEquals('a:1', div.childNodes[4].textContent);

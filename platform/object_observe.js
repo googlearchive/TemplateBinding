@@ -69,6 +69,9 @@
   this.MutationLog = MutationLog;
 
   // Observable
+  var proxiesImplemented = !!this.Proxy;
+  if (!proxiesImplemented)
+    return;
   var wrappedToUnwrapped = new WeakMap;
   var unwrappedToWrapped = new WeakMap;
   var wrappedToHandler = new WeakMap;
@@ -320,23 +323,15 @@
         var mutation;
         try {
           mutation = arrayMutationHandlers[name].apply(this, arguments);
-          var logAppendHook;
           if (mutation) {
             handler.batchCount_++;
-            logAppendHook = Object.logAppendHook_;
-            Object.logAppendHook_ = undefined;
             objectHandlerProto.logMutation.call(handler, mutation);
           }
 
           return handler.object[name].apply(this, arguments);
         } finally {
-          if (mutation) {
+          if (mutation)
             handler.batchCount_--;
-            if (logAppendHook) {
-              logAppendHook();
-              Object.logAppendHook_ = logAppendHook;
-            }
-          }
         }
       });
     },

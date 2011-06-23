@@ -17,6 +17,8 @@ var clearModelOwnerAndPathCache;
 
 (function() {
 
+var observableObjects = !!Object.getObservable;
+
 function handleDomNodeInserted(e) {
   // All bindings should have their source set at the root node, if they
   // are in need of an inherited model
@@ -95,11 +97,11 @@ function setModel(model) {
     ownerAndPath = getModelOwnerAndPath(this);
 
   this.model_ = model;
-  
+
   // Notify listeners. This will be a noop because of first check in this
   // function.
-  Object.getObservable(this).model = model;
-  
+  Model.get(this).model = model;
+
   if (this.model_ === undefined)
     resetBindingSources(this);
   else if (oldModel === undefined)

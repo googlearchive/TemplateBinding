@@ -32,13 +32,23 @@ goog.require('goog.testing.jsunit');
 <body>
 <script>
 
+var observableObjects = !!Object.getObservable;
+if (!observableObjects) {
+  Object.getObservable = function(obj) { return obj; };
+  Object.observe = function() {};
+}
+
 // Closure's assertArrayEquals does not handle proxies
 function assertArrayEquals() {
   var msg = '', a, b;
-  if (arguments.length == 3)
-    [msg, a, b] = arguments;
-  else
-    [a, b] = arguments;
+  if (arguments.length == 3) {
+    msg = arguments[0];
+    a = arguments[1];
+    b = arguments[2];
+  } else {
+    a = arguments[0];
+    b = arguments[1];
+  }
   assertEquals('different type', typeof a, typeof b);
   assertEquals('different length', a.length, b.length);
   for (var i = 0; i < a.length; i++) {
@@ -61,11 +71,15 @@ function testEvent() {
   assertEquals(1, eventCount);
   assertEquals(model.id, data.id);
 
-  // Event shouldn't fire, but model & data should still agree.
   data.id = 3;
   AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, eventCount);
+
+  if (observableObjects)
+    assertEquals(1, eventCount); // Change to raw object wasn't detected.
+  else
+    assertEquals(2, eventCount); // Forced dirty checking caught the change.
   assertEquals(model.id, data.id);
+
 }
 
 function testObjectPropertySet() {
@@ -580,6 +594,9 @@ function testModelWithFunctions() {
 }
 
 function testModelFunctionConstruct() {
+  if (!observableObjects)
+    return;
+
   var m = Model.get(function(x, y, z) {
     assertEquals('x', x);
     assertEquals('y', y);

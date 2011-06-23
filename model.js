@@ -18,10 +18,38 @@ function Model() {
 
 (function() {
 
-  var proxiesImplemented = !!this.Proxy;
-  if (!proxiesImplemented) {
-    console.warn(
-        'Proxy are not available. Changes to models will not be observable.');
+  var observableObjects = !!Object.getObservable;
+
+  function getObservable(data) {
+    return observableObjects ? Object.getObservable(data) : data;
+  }
+
+  function objectObserve(model, log) {
+    if (observableObjects)
+      Object.observe(model, log);
+    else
+      addToObservedList(model);
+  }
+
+  function objectStopObserving(model, log) {
+    if (observableObjects)
+      Object.stopObserving(model, log);
+    else
+      removeFromObservedList(model);
+  }
+
+  var observedList = observableObjects ? undefined : [];
+
+  function addToObservedList(model) {
+    observedList.push(modelTrackerMap.get(model));
+  }
+
+  function removeFromObservedList(model) {
+    var tracker = modelTrackerMap.get(model);
+    var index = observedList.indexOf(tracker);
+    if (index < 0)
+      throw Error('Unable to remove expected tracker');
+    observedList.splice(index, 1);
   }
 
   function isIndex(s) {
@@ -41,20 +69,24 @@ function Model() {
   AspectWorkQueue.register(mutationLog, projectMutations);
 
   function projectMutations(mutations) {
-    var dirtyObjectsSet = new WeakMap;
-    var trackers = [];
+    if (observableObjects) {
+      var trackers = [];
+      var dirtyObjectsSet = new WeakMap;
 
-    mutations.forEach(function(mutation) {
-      var target = mutation.target;
-      var tracker = modelTrackerMap.get(target);
-      if (tracker) {
-        tracker.addMutation(mutation);
-        if (!dirtyObjectsSet.has(target)) {
-          dirtyObjectsSet.set(target, true);
-          addNotification(tracker);
+      mutations.forEach(function(mutation) {
+        var target = mutation.target;
+        var tracker = modelTrackerMap.get(target);
+        if (tracker) {
+          tracker.addMutation(mutation);
+          if (!dirtyObjectsSet.has(target)) {
+            dirtyObjectsSet.set(target, true);
+            addNotification(tracker);
+          }
         }
-      }
-    });
+      });
+    } else {
+      observedList.forEach(addNotification);
+    }
 
     startNotifications();
   }
@@ -101,12 +133,12 @@ function Model() {
   }
 
   function getModelTracker(data) {
-    var model = Object.getObservable(data);
+    var model = getObservable(data);
     var tracker = modelTrackerMap.get(model);
     if (!tracker) {
       var tracker = createTracker(model);
       modelTrackerMap.set(model, tracker);
-      Object.observe(model, mutationLog);
+      objectObserve(model, mutationLog);
     }
 
     return tracker;
@@ -136,7 +168,7 @@ function Model() {
     if (!isObject(data))
       return data;
 
-    return Object.getObservable(data);
+    return getObservable(data);
   };
 
   /**
@@ -162,7 +194,7 @@ function Model() {
     if (!isObject(data))
       return;
 
-    var model = Object.getObservable(data);
+    var model = getObservable(data);
 
     var tracker = modelTrackerMap.get(model);
     if (!tracker)
@@ -170,8 +202,8 @@ function Model() {
 
     tracker.removeObserver(callback);
     if (!tracker.dependants) {
+      objectStopObserving(model, mutationLog);
       modelTrackerMap.delete(model);
-      Object.stopObserving(model, mutationLog);
     }
   };
 
@@ -215,7 +247,7 @@ function Model() {
     if (path.length == 0)
       return;
 
-    var model = Object.getObservable(data);
+    var model = getObservable(data);
 
     var tracker = modelTrackerMap.get(model);
     if (!tracker)
@@ -233,8 +265,8 @@ function Model() {
     pathTracker.removeObserver(callback);
 
     if (!tracker.dependants) {
+      objectStopObserving(model, mutationLog);
       modelTrackerMap.delete(model);
-      Object.stopObserving(model, mutationLog);
     }
   };
 
@@ -243,15 +275,15 @@ function Model() {
   }
 
   function stopObservingPropertyValue(data, name, pathTracker) {
-    var model = Object.getObservable(data);
+    var model = getObservable(data);
     var tracker = modelTrackerMap.get(model);
     if (!tracker)
       return;
 
     tracker.removeValueObserver(name, pathTracker);
     if (!tracker.dependants) {
+      objectStopObserving(model, mutationLog);
       modelTrackerMap.delete(model);
-      Object.stopObserving(model, mutationLog);
     }
   }
 
@@ -496,7 +528,7 @@ function Model() {
       this.lastPropertySet = undefined;
     },
 
-    // Called in projectMutations. Adds underlying Object.observe() log events.
+    // Called in projectMutations. Adds underlying objectObserve() log events.
     // ObjectTracker does nothing with this because it treats any mutation
     // as a signal to dirty check the object.
     addMutation: function(mutation) {},
@@ -847,7 +879,7 @@ function Model() {
     },
 
     notify: function() {
-      if (!proxiesImplemented || ArrayTracker.forceSpliceRecalc)
+      if (!observableObjects || ArrayTracker.forceSpliceRecalc)
         this.generateSplices();
 
       // TODO(rafaelw): Optimize. ArrayTracker only needs to notify a subset

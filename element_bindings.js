@@ -81,6 +81,9 @@ document.addEventListener('DOMContentLoaded', function(e) {
 }, false);
 
 document.addEventListener('DOMNodeInserted', function(e) {
+  // Webkit seems to fire DOMNodeInserted for Text and Comment nodes.
+  if (e.target.nodeType !== Node.ELEMENT_NODE)
+    return;
   if (e.target.hasAttribute('bind'))
     e.target.bind = e.target.getAttribute('bind');
 }, false);
@@ -581,6 +584,19 @@ Binding.prototype = {
       return;
 
     sources[0].value = newValue;
+    
+    // We need to run the work queue so that changes to the affected model
+    // can be picked up.
+    // TODO(rafaelw): If the platform finally implements something like the
+    // AspectWorkQueue, it will cause the following issue: HTMLInputElements
+    // will optimistically update its "view" on UI input. If script (say
+    // listening to the same event we are) later "rejects" the update by
+    // setting the value back, the observation semantics won't detect any
+    // any change, but nothing will tell the input that it assumption failed.
+    // This will cause element_bindings:testInputElementTextBinding() to fail.
+    // Fix this when we implement "observation contexts" which can have a
+    // a finalize step.
+    AspectWorkQueue.runUntilEmpty();
   },
 
   format: function() {

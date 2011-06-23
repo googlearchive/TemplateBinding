@@ -51,6 +51,7 @@ function AspectWorkQueue() {}
 
   AspectWorkQueue.runUntilEmpty = function() {
     var workDone = true;
+    var firstTime = true;
 
     while (workDone) {
       workDone = false;
@@ -60,9 +61,13 @@ function AspectWorkQueue() {}
           if (record.workQueue.length) {
             workDone = true;
             record.callback(record.workQueue.clear());
+          } else if (firstTime) {
+            record.callback([]);
           }
         });
       }
+
+      firstTime = false;
     }
   }
 })()

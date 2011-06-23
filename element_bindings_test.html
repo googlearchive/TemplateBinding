@@ -43,9 +43,16 @@ goog.require('goog.testing.jsunit');
   <a bind="href:url">test link</a>
 </div>
 
+<div id="testContainer">
+</div>
 <script>
+// Note: DOMNodeInserted/Removed only fire in webkit if the node is rooted in
+// document. This is just an attachment point so that tests will pass in
+// webkit.
+var testContainerDiv = document.getElementById('testContainer');
+</script>
 
-Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
+<script>
 
 function testBindAttributeDeclaration() {
   var div = document.getElementById('testLinkContainer');
@@ -496,8 +503,10 @@ function testDomTreeChanges() {
   d2.id = 'd2';
   var d3 = document.createElement('div');
   d3.id = 'd3';
-
   d3.addBinding('foo', new Binding('a'));
+
+  testContainerDiv.appendChild(d1);
+  testContainerDiv.appendChild(d2);
 
   AspectWorkQueue.runUntilEmpty();
   assertNull(d3.foo);
@@ -512,6 +521,8 @@ function testDomTreeChanges() {
   d2.appendChild(d3);
   AspectWorkQueue.runUntilEmpty();
   assertEquals(2, d3.foo);
+
+  testContainerDiv.innerHTML = '';
 }
 
 function dispatchEvent(type, target) {
@@ -563,12 +574,6 @@ function testInputElementTextBinding() {
   // Model property unreachable (and unsettable).
   delete m.a.b;
   AspectWorkQueue.runUntilEmpty();
-  // TODO(rafaelw): This is currently failing because the InputElement updated
-  // its "view" optimistically. In this case, script set the value back to
-  // undefined -- effectively rejecting the "controller assignment", but
-  // nothing is telling the view that its optimistic update failed.
-  // Fix this when we implement "observation contexts" which can have a
-  // a finalize step.
   assertEquals('', el.value);
 
   el.value = 'pong';

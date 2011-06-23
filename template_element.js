@@ -21,8 +21,6 @@ var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 var bindAttributeParser = new BindAttributeParser;
 
 document.addEventListener('DOMContentLoaded', function(e) {
-  Object.logAppendHook_ = AspectWorkQueue.runUntilEmpty;
-
   var templates = document.querySelectorAll('template');
   forEach(templates, HTMLTemplateElement.decorate);
 }, false);
@@ -57,6 +55,14 @@ function buildBindingsRepresentation(node) {
         var propertyName = getPropertyNameForBinding(attr.nodeName);
         placeHolderBindings[propertyName] = attr.nodeValue;
         anyPlaceHolderBindings = true;
+        
+        // TODO(rafaelw): Hack alert. This may or may not be the "right" thing
+        // to do, but the motivation is to make bindings work in webkit. The
+        // issue is that assigning null to an input.value in webkit returns
+        // the value to what's stored in the attribute map. If we pull the
+        // binding text out preemptively, "the right thing happens". Sadly,
+        // the "right" thing won't happen in IE. <sigh>
+        node.setAttribute(attr.name, '');
       } else if (attr.nodeName == 'modelscope') {
         modelScope = attr.nodeValue;
       } else if (attr.nodeName == 'bind') {
