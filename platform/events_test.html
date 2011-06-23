@@ -101,6 +101,7 @@ function testChildlistChanged() {
   var div = document.createElement('div');
   var span = document.createElement('span');
   var b = document.createElement('b');
+  document.body.appendChild(div);  // required to pass in WebKit
 
   var log = new MutationLog;
   var divLog = new MutationLog;
