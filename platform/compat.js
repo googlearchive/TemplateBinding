@@ -41,7 +41,7 @@ if (!('parentElement' in document.createElement('div'))) {
       if (p && p.nodeType == Node.ELEMENT_NODE)
         return p;
       return null;
-    },
+    }
   });
 }
 
