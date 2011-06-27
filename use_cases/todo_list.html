@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Test</title>
+<script src="include.js"></script>
+</head>
+<body>
+   <!-- TodoList -->
+   <ul class="todoList" data-controller="TodoListController">
+     <template iterate>
+     <li>
+       <input value="{{ name }}">
+       [<a href="#" data-action="click:remove">X</a>]
+     </li>
+     </template>
+     <li>[<a href="#" data-action="click:add">add todo</a>]</li>
+  </ul>
+
+<script>
+
+function TodoListController(root) {
+  this.model = root.model = [{ name: 'Make MDV a success '}];
+}
+
+TodoListController.prototype = {
+  add: function() {
+    this.model.push({});
+  },
+
+  remove: function(item) {
+    var index = this.model.indexOf(item);
+    if (index >= 0)
+      this.model.splice(index, 1);
+  }
+};
+
+</script>
+</body>
+</html>

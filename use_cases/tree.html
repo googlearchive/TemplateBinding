@@ -39,10 +39,10 @@ limitations under the License.
 
 </style>
 </head>
-<body>
+<body data-controller="Controller">
 
-<button onclick="removeItem2()">Remove item 2</button>
-<button onclick="appendTree()">Append tree</button>
+<button data-action="click:removeItem2">Remove item 2</button>
+<button data-action="click:appendTree">Append tree</button>
 
 <ul class="tree">
   <template iterate id=t1>
@@ -55,49 +55,52 @@ limitations under the License.
 </ul>
 
 <script>
-
-document.body.model = Model.get([
-  {
-    name: 'Root',
-    children: [
-      {name: 'Item 1'},
-      {
-        name: 'Item 2',
-        children: [
-          {name: 'Item 2.1'},
-          {
-            name: 'Item 2.2',
-            children: [
-              {name: 'Item 2.2.1'},
-              {name: 'Item 2.2.2'},
-            ]
-          },
-          {name: 'Item 2.3'},
-        ]
-      },
-      {name: 'Item 3'}
-    ]
- }
-]);
-
-function removeItem2() {
-  document.body.model[0].children.splice(1, 1);
+function Controller(root) {
+  this.model = root.model = Model.get([
+    {
+      name: 'Root',
+      children: [
+        {name: 'Item 1'},
+        {
+          name: 'Item 2',
+          children: [
+            {name: 'Item 2.1'},
+            {
+              name: 'Item 2.2',
+              children: [
+                {name: 'Item 2.2.1'},
+                {name: 'Item 2.2.2'},
+              ]
+            },
+            {name: 'Item 2.3'},
+          ]
+        },
+        {name: 'Item 3'}
+      ]
+    }
+  ]);
 }
 
-var i = 4;
+Controller.prototype = {
+  i: 4,
 
-function appendTree() {
-  document.body.model[0].children.push({
-    name: 'Item ' + i,
-    children: [
-      {name: 'Item' + i + '.1'},
-      {name: 'Item' + i + '.2'},
-      {name: 'Item' + i + '.3'}
-    ]
-  });
-  i++;
+  removeItem2: function() {
+    this.model[0].children.splice(1, 1);
+  },
+
+  appendTree: function() {
+    this.model[0].children.push({
+      name: 'Item ' + this.i,
+      children: [
+        {name: 'Item' + this.i + '.1'},
+        {name: 'Item' + this.i + '.2'},
+        {name: 'Item' + this.i + '.3'}
+      ]
+    });
+
+    this.i++;
+  }
 }
-
 </script>
 </body>
 </html>

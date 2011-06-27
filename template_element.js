@@ -55,7 +55,7 @@ function buildBindingsRepresentation(node) {
         var propertyName = getPropertyNameForBinding(attr.nodeName);
         placeHolderBindings[propertyName] = attr.nodeValue;
         anyPlaceHolderBindings = true;
-        
+
         // TODO(rafaelw): Hack alert. This may or may not be the "right" thing
         // to do, but the motivation is to make bindings work in webkit. The
         // issue is that assigning null to an input.value in webkit returns

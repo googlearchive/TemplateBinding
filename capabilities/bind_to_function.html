@@ -57,6 +57,7 @@ document.body.model = Model.get({
 
 function clickHandler(e) {
   e.target.computedModel.selected = !e.target.computedModel.selected;
+  AspectWorkQueue.runUntilEmpty();
 }
 
 document.body.model.people.forEach(function(person) {

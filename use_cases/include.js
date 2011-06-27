@@ -29,7 +29,8 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../element_model.js',
   '../html5_attributes.js',
   '../element_bindings.js',
-  '../template_element.js'
+  '../template_element.js',
+  '../util/view_controller.js'
 ].forEach(function(src) {
   document.write('<script src="' + src + '"></script>');
 });

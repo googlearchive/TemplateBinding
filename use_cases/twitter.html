@@ -97,11 +97,13 @@ h1, h2, h3 {
 
 -->
 </head>
-<body>
+<body data-controller="Controller">
 
   <h1>Twitter Demo</h1>
 
-  <input id="term" type="search">
+  <template instantiate>
+    <input type="search" value="{{ term }}">
+  </template>
 
   <div>
     <div>
@@ -109,7 +111,7 @@ h1, h2, h3 {
 
       <ul id="list">
         <template iterate="results">
-          <li onclick="updateDetails(this)">{{from_user}}</li>
+          <li data-action="click:updateDetails">{{from_user}}</li>
         </template>
       </ul>
     </div>
@@ -130,6 +132,7 @@ h1, h2, h3 {
   </div>
 
 <script>
+
 var jsonp = function() {
   var count = 0;
   return function(url, f, scope) {
@@ -140,39 +143,41 @@ var jsonp = function() {
       f.apply(scope||null, arguments);
       script.parentNode.removeChild(script);
       script = null;
+      AspectWorkQueue.runUntilEmpty();
     };
     script.src = url + '&callback=' + name;
     document.head.appendChild(script);
   }
 }();
 
-var list = document.getElementById('list');
 var details = document.getElementById('details');
-var term = document.getElementById('term');
 
-function updateDetails(listItem) {
-  var user = listItem.textContent;
-  var index = twitter.indexOfUser(user);
-  if (index >= 0)
-    details.modelScope = 'results[' + index + ']';
+function Controller(root) {
+  root.model = Model.get(this);
+  this.term = 'Google Chrome';
 }
 
-var twitter = Model.get({
+Controller.prototype = {
   term_: '',
+  results: null,
+
   get term() {
     return this.term_;
   },
+
   set term(term) {
-    if (term == this.term)
+    if (term == this.term_)
       return;
     this.term_ = term;
-    var m = Model.get(this);
+
+    var self = Model.get(this);
+
     jsonp('http://search.twitter.com/search.json?q=' + encodeURIComponent(term),
-        function(value) {
-          m.results = value.results;
-        });
+      function(value) {
+        self.results = value.results;
+      }
+    );
   },
-  results: null,
 
   indexOfUser: function(user) {
     if (this.results) {
@@ -182,13 +187,15 @@ var twitter = Model.get({
       }
     }
     return -1;
+  },
+
+  updateDetails: function(item) {
+    var index = this.indexOfUser(item.from_user);
+    if (index >= 0)
+      details.modelScope = 'results[' + index + ']';
   }
-});
+};
 
-term.addBinding('value', '{{term}}');
-twitter.term = 'Google Chrome';
-
-document.body.model = twitter;
 </script>
 
 </body>
