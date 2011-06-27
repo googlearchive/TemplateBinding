@@ -41,18 +41,22 @@ function assertNextMutationIs(expected, log) {
 
   assertTrue('mutation does not exist', !!mutation);
 
+  assertMutationEquals(expected, mutation);
+}
+
+function assertMutationEquals(expected, actual) {
   var count = 0;
   for (prop in expected) {
-    if (Array.isArray(expected[prop]) && Array.isArray(mutation[prop])) {
+    if (Array.isArray(expected[prop]) && Array.isArray(actual[prop])) {
       assertArrayEquals('mutation prop ' + prop,
-                        expected[prop], mutation[prop]);
+                        expected[prop], actual[prop]);
     } else {
-      assertEquals('mutation prop ' + prop, expected[prop], mutation[prop]);
+      assertEquals('mutation prop ' + prop, expected[prop], actual[prop]);
     }
     count++;
   }
 
-  assertEquals(count, Object.keys(mutation).length);
+  assertEquals(count, Object.keys(actual).length);
 }
 
 function browserSupportsAttributes() {
@@ -307,6 +311,65 @@ function testRemoveThenAddElsewhere() {
     type: 'ElementRemoved',
     element: span
   }, log);
+}
+
+function testMultipleElementObservations() {
+  var log = new MutationLog;
+  document.observeElement('em', log);
+  document.observeElement('strong', log);
+  var em = document.createElement('em');
+  var strong = document.createElement('strong');
+  var div = document.createElement('div');
+  div.appendChild(strong);
+  div.appendChild(em);
+  document.body.appendChild(div);
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(2, log.length);
+  var mutations = log.clear();
+  // Order is based on the observers, not the order
+  // of mutations.
+  assertMutationEquals({
+    type: 'ElementAdded',
+    element: em,
+  }, mutations[0]);
+  assertMutationEquals({
+    type: 'ElementAdded',
+    element: strong,
+  }, mutations[1]);
+}
+
+function testMultipleAttributeObservations() {
+  var log = new MutationLog;
+  document.observeAttribute('*', 'id', log);
+  document.observeAttribute('strong', 'data-foo', log);
+  var div = document.createElement('div');
+  var strong = document.createElement('strong');
+  div.appendChild(strong);
+  document.body.appendChild(div);
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(0, log.length);
+
+  div.id = 'divId';
+  strong.id = 'strongId';
+  strong.setAttribute('data-foo', 'something');
+  AspectWorkQueue.runUntilEmpty();
+  assertEquals(3, log.length);
+  var mutations = log.clear();
+  assertMutationEquals({
+    type: 'AttributeChanged',
+    element: div,
+    attribute: 'id'
+  }, mutations[0]);
+  assertMutationEquals({
+    type: 'AttributeChanged',
+    element: strong,
+    attribute: 'id'
+  }, mutations[1]);
+  assertMutationEquals({
+    type: 'AttributeChanged',
+    element: strong,
+    attribute: 'data-foo'
+  }, mutations[2]);
 }
 
 </script>

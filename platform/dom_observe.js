@@ -33,19 +33,25 @@ Document.prototype.observeElement = function(selector, log) {
   selector = selector.toUpperCase();
 
   this.elementObservers_ = this.elementObservers_ || [];
-  function observerMatch(ob) {
-    return ob.selector == selector && ob.log === log;
+  for (var i = 0; i < this.elementObservers_.length; i++) {
+    var ob = this.elementObservers_[i];
+    if (ob.log === log) {
+      // Already observing, add our selector to the list if
+      // it's not already there.
+      if (ob.selectors.indexOf(selector) < 0)
+        ob.selectors.push(selector);
+      return;
+    }
   }
-  if (this.elementObservers_.some(observerMatch))
-    return;
 
   var underlyingLog = new MutationLog;
   observeSubtreeForChildlistChanged(this, underlyingLog);
 
-  var callback = elementCallback.bind(undefined, selector, log, underlyingLog);
+  var selectors = [selector];
+  var callback = elementCallback.bind(undefined, selectors, log, underlyingLog);
   AspectWorkQueue.register(underlyingLog, callback);
   this.elementObservers_.push({
-    selector: selector,
+    selectors: selectors,
     log: log,
     underlyingLog: underlyingLog,
   });
@@ -61,11 +67,16 @@ Document.prototype.stopObservingElement = function(selector, log) {
   selector = selector.toUpperCase();
   for (var i = 0; i < this.elementObservers_.length; i++) {
     var ob = this.elementObservers_[i];
-    if (ob.selector == selector && ob.log === log) {
-      AspectWorkQueue.release(ob.underlyingLog);
-      this.removeSubtreeChangedListener(ob.underlyingLog);
-      this.elementObservers_.splice(i, 1);
-      return;
+    if (ob.log === log) {
+      var index = ob.selectors.indexOf(selector);
+      if (index >= 0)
+        ob.selectors.splice(index, 1);
+      if (!ob.selectors.length) {
+        AspectWorkQueue.release(ob.underlyingLog);
+        this.removeSubtreeChangedListener(ob.underlyingLog);
+        this.elementObservers_.splice(i, 1);
+      }
+      break;
     }
   }
 };
@@ -87,23 +98,33 @@ Document.prototype.observeAttribute = function(selector, attribute, log) {
   selector = selector.toUpperCase();
 
   this.attributeObservers_ = this.attributeObservers_ || [];
-  function observerMatch(ob) {
-    return ob.selector == selector &&
-        ob.attribute == attribute &&
-        ob.log === log;
+  for (var i = 0; i < this.attributeObservers_.length; i++) {
+    var ob = this.attributeObservers_[i];
+    if (ob.log === log) {
+      for (var j = 0; j < ob.selectors.length; j++) {
+        if (ob.selectors[j].selector == selector) {
+          if (ob.selectors[j].attributes.indexOf(attribute) < 0)
+            ob.selectors[j].attribtues.push(attribute);
+          return;
+        }
+      }
+      ob.selectors.push({
+        selector: selector,
+        attributes: [attribute]
+      });
+      return;
+    }
   }
-  if (this.attributeObservers_.some(observerMatch))
-    return;
 
   var underlyingLog = new MutationLog;
   this.addSubtreeChangedListener(underlyingLog);
   this.addSubtreeAttributeChangedListener(underlyingLog);
+  var selectors = [{selector: selector, attributes: [attribute]}];
   var callback = attributeCallback.bind(
-      undefined, selector, attribute, log, underlyingLog);
+      undefined, selectors, log, underlyingLog);
   AspectWorkQueue.register(underlyingLog, callback);
   this.attributeObservers_.push({
-    selector: selector,
-    attribute: attribute,
+    selectors: selectors,
     log: log,
     underlyingLog: underlyingLog,
   });
@@ -120,13 +141,25 @@ Document.prototype.stopObservingAttribute = function(selector, attribute, log) {
   selector = selector.toUpperCase();
   for (var i = 0; i < this.attributeObservers_.length; i++) {
     var ob = this.attributeObservers_[i];
-    if (ob.selector == selector &&
-        ob.attribute == attribute &&
-        ob.log === log) {
-      AspectWorkQueue.release(ob.underlyingLog);
-      this.removeSubtreeChangedListener(ob.underlyingLog);
-      this.removeSubtreeAttributeChangedListener(ob.underlyingLog);
-      this.attributeObservers_.splice(i, 1);
+    if (ob.log === log) {
+      for (var j = 0; j < ob.selectors.length; j++) {
+        var s = ob.selectors[j];
+        if (s.selector == selector) {
+          var index = s.attributes.indexOf(attribute);
+          if (index >= 0)
+            s.attributes.splice(index, 1);
+          if (!s.attributes.length) {
+            ob.selectors.splice(j, 1);
+            if (!ob.selectors.length) {
+              AspectWorkQueue.release(ob.underlyingLog);
+              this.removeSubtreeChangedListener(ob.underlyingLog);
+              this.removeSubtreeAttributeChangedListener(ob.underlyingLog);
+              this.attributeObservers_.splice(i, 1);
+            }
+          }
+          break;
+        }
+      }
       return;
     }
   }
@@ -233,15 +266,19 @@ ElementCounter.prototype = {
 //      the log.
 //   4. For each element with a count < 0, add an ElementRemoved mutation to
 //      the log.
-function elementCallback(selector, log, underlyingLog, mutations) {
+function elementCallback(selectors, log, underlyingLog, mutations) {
   var elementCounter = new ElementCounter;
   mutations.forEach(function(mutation) {
     mutation.added.forEach(function(el) {
-      forAllMatches(el, selector, elementCounter.boundIncrement);
+      selectors.forEach(function(selector) {
+        forAllMatches(el, selector, elementCounter.boundIncrement);
+      });
       observeSubtreeForChildlistChanged(el, underlyingLog);
     });
     mutation.removed.forEach(function(el) {
-      forAllMatches(el, selector, elementCounter.boundDecrement);
+      selectors.forEach(function(selector) {
+        forAllMatches(el, selector, elementCounter.boundDecrement);
+      });
       stopObservingSubtreeForChildlistChanged(el, underlyingLog);
     });
   });
@@ -269,43 +306,55 @@ function elementCallback(selector, log, underlyingLog, mutations) {
 //   3. For each target, add a mutation to |log| iff the target was
 //      not listed as added, removed, or "transient" (added and later removed)
 //      in |underlyingLog|.
-function attributeCallback(selector, attribute, log, underlyingLog, mutations) {
+function attributeCallback(selectors, log, underlyingLog, mutations) {
   var targets = [];
   mutations.forEach(function(mutation) {
     if (mutation.type != 'AttributeChanged')
       return;
-    if (mutation.attrName != attribute)
-      return;
-    if (!matchesSelector(mutation.target, selector))
-      return;
-    var node = mutation.target;
-    var index = targets.indexOf(node);
-    if (index < 0)
-      targets.push(node);
+    var element = mutation.target;
+    var attribute = mutation.attrName;
+    function elementAndAttributeMatch(s) {
+      return matchesSelector(element, s.selector) &&
+          s.attributes.indexOf(attribute) >= 0;
+    }
+    if (selectors.some(elementAndAttributeMatch)) {
+      for (var i = 0; i < targets.length; i++) {
+        if (targets[i].element === element &&
+            targets[i].attribute == attribute) {
+          // Already listed this target pair.
+          return;
+        }
+      }
+      targets.push({element: element, attribute: attribute});
+    }
   });
   var elementCounter = new ElementCounter;
   mutations.forEach(function(mutation) {
     if (mutation.type != 'ChildlistChanged')
       return;
     mutation.added.forEach(function(el) {
-      forAllMatches(el, selector, elementCounter.boundIncrement);
+      selectors.forEach(function(s) {
+        forAllMatches(el, s.selector, elementCounter.boundIncrement);
+      });
     });
 
     mutation.removed.forEach(function(el) {
-      forAllMatches(el, selector, elementCounter.boundDecrement);
+      selectors.forEach(function(s) {
+        forAllMatches(el, s.selector, elementCounter.boundDecrement);
+      });
     });
   });
   var added = elementCounter.getAdded();
   var removed = elementCounter.getRemoved();
   var transient = elementCounter.getTransient();
-  targets.forEach(function(el) {
-    if (added.indexOf(el) < 0 &&
-        removed.indexOf(el) < 0 &&
-        transient.indexOf(el) < 0) {
+  targets.forEach(function(t) {
+    if (added.indexOf(t.element) < 0 &&
+        removed.indexOf(t.element) < 0 &&
+        transient.indexOf(t.element) < 0) {
       log.append({
         type: 'AttributeChanged',
-        element: el,
-        attribute: attribute,
+        element: t.element,
+        attribute: t.attribute,
       });
     }
   });
