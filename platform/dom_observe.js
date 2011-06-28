@@ -104,7 +104,7 @@ Document.prototype.observeAttribute = function(selector, attribute, log) {
       for (var j = 0; j < ob.selectors.length; j++) {
         if (ob.selectors[j].selector == selector) {
           if (ob.selectors[j].attributes.indexOf(attribute) < 0)
-            ob.selectors[j].attribtues.push(attribute);
+            ob.selectors[j].attributes.push(attribute);
           return;
         }
       }
