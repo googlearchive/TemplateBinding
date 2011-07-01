@@ -143,7 +143,7 @@ var jsonp = function() {
       f.apply(scope||null, arguments);
       script.parentNode.removeChild(script);
       script = null;
-      AspectWorkQueue.runUntilEmpty();
+      Model.notifyObservers_();
     };
     script.src = url + '&callback=' + name;
     document.head.appendChild(script);

@@ -21,6 +21,7 @@ limitations under the License.
 <script src="compat.js"></script>
 <script src="forwarding_handler.js"></script>
 <script src="weak_map.js"></script>
+<script src="observers.js"></script>
 <script src="object_observe.js"></script>
 
 <script>
@@ -46,7 +47,7 @@ function assertArrayEquals() {
 }
 
 function assertNextMutationIs(expected, log) {
-  var mutation = log.clear()[0];
+  var mutation = log.shift();
   if (!expected) {
     assertUndefined('mutation exists', mutation);
     return;
@@ -66,17 +67,19 @@ function assertNextMutationIs(expected, log) {
 function testEvent() {
   var data = { id: 1 };
   var model = Object.getObservable(data);
-  var log = new MutationLog();
-
-  Object.observe(model, log);
+  Object.observe(model, function(mutations) {
+    log = mutations;
+  });
 
   // Mutation should be logged.
   model.id = 2;
+  window.notifyObservers_();
   assertEquals(1, log.length);
   assertEquals(model.id, data.id);
 
   // Event shouldn't fire, but model & data should still agree.
   data.id = 3;
+  window.notifyObservers_();
   assertEquals(1, log.length);
   assertEquals(model.id, data.id);
 }
@@ -84,11 +87,13 @@ function testEvent() {
 function testBasic() {
   var data = {};
   var model = Object.getObservable(data);
-  var log = new MutationLog();
-
-  Object.observe(model, log);
+  var callback = function(mutations) {
+    log = mutations;
+  };
+  Object.observe(model, callback);
 
   model.id = 0;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'id',
@@ -96,6 +101,7 @@ function testBasic() {
   }, log);
 
   model.id = -1;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'id',
@@ -103,6 +109,7 @@ function testBasic() {
   }, log);
 
   delete model.id;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'delete',
     name: 'id',
@@ -110,15 +117,17 @@ function testBasic() {
   }, log);
 
   // Stop observing -- shouldn't see an event.
-  Object.stopObserving(model, log);
+  Object.stopObserving(model, callback);
 
   model.id = 101;
+  window.notifyObservers_();
   assertNextMutationIs(undefined, log);
 
   // Re-observe -- should see an new event again.
-  Object.observe(model, log);
+  Object.observe(model, callback);
 
   model.id = 100;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'id',
@@ -145,12 +154,16 @@ function testIdentity2() {
 
 function testMultipleObservationsAreCollapsed() {
   var m = Object.getObservable({id: 1});
-  var log = new MutationLog();
+  var log;
+  var callback = function(mutations) {
+    log = mutations;
+  };
 
-  Object.observe(m, log);
-  Object.observe(m, log);
+  Object.observe(m, callback);
+  Object.observe(m, callback);
 
   m.id = 2;
+  window.notifyObservers_();
   assertEquals(1, log.length);
 }
 
@@ -186,26 +199,34 @@ function testModelWithFunctions() {
   var f = m.method2;
   assertEquals(42, f());
 
-  var log = new MutationLog();
-  Object.observe(f, log);
+  var log;
+  var callback = function(mutations) {
+    log = mutations;
+  };
+  Object.observe(f, callback);
+
   f.test = 1;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'test',
     target: f
   }, log);
 
-  Object.observe(m, log);
+  Object.observe(m, callback);
+
   m.modifyField();
+  window.notifyObservers_();
   assertNextMutationIs(undefined, log);
 
   var innerObject = m.getInnerObject();
-  Object.observe(innerObject, log);
+  Object.observe(innerObject, callback);
 
   assertEquals('Ensure that we return wrapped objects',
                m.innerObject, innerObject);
 
   innerObject.x = 'y';
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'x',
@@ -235,9 +256,13 @@ function testModelFunctionConstruct() {
 
   var object = new m('x', 'y', 'z');
 
-  var log = new MutationLog();
-  Object.observe(object, log);
+  var log;
+  Object.observe(object, function(mutations) {
+    log = mutations;
+  });
+
   object.test = 1;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'test',
@@ -246,18 +271,19 @@ function testModelFunctionConstruct() {
 
   // "this" is not wrapped
   object.change();
+  window.notifyObservers_();
   assertEquals(2, object.test);
   assertNextMutationIs(undefined, log);
 
-
   // Internal change not observable.
   object.change2();
+  window.notifyObservers_();
   assertEquals(3, object.test);
   assertNextMutationIs(undefined, log);
 
-
   // Arguments should be unwrapped.
   object.change3(Object.getObservable({}));
+  window.notifyObservers_();
   assertEquals(4, object.test);
   assertNextMutationIs(undefined, log);
 }
@@ -274,9 +300,13 @@ function testModelFunctionConstructReturnObject() {
   var object = new m('x', 'y', 'z');
   assertTrue(object.returned);
 
-  var log = new MutationLog();
-  Object.observe(object, log);
+  var log;
+  Object.observe(object, function(mutations) {
+    log = mutations;
+  });
+
   object.test = 1;
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: 'test',
@@ -302,14 +332,17 @@ function testArrayModel() {
   var one = {one: 1};
   var m = Object.getObservable([zero, one]);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   var two = {two: 2};
   var three = {three: 3};
 
   m[0] = two;
   assertArrayEquals(Object.getObservable([two, one]), m);
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: '0',
@@ -318,6 +351,7 @@ function testArrayModel() {
 
   m[1] = three;
   assertArrayEquals(Object.getObservable([two, three]), m);
+  window.notifyObservers_();
   assertNextMutationIs({
     mutation: 'set',
     name: '1',
@@ -338,13 +372,16 @@ function testArrayModelSplice() {
   var arr = [zero, one];
   var m = Object.getObservable(arr);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   m.splice(1, 1, two, three);
+  window.notifyObservers_();
+
   assertArrayEquals([zero, two, three], arr);
   assertArrayEquals([zeroModel, twoModel, threeModel], m);
-
   assertNextMutationIs({
     mutation: 'splice',
     index: 1,
@@ -354,6 +391,7 @@ function testArrayModelSplice() {
   }, log);
 
   m.splice(0, 1);
+  window.notifyObservers_();
 
   assertArrayEquals([two, three], arr);
   assertArrayEquals([twoModel, threeModel], m);
@@ -367,15 +405,19 @@ function testArrayModelSplice() {
   }, log);
 
   m.splice();
+  window.notifyObservers_();
   assertNextMutationIs(undefined, log);
 
   m.splice(0, 0);
+  window.notifyObservers_();
   assertNextMutationIs(undefined, log);
 
   m.splice(0, -1);
+  window.notifyObservers_();
   assertNextMutationIs(undefined, log);
 
   m.splice(-1, 0, 1.5);
+  window.notifyObservers_();
   assertArrayEquals([two, 1.5, three], arr);
   assertArrayEquals([twoModel, 1.5, threeModel], m);
 
@@ -388,6 +430,7 @@ function testArrayModelSplice() {
   }, log);
 
   m.splice(3, 0, zeroModel);
+  window.notifyObservers_();
   assertArrayEquals([two, 1.5, three, zero], arr);
   assertArrayEquals([twoModel, 1.5, threeModel, zeroModel], m);
 
@@ -399,27 +442,30 @@ function testArrayModelSplice() {
     target: m
   }, log);
 
- m.splice(0);
- assertNextMutationIs({
-   mutation: 'splice',
-   index: 0,
-   deleteCount: 4,
-   addCount: 0,
-   target: m
- }, log);
+  m.splice(0);
+  window.notifyObservers_();
+  assertNextMutationIs({
+    mutation: 'splice',
+    index: 0,
+    deleteCount: 4,
+    addCount: 0,
+    target: m
+  }, log);
 }
 
 function testArrayModelSpliceDeleteTooMany() {
-
   var arr = ['a', 'b', 'c'];
   var m = Object.getObservable(arr);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   m.splice(2, 3);
-  assertArrayEquals(['a', 'b'], m);
+  window.notifyObservers_();
 
+  assertArrayEquals(['a', 'b'], m);
   assertNextMutationIs({
     mutation: 'splice',
     index: 2,
@@ -431,10 +477,13 @@ function testArrayModelSpliceDeleteTooMany() {
 
 function testArrayModelLength() {
   var m = Object.getObservable([0, 1]);
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   m.length = 5;
+  window.notifyObservers_();
   assertArrayEquals([0, 1, , , ,], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -445,6 +494,7 @@ function testArrayModelLength() {
   }, log);
 
   m.length = 1;
+  window.notifyObservers_();
   assertArrayEquals([0], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -455,6 +505,7 @@ function testArrayModelLength() {
   }, log);
 
   m.length = 1;
+  window.notifyObservers_();
   assertArrayEquals([0], m);
   assertNextMutationIs({
     mutation: 'set',
@@ -466,10 +517,13 @@ function testArrayModelLength() {
 function testArrayModelLength() {
   var m = Object.getObservable([0, 1]);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   m.length = 5;
+  window.notifyObservers_();
   assertArrayEquals([0, 1, , , ,], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -480,6 +534,7 @@ function testArrayModelLength() {
   }, log);
 
   m.length = 1;
+  window.notifyObservers_();
   assertArrayEquals([0], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -490,6 +545,7 @@ function testArrayModelLength() {
   }, log);
 
   m.length = 1;
+  window.notifyObservers_();
   assertArrayEquals([0], m);
   assertNextMutationIs({
     mutation: 'set',
@@ -503,13 +559,16 @@ function testArrayModelPush() {
   var one = {one: 1};
   var m = Object.getObservable([zero, one]);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   var two = {two: 2};
   var three = {three: 3};
 
   m.push(two, three);
+  window.notifyObservers_();
   assertArrayEquals(Object.getObservable([zero, one, two, three]), m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -520,8 +579,8 @@ function testArrayModelPush() {
   }, log);
 
   m.push();
+  window.notifyObservers_();
   assertNextMutationIs(undefined, log);
-
 }
 
 function testArrayModelPop() {
@@ -529,10 +588,13 @@ function testArrayModelPop() {
   var one = {one: 1};
   var m = Object.getObservable([zero, one]);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   assertEquals(Object.getObservable(one), m.pop());
+  window.notifyObservers_();
   assertArrayEquals([Object.getObservable(zero)], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -543,6 +605,7 @@ function testArrayModelPop() {
   }, log);
 
   assertEquals(Object.getObservable(zero), m.pop());
+  window.notifyObservers_();
   assertArrayEquals([], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -553,6 +616,7 @@ function testArrayModelPop() {
   }, log);
 
   assertUndefined,(m.pop());
+  window.notifyObservers_();
   assertArrayEquals([], m);
   assertNextMutationIs(undefined, log);
 }
@@ -562,10 +626,13 @@ function testArrayModelShift() {
   var one = {one: 1};
   var m = Object.getObservable([zero, one]);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   assertEquals(Object.getObservable(zero), m.shift());
+  window.notifyObservers_();
   assertArrayEquals([Object.getObservable(one)], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -576,6 +643,7 @@ function testArrayModelShift() {
   }, log);
 
   assertEquals(Object.getObservable(one), m.shift());
+  window.notifyObservers_();
   assertArrayEquals([], m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -586,6 +654,7 @@ function testArrayModelShift() {
   }, log);
 
   assertUndefined,(m.shift());
+  window.notifyObservers_();
   assertArrayEquals([], m);
   assertNextMutationIs(undefined, log);
 }
@@ -595,12 +664,15 @@ function testArrayModelUnshift() {
   var one = {one: 1};
   var m = Object.getObservable([zero, one]);
 
-  var log = new MutationLog();
-  Object.observe(m, log);
+  var log;
+  Object.observe(m, function(mutations) {
+    log = mutations;
+  });
 
   var negOne = {negOne: -1};
 
   assertEquals(3, m.unshift(negOne));
+  window.notifyObservers_();
   assertArrayEquals(Object.getObservable([negOne, zero, one]), m);
   assertNextMutationIs({
     mutation: 'splice',
@@ -614,6 +686,7 @@ function testArrayModelUnshift() {
   var negThree = {negThree: -3};
 
   assertEquals(5, m.unshift(negThree, negTwo));
+  window.notifyObservers_();
   assertArrayEquals(Object.getObservable([negThree, negTwo, negOne, zero, one]),
                     m);
   assertNextMutationIs({
@@ -625,6 +698,7 @@ function testArrayModelUnshift() {
   }, log);
 
   assertUndefined,(m.unshift());
+  window.notifyObservers_();
   assertArrayEquals(Object.getObservable([negThree, negTwo, negOne, zero, one]),
                     m);
   assertNextMutationIs(undefined, log);

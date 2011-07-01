@@ -30,6 +30,10 @@
     }
 
     var controller = new this[controllerClass](elm);
+    if (controller.model) {
+      controller.model = Model.get(controller.model);
+      elm.model = controller.model;
+    }
     elm.controller = controller;
   }
 
@@ -70,7 +74,7 @@
     forEach(actionElements, registerAction);
 
     // Controller constructors may have bound data.
-    AspectWorkQueue.runUntilEmpty();
+    Model.notifyObservers_();
   }, false);
 
   document.addEventListener('DOMNodeInserted', function(e) {
@@ -101,7 +105,7 @@
     }
 
     if (handled)
-      AspectWorkQueue.runUntilEmpty();
+      Model.notifyObservers_();
     else
       console.error('Error: unhandled action', action, e);
   }

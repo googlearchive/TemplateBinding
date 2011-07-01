@@ -24,16 +24,16 @@ function Model() {
     return observableObjects ? Object.getObservable(data) : data;
   }
 
-  function objectObserve(model, log) {
+  function objectObserve(model) {
     if (observableObjects)
-      Object.observe(model, log);
+      Object.observe(model, projectMutations);
     else
       addToObservedList(model);
   }
 
-  function objectStopObserving(model, log) {
+  function objectStopObserving(model) {
     if (observableObjects)
-      Object.stopObserving(model, log);
+      Object.stopObserving(model, projectMutations);
     else
       removeFromObservedList(model);
   }
@@ -64,31 +64,42 @@ function Model() {
   // Right now, there's only one global "observation context" which all
   // observers share. This means that changes made by one observer may not be
   // seen by others until the next cycle.
-  var mutationLog = new MutationLog;
-
-  AspectWorkQueue.register(mutationLog, projectMutations);
-
+  //
+  // Project Mutations is only called if proxies are supported. Here we
+  // operate over the set of mutation records and dirty check any objects
+  // whose "write barrier" has been broken.
   function projectMutations(mutations) {
-    if (observableObjects) {
-      var trackers = [];
-      var dirtyObjectsSet = new WeakMap;
+    var trackers = [];
+    var dirtyObjectsSet = new WeakMap;
 
-      mutations.forEach(function(mutation) {
-        var target = mutation.target;
-        var tracker = modelTrackerMap.get(target);
-        if (tracker) {
-          tracker.addMutation(mutation);
-          if (!dirtyObjectsSet.has(target)) {
-            dirtyObjectsSet.set(target, true);
-            addNotification(tracker);
-          }
+    mutations.forEach(function(mutation) {
+      var target = mutation.target;
+      var tracker = modelTrackerMap.get(target);
+      if (tracker) {
+        tracker.addMutation(mutation);
+        if (!dirtyObjectsSet.has(target)) {
+          dirtyObjectsSet.set(target, true);
+          addNotification(tracker);
         }
-      });
-    } else {
-      observedList.forEach(addNotification);
-    }
+      }
+    });
 
     startNotifications();
+  }
+
+  // In the absence of proxies, we get no information about which objects
+  // have been operated on, so we dirty check all objects which are curently
+  // being observed.
+  function dirtyCheckAll() {
+    observedList.forEach(addNotification);
+    startNotifications();
+  }
+
+  Model.notifyObservers_ = function() {
+    window.notifyObservers_();
+
+    if (!observableObjects)
+      dirtyCheckAll();
   }
 
   // Within a "notification context", notifications happen in particular order:
@@ -138,7 +149,7 @@ function Model() {
     if (!tracker) {
       var tracker = createTracker(model);
       modelTrackerMap.set(model, tracker);
-      objectObserve(model, mutationLog);
+      objectObserve(model);
     }
 
     return tracker;
@@ -202,7 +213,7 @@ function Model() {
 
     tracker.removeObserver(callback);
     if (!tracker.dependants) {
-      objectStopObserving(model, mutationLog);
+      objectStopObserving(model);
       modelTrackerMap['delete'](model);
     }
   };
@@ -265,7 +276,7 @@ function Model() {
     pathTracker.removeObserver(callback);
 
     if (!tracker.dependants) {
-      objectStopObserving(model, mutationLog);
+      objectStopObserving(model);
       modelTrackerMap['delete'](model);
     }
   };
@@ -282,7 +293,7 @@ function Model() {
 
     tracker.removeValueObserver(name, pathTracker);
     if (!tracker.dependants) {
-      objectStopObserving(model, mutationLog);
+      objectStopObserving(model);
       modelTrackerMap['delete'](model);
     }
   }
@@ -302,7 +313,7 @@ function Model() {
     dead: false,
 
     // Invoked by the notificationQueue during the main loop of dirtyChecking/
-    // projecting mutationLog changes. A tracker should call notifyObservers
+    // projecting observer changes. A tracker should call notifyObservers
     // on itself any number of times, but only schedule notifications for its
     // descendants via addNotification(descendant);
     notify: function() {},

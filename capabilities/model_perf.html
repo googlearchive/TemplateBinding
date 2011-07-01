@@ -136,6 +136,7 @@ function runIteration() {
   m.factor = Math.round(m.proxied * 10 / m.unproxied)/10;
   m.iterationsLeft--;
   timeout = setTimeout(runIteration, 0);
+  Model.notifyObservers_();
 }
 
 function runTest() {

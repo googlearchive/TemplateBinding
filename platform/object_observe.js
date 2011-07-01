@@ -13,70 +13,14 @@
 // limitations under the License.
 
 (function() {
+  var proxiesImplemented = !!this.Proxy;
+  if (!proxiesImplemented)
+    return;
 
   function isObject(obj) {
     return obj === Object(obj);
   }
 
-  function deepFreeze(obj) {
-    // NOTE: JSC doesn't implement Object.isFrozen/freeze, so for now
-    // just don't do anything in safari.
-    if (Object.isFrozen) {
-      if (!isObject(obj) || Object.isFrozen(obj))
-        return;
-
-      Object.freeze(obj);
-      Object.keys(obj).forEach(function(key) {
-        deepFreeze(obj[key]);
-      });
-    }
-    return obj;
-  }
-
-  // Mutation Log
-  var mutationLogs = new WeakMap();
-  var idCounter = 1;
-
-  function MutationLog() {
-    var log = [];
-
-    this.append = function(logItem) {
-      log.push(logItem);
-    };
-
-    Object.defineProperty(this, 'length', {
-      get: function() { return log.length; }
-    });
-
-    this.clear = function() {
-      var retval = log;
-      log = [];
-      return retval;
-    };
-
-    // So that WeakMap.get() will be constant time where implementation of
-    // WeakMap is missing.
-    this.__id__ = idCounter++;
-
-    // Same issue as above with JSC/safari
-    if (Object.freeze)
-      Object.freeze(this);
-    mutationLogs.set(this, true);
-  };
-
-  MutationLog.verify = function(allegedLog) {
-    return !!mutationLogs.get(allegedLog);
-  };
-
-  deepFreeze(MutationLog);
-
-  // Expose in global scope.
-  this.MutationLog = MutationLog;
-
-  // Observable
-  var proxiesImplemented = !!this.Proxy;
-  if (!proxiesImplemented)
-    return;
   var wrappedToUnwrapped = new WeakMap;
   var unwrappedToWrapped = new WeakMap;
   var wrappedToHandler = new WeakMap;
@@ -157,41 +101,38 @@
     return proxy;
   }
 
-  Object.observe = function(observable, mutationLog) {
+  Object.observe = function(observable, observer) {
     var handler = getHandler(observable);
     if (!handler) {
       throw new TypeError('Can not directly observe objects. ' +
                           'Use Object.getObservable');
     }
 
-    if (!MutationLog.verify(mutationLog))
-      throw new TypeError('Must be instance of provided MutationLog');
-
-    if (!handler.logs) {
-      handler.logs = [mutationLog];
+    if (!handler.observers) {
+      handler.observers = [observer];
       return;
     }
 
-    var index = handler.logs.indexOf(mutationLog);
+    var index = handler.observers.indexOf(observer);
     if (index >= 0)
       return;
 
-    handler.logs.push(mutationLog);
+    handler.observers.push(observer);
   }
 
-  Object.stopObserving = function(observable, mutationLog) {
+  Object.stopObserving = function(observable, observer) {
     var handler = getHandler(observable);
     if (!handler)
       return;
 
-    if (!handler.logs)
+    if (!handler.observers)
       return;
 
-    var index = handler.logs.indexOf(mutationLog);
+    var index = handler.observers.indexOf(observer);
     if (index < 0)
       return;
 
-    handler.logs.splice(index, 1);
+    handler.observers.splice(index, 1);
   }
 
   var objectHandlerProto = createObject({
@@ -200,11 +141,11 @@
     logMutation: function(mutation) {
       mutation.target = this.proxy;
       // TODO(rafaelw): Deep freeze mutation to be safe?
-      if (!this.logs)
+      if (!this.observers)
         return;
 
-      this.logs.forEach(function(log) {
-        log.append(mutation);
+      this.observers.forEach(function(observer) {
+        enqueueMutation_(observer, mutation);
       });
     },
 

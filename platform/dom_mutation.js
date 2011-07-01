@@ -42,13 +42,11 @@ var types = [
     'TextDataChanged'
 ];
 
-function addListener(node, type, log) {
-  if (!MutationLog.verify(log))
-    return;
-  node.logs_ = node.logs_ || {};
-  node.logs_[type] = node.logs_[type] || [];
-  if (node.logs_[type].indexOf(log) < 0) {
-    node.logs_[type].push(log);
+function addListener(node, type, observer) {
+  node.observers_ = node.observers_ || {};
+  node.observers_[type] = node.observers_[type] || [];
+  if (node.observers_[type].indexOf(observer) < 0) {
+    node.observers_[type].push(observer);
 
     switch (type) {
       case 'AttributeChanged':
@@ -68,20 +66,20 @@ function addListener(node, type, log) {
   }
 }
 
-function removeListener(node, type, log) {
-  if (!node.logs_)
+function removeListener(node, type, observer) {
+  if (!node.observers_)
     return;
 
-  var logs = node.logs_[type];
-  if (!logs || !logs.length)
+  var observers = node.observers_[type];
+  if (!observers || !observers.length)
     return;
 
-  var index = logs.indexOf(log);
+  var index = observers.indexOf(observer);
   if (index < 0)
     return;
 
-  logs.splice(index, 1);
-  if (!logs.length) {
+  observers.splice(index, 1);
+  if (!observers.length) {
     switch (type) {
       case 'AttributeChanged':
       case 'SubtreeAttributeChanged':
@@ -101,22 +99,22 @@ function removeListener(node, type, log) {
 }
 
 types.forEach(function(type) {
-  Node.prototype['add' + type + 'Listener'] = function(log) {
-    addListener(this, type, log);
+  Node.prototype['add' + type + 'Listener'] = function(observer) {
+    addListener(this, type, observer);
   };
-  Node.prototype['remove' + type + 'Listener'] = function(log) {
-    removeListener(this, type, log);
+  Node.prototype['remove' + type + 'Listener'] = function(observer) {
+    removeListener(this, type, observer);
   };
 });
 
 function logMutations(event, mutation, localType, subtreeType) {
-  var dirtyLogs = getDirtyLogs(event);
+  var notifiedObservers = getNotifiedObservers(event);
   function logOneMutation(node, listenerType) {
-    if (node.logs_ && node.logs_[listenerType]) {
-      node.logs_[listenerType].forEach(function(log) {
-        if (!dirtyLogs.get(log)) {
-          log.append(mutation);
-          dirtyLogs.set(log, true);
+    if (node.observers_ && node.observers_[listenerType]) {
+      node.observers_[listenerType].forEach(function(observer) {
+        if (!notifiedObservers.get(observer)) {
+          window.enqueueMutation_(observer, mutation);
+          notifiedObservers.set(observer, true);
         }
       });
     }
@@ -131,17 +129,18 @@ function logMutations(event, mutation, localType, subtreeType) {
   }
 }
 
-// A WeakMap of Event -> WeakMap
+// A WeakMap of Event -> Set (WeakMap) of Observers which have been notified of
+// |Event|.
 // TODO(adamk): Use a different solution, since this will be deathly
 // slow without a native WeakMap.
-var eventToDirtyLogs = new WeakMap;
-function getDirtyLogs(event) {
-  var dirtyLogs = eventToDirtyLogs.get(event);
-  if (!dirtyLogs) {
-    dirtyLogs = new WeakMap;
-    eventToDirtyLogs.set(event, dirtyLogs);
+var notifiedObserversMap = new WeakMap;
+function getNotifiedObservers(event) {
+  var notifiedObservers = notifiedObserversMap.get(event);
+  if (!notifiedObservers) {
+    notifiedObservers = new WeakMap;
+    notifiedObserversMap.set(event, notifiedObservers);
   }
-  return dirtyLogs;
+  return notifiedObservers;
 }
 
 function addHandler(event) {

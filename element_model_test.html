@@ -21,7 +21,7 @@ limitations under the License.
 <script src="platform/compat.js"></script>
 <script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
-<script src="platform/aspect_work_queue.js"></script>
+<script src="platform/observers.js"></script>
 <script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
@@ -91,7 +91,7 @@ function testObserveOnElement() {
   Model.observe(d, 'model', callback);
 
   d.model = Model.get({});
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -108,7 +108,7 @@ function testObserveOnElement2() {
   Model.observe(divModel, 'model', callback);
 
   divModel.model = Model.get({});
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -118,7 +118,7 @@ function testModelCleared() {
 
   parent.model = 'a';
   child.model = 'b';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('b', child.model);
   assertEquals('b', child.computedModel);
 
@@ -131,7 +131,7 @@ function testModelCleared() {
   });
 
   child.model = undefined;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertUndefined(child.model);
   assertEquals('a', child.computedModel);
 

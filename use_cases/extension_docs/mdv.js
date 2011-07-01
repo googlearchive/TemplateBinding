@@ -3,7 +3,7 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../../platform/compat.js',
   '../../platform/forwarding_handler.js',
   '../../platform/weak_map.js',
-  '../../platform/aspect_work_queue.js',
+  '../../platform/observers.js',
   '../../platform/object_observe.js',
   '../../path.js',
   '../../model.js',
@@ -15,8 +15,7 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../../element_model.js',
   '../../html5_attributes.js',
   '../../element_bindings.js',
-  '../../template_element.js',
-  '../../util/view_controller.js'
+  '../../template_element.js'
 ].forEach(function(src) {
   document.write('<script src="' + src + '"></script>');
 });

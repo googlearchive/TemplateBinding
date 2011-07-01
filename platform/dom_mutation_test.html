@@ -21,6 +21,7 @@ limitations under the License.
 <script src="compat.js"></script>
 <script src="weak_map.js"></script>
 <script src="forwarding_handler.js"></script>
+<script src="observers.js"></script>
 <script src="object_observe.js"></script>
 <script src="dom_mutation.js"></script>
 <script>
@@ -31,7 +32,7 @@ goog.require('goog.testing.jsunit');
 <script>
 
 function assertNextMutationIs(expected, log) {
-  var mutation = log.clear()[0];
+  var mutation = log.shift();
   if (!expected) {
     assertUndefined('mutation exists', mutation);
     return;
@@ -71,13 +72,21 @@ function testAttributeChanged() {
   var span = div.appendChild(document.createElement('span'));
   var b = span.appendChild(document.createElement('b'));
 
-  var log = new MutationLog;
-  var divLog = new MutationLog;
-  div.addSubtreeAttributeChangedListener(divLog);
-  b.addAttributeChangedListener(log);
+  var log;
+  var callback = function(mutations) {
+    log = mutations;
+  };
+  var divLog;
+  var divCallback = function(mutations) {
+    divLog = mutations;
+  };
+  div.addSubtreeAttributeChangedListener(divCallback);
+  b.addAttributeChangedListener(callback);
   // Should suppress this notification since it's the same log as above.
-  b.addSubtreeAttributeChangedListener(log);
+  b.addSubtreeAttributeChangedListener(callback);
   b.setAttribute('id', 'foo');
+
+  window.notifyObservers_();
   assertEquals(1, log.length);
   assertNextMutationIs({
     type: 'AttributeChanged',
@@ -91,9 +100,11 @@ function testAttributeChanged() {
     attrName: 'id',
   }, divLog);
 
-  b.removeAttributeChangedListener(log);
-  b.removeSubtreeAttributeChangedListener(log);
+  b.removeAttributeChangedListener(callback);
+  b.removeSubtreeAttributeChangedListener(callback);
   b.id = 'notobserved';
+
+  window.notifyObservers_();
   assertEquals(0, log.length);
 }
 
@@ -103,11 +114,19 @@ function testChildlistChanged() {
   var b = document.createElement('b');
   document.body.appendChild(div);  // required to pass in WebKit
 
-  var log = new MutationLog;
-  var divLog = new MutationLog;
-  div.addSubtreeChangedListener(divLog);
-  span.addChildlistChangedListener(log);
+  var log;
+  var callback = function(mutations) {
+    log = mutations;
+  };
+  var divLog;
+  var divCallback = function(mutations) {
+    divLog = mutations;
+  };
+  div.addSubtreeChangedListener(divCallback);
+  span.addChildlistChangedListener(callback);
   div.appendChild(span);
+
+  window.notifyObservers_();
   assertEquals(1, divLog.length);
   assertNextMutationIs({
     type: 'ChildlistChanged',
@@ -117,6 +136,8 @@ function testChildlistChanged() {
   }, divLog);
 
   span.appendChild(b);
+
+  window.notifyObservers_();
   assertEquals(1, log.length);
   assertNextMutationIs({
     type: 'ChildlistChanged',
@@ -132,8 +153,10 @@ function testChildlistChanged() {
     removed: [],
   }, divLog);
 
-  div.removeSubtreeChangedListener(divLog);
+  div.removeSubtreeChangedListener(divCallback);
   div.appendChild(document.createElement('p'));
+
+  window.notifyObservers_();
   assertEquals(0, divLog.length);
 }
 
@@ -143,19 +166,26 @@ function testTextDataChanged() {
   span.innerHTML = 'Hello, world';
   var text = span.childNodes[0];
 
-  var log = new MutationLog;
-  div.addTextDataChangedListener(log);
-  text.addTextDataChangedListener(log);
+  var log;
+  var callback = function(mutations) {
+    log = mutations;
+  };
+  div.addTextDataChangedListener(callback);
+  text.addTextDataChangedListener(callback);
   text.textContent = 'Goodbye, world';
+
+  window.notifyObservers_();
   assertEquals(1, log.length);
   assertNextMutationIs({
     type: 'TextDataChanged',
     target: text
   }, log);
 
-  div.removeTextDataChangedListener(log);
-  text.removeTextDataChangedListener(log);
+  div.removeTextDataChangedListener(callback);
+  text.removeTextDataChangedListener(callback);
   text.textContent = 'Not observed';
+
+  window.notifyObservers_();
   assertEquals(0, log.length);
 }
 

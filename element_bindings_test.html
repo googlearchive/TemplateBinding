@@ -21,7 +21,7 @@ limitations under the License.
 <script src="platform/compat.js"></script>
 <script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
-<script src="platform/aspect_work_queue.js"></script>
+<script src="platform/observers.js"></script>
 <script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
@@ -60,11 +60,11 @@ function testBindAttributeDeclaration() {
   assertEquals('href:url', anchor.bind);
 
   div.model = {url: 'http://code.google.com/'};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('http://code.google.com/', anchor.href);
 
   anchor.model = {url: 'http://github.com/'};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('http://github.com/', anchor.href);
 
   document.body.removeChild(div);
@@ -75,7 +75,7 @@ function testBindAttributeDynamic() {
   div.model = {url: 'http://a.com/'};
   document.body.appendChild(div);
   div.innerHTML = '<a bind="href:url">link</a>';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('http://a.com/', div.children[0].href);
 
   document.body.removeChild(div);
@@ -85,11 +85,11 @@ function testBindProperty() {
   var el = document.createElement('input');
   el.model = {text: 'hello world'};
   el.bind = 'value: text';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('hello world', el.value);
 
   el.model.text = 'goodbye';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('goodbye', el.value);
 }
 
@@ -101,7 +101,7 @@ function testFormat() {
       c: 'C',
     }
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('B, C', b.format(Model.get(data, 'a.b'),
                                 Model.get(data, 'a.c')));
 }
@@ -110,27 +110,27 @@ function testSimpleBinding() {
   var el = document.createElement('div');
   el.model = {a: '1'};
   el.addBinding('foo', new Binding('a'));
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1', el.foo);
 
   el.model.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.foo);
 
   el.model.a = 232.2;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(232.2, el.foo);
 
   el.model.a = 232;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(232, el.foo);
 
   el.model.a = null;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(null, el.foo);
 
   el.model.a = undefined;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertNull(el.foo);
 }
 
@@ -154,19 +154,19 @@ function testSimpleBindingAbsoluteRelativeAndCurrent() {
   };
 
   el.addBinding('root', '{{ /val }}');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('root', el.root);
 
   el.addBinding('abs', '{{ /abs.val }}');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('abs', el.abs);
 
   el.addBinding('ans', '{{ ../val }}');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('ans', el.ans);
 
   el.addBinding('cur', '{{ ./ }}');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('cur', el.cur);
 }
 
@@ -174,11 +174,11 @@ function testSimpleBindingWithDashes() {
   var el = document.createElement('div');
   el.model = {a: '1'};
   el.addBinding('foo-bar', new Binding('a'));
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1', el.fooBar);
 
   el.model.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.fooBar);
 }
 
@@ -190,11 +190,11 @@ function testBindToForeignNode() {
 
   el.addBinding('foo', new Binding(other, 'a'));
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.foo);
   el.model.a = '3';
   other.model.a = '4';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('4', el.foo);
 }
 
@@ -204,10 +204,10 @@ function testBindToNonNodeModel() {
 
   el.addBinding('foo', new Binding(m, 'a'));
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1', el.foo);
   m.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.foo);
 }
 
@@ -216,11 +216,11 @@ function testBindToNamedModel() {
   document.models = Model.get({a: '1'});
 
   el.addBinding('foo', new Binding('#a'));
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1', el.foo);
 
   document.models.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.foo);
 }
 
@@ -228,7 +228,7 @@ function testSimpleBindingChangeModel() {
   var el = document.createElement('div');
   el.addBinding('foo', new Binding('a'));
   el.model = {a: '1'};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1', el.foo);
 }
 
@@ -236,11 +236,11 @@ function testSimpleBindingChangeModelScope() {
   var el = document.createElement('div');
   el.addBinding('foo', new Binding('a'));
   el.model = {a: {a: '1'}};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertObjectEquals({a: '1'}, el.foo);
 
   el.modelScope = 'a';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1', el.foo);
 }
 
@@ -254,11 +254,11 @@ function testBindingChangeAtModelScopeChild() {
 
   child.addBinding('b', new Binding('b'));
   child.modelScope = 'a';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, child.b);
 
   parent.model.a = {b: 2};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, child.b);
 }
 
@@ -272,11 +272,11 @@ function testBindingChangeAtModelScopeParent() {
 
   child.addBinding('b', new Binding('b'));
   parent.modelScope = 'a';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, child.b);
 
   parent.model.a = {b: 2};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, child.b);
 }
 
@@ -287,31 +287,31 @@ function testSimpleBindingChangeAncestorModel() {
   d3.addBinding('foo', new Binding('a'));
 
   d1.model = {a: 1};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, d3.foo);
 
   d1.model = {a: 2};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, d3.foo);
 
   d2.model = {a: 3};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(3, d3.foo);
 
   d3.model = {a: 4};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(4, d3.foo);
 
   d2.model = {a: 5};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(4, d3.foo);
 
   d3.model = undefined;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(5, d3.foo);
 
   d2.model = undefined;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, d3.foo);
 }
 
@@ -328,31 +328,31 @@ function testSimpleBindingChangeAncestorModelScope() {
     b: {c: {d: 2}},
     c: {c: {d: 3}},
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertObjectEquals({c: {d: 3}}, d3.foo);
   assertNull(d3.bar);
   assertNull(d3.baz);
 
   d1.modelScope = 'a';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertObjectEquals({d: 1}, d3.foo);
   assertNull(d3.bar);
   assertEquals(1, d3.baz);
 
   d1.modelScope = 'b';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertObjectEquals({d: 2}, d3.foo);
   assertNull(d3.bar);
   assertEquals(2, d3.baz);
 
   d2.modelScope = 'c';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertNull(d3.foo);
   assertEquals(2, d3.bar);
   assertNull(d3.baz);
 
   d1.modelScope = 'c';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertNull(d3.foo);
   assertEquals(3, d3.bar);
   assertNull(d3.baz);
@@ -369,12 +369,12 @@ function testBindToModelScope() {
   d1.model = m;
   d1.modelScope = 'foo';
   d1.addBinding('textContent', '{{x}}');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('abc', d1.textContent);
 
   d1.addBinding('modelScope', '{{scope}}');
   m.scope = 'bar';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('def', d1.textContent);
   assertEquals('bar', d1.modelScope);
 }
@@ -391,18 +391,18 @@ function testPlaceHolderBindingText() {
   el.firstChild.addBinding('textContent', phb);
   el.model = m;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello cruel world!', el.textContent);
 
   el.model.adj = 'happy';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello happy world!', el.textContent);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello sunny day!', el.textContent);
 }
 
@@ -418,18 +418,18 @@ function testPlaceHolderBindingText2() {
   el.firstChild.binding = phb;
   el.model = m;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello cruel world!', el.textContent);
 
   el.model.adj = 'happy';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello happy world!', el.textContent);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello sunny day!', el.textContent);
 }
 
@@ -444,18 +444,18 @@ function testPlaceHolderBindingTextInline() {
   el.firstChild.addBinding('textContent', 'Hello {{ adj }} {{noun}}!');
   el.model = m;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello cruel world!', el.textContent);
 
   el.model.adj = 'happy';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello happy world!', el.textContent);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello sunny day!', el.textContent);
 }
 
@@ -470,29 +470,29 @@ function testPlaceHolderBindingElementProperty() {
   el.addBinding('foo', phb);
   el.model = m;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello cruel world!', el.foo);
 
   el.model.adj = 'happy';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello happy world!', el.foo);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Hello sunny day!', el.foo);
 
   // Change the binding.
   el.addBinding('foo', 'Goodbye {{ adj }} {{noun}}!');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Goodbye sunny day!', el.foo);
 
   // Remove the binding. Should stop following the model.
   el.removeBinding('foo');
   el.model.adj = 'cloudy';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('Goodbye sunny day!', el.foo);
 }
 
@@ -508,18 +508,18 @@ function testDomTreeChanges() {
   testContainerDiv.appendChild(d1);
   testContainerDiv.appendChild(d2);
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertNull(d3.foo);
 
   d1.model = {a: 1};
   d2.model = {a: 2};
 
   d1.appendChild(d3);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, d3.foo);
 
   d2.appendChild(d3);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, d3.foo);
 
   testContainerDiv.innerHTML = '';
@@ -537,7 +537,7 @@ function testInputElementTextBinding() {
   var el = document.createElement('input');
   el.addBinding('value', '{{val}}');
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('ping', el.value);
 
   el.value = 'pong';
@@ -555,7 +555,7 @@ function testInputElementTextBinding() {
 
   el.addBinding('value', '{{ a.b.c }}');
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('ping', el.value);
 
   el.value = 'pong';
@@ -564,7 +564,7 @@ function testInputElementTextBinding() {
 
   // Start with the model property being absent.
   delete m.a.b.c;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('', el.value);
 
   el.value = 'pong';
@@ -573,7 +573,7 @@ function testInputElementTextBinding() {
 
   // Model property unreachable (and unsettable).
   delete m.a.b;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('', el.value);
 
   el.value = 'pong';
@@ -596,7 +596,7 @@ function testSimpleTransform() {
   var el = document.createElement('input');
   el.addBinding('value', new Binding('val', trans));
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.value);
 
   el.value = '3';
@@ -629,7 +629,7 @@ function testDeclarativeTransform() {
   el.addBinding('value',
                 '{{ val | myTrans("a", \'b\', 1) }}');
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.value);
   assertArrayEquals([m.val, 'val', el, 'value'], toTargetArgs);
 
@@ -647,33 +647,33 @@ function testClassListTransform() {
   var el = document.createElement('div');
   el.addBinding('className', '{{ val | toggle("selected") }}');
   el.model = Model.get({ val: false });
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('', el.className);
 
   el.model.val = true;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('selected', el.className);
 
   // Test impicit naming
   el = document.createElement('div');
   el.addBinding('className', '{{ selected | toggle }}');
   el.model = Model.get({ selected: false });
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('', el.className);
 
   el.model.selected = true;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('selected', el.className);
 
   // Test impicit naming
   el = document.createElement('div');
   el.addBinding('className', 'classA {{ selected | toggle }} classB');
   el.model = Model.get({ selected: false });
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('classA  classB', el.className);
 
   el.model.selected = true;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('classA selected classB', el.className);
 }
 
@@ -701,7 +701,7 @@ function testBindAttributeTransform() {
   var el = document.createElement('input');
   el.bind = 'value: val | myTrans("a", \'b\', 1)';
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.value);
   assertArrayEquals([m.val, 'val', el, 'value'], toTargetArgs);
 
@@ -723,11 +723,11 @@ function testInputElementCheckboxRadio() {
   el.type = 'checkbox';
   el.addBinding('checked', new Binding('val'));
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(true, el.checked);
 
   m.val = false;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(false, el.checked);
 
   el.checked = true;
@@ -744,11 +744,11 @@ function testInputElementCheckboxRadio() {
   el.type = 'radio';
   el.addBinding('checked', new Binding('val'));
   el.model = m;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(true, el.checked);
 
   m.val = false;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(false, el.checked);
 
   el.checked = true;
@@ -775,12 +775,12 @@ function testSelectElementValue() {
   el.addBinding('value', new Binding('value'));
   el.model = m;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('foo', el.value);
   assertEquals('foo', m.value);
 
   m.value = 'bar';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('bar', el.value);
 
   el.value = 'foo';
@@ -803,12 +803,12 @@ function testSelectElementSelectedIndex() {
   el.addBinding('selectedIndex', new Binding('index'));
   el.model = m;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(0, el.selectedIndex);
   assertEquals(0, m.index);
 
   m.index = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, el.selectedIndex);
 
   el.selectedIndex = 0;
@@ -864,19 +864,19 @@ function testExpressionBinding() {
   var el = document.createElement('div');
   var m = el.model = Model.get({a: 1, b: 2});
   el.addBinding('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('1 + 2 = 3', el.foo);
 
   m.a = 4;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('4 + 2 = 6', el.foo);
 
   m.b = 8;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('4 + 8 = 12', el.foo);
 
   el.model = null;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(' +  = NaN', el.foo);
 }
 
@@ -887,15 +887,15 @@ function testExpressionAttributeBinding() {
   assertEquals('3', el.value);
 
   m.a = 4;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('6', el.value);
 
   m.b = 8;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('12', el.value);
 
   el.model = null;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('NaN', el.value);
 }
 
@@ -944,7 +944,7 @@ function testExceptionInBinding() {
   assertEquals('', el.value);
 
   el.model.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('', el.value);
 
   dispatchEvent('input', el);
@@ -968,7 +968,7 @@ function testExceptionInTransform() {
   assertEquals('', el.value);
 
   el.model.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('', el.value);
 
   dispatchEvent('input', el);
@@ -1008,13 +1008,13 @@ function testMinimalReads() {
   assertEquals(1, bAccess);
 
   el.model.a = 'c';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('c b', el.foo);
   assertEquals(2, aAccess);
   assertEquals(2, bAccess);
 
   el.model.b = 'd';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('c d', el.foo);
   assertEquals(3, aAccess);
   assertEquals(3, bAccess);
@@ -1029,20 +1029,20 @@ function testAsyncBinding() {
   assertEquals('1', el.foo);
 
   el.model.a = '2';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.foo);
 
   // Dependency change notifications will just dirty the binding, but not assign
   // to the target;
   b.sync_ = false;
   el.model.a = '3';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('2', el.foo);
 
   // Since the binding is now dirty, setting sync_ = true will trigger
   // assignment.
   b.sync_ = true;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('3', el.foo);
 }
 
@@ -1076,14 +1076,14 @@ function testBindingToPhantomNode() {
     foo: {bar: 1},
     baz: {bat: 2, text: 'test'}
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, liveChild.a);
 
   root.model = {
     foo: {bar: 3},
     baz: {bat: 4, text: 'test2'}
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(3, liveChild.a);
 
   root.model.baz = {bat: 5, text: 'test3'};
@@ -1095,7 +1095,7 @@ function testBindingToPhantomNode() {
   root.model = undefined;
 
   // Make sure the phantomChild knows it's got a new modelOwner
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(newRoot, phantomChild.modelOwner_);
 
   // Simulate turning phantomChild into a real child and re-assign.
@@ -1110,7 +1110,7 @@ function testBindingToPhantomNode() {
   valueBinding.rebindTo(newChild);
   valueBinding.sync_ = true;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(5, newChild.b);
   assertEquals('test3', newChild.value);
 

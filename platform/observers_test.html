@@ -16,10 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <head>
-<title>Aspect Work Queue Tests</title>
+<title>Observers Tests</title>
 <script src="../third_party/closure/closure/goog/base.js"></script>
 <script src="compat.js"></script>
-<script src="aspect_work_queue.js"></script>
+<script src="weak_map.js"></script>
+<script src="observers.js"></script>
 
 <script>
 goog.require('goog.testing.jsunit');
@@ -28,80 +29,66 @@ goog.require('goog.testing.jsunit');
 <body>
 <script>
 
-Array.prototype.clear = function() {
-  return this.splice(0, this.length);
-};
-
 function testBasic() {
-  var q = [];
-  var count = 0;
-  var callback = function() {
-    q.splice(0);
-    count++;
+  var callbackCount = 0;
+  var mutationCount = 0;
+  var callback = function(mutations) {
+    callbackCount++;
+    mutationCount += mutations.length;
   }
 
-  AspectWorkQueue.register(q, callback);
+  window.enqueueMutation_(callback, {});
+  window.notifyObservers_();
+  assertEquals(1, callbackCount);
+  assertEquals(1, mutationCount);
 
-  q.push(1);
-
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, count);
-
-  q.push(1);
-  q.push(2);
-
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(2, count);
+  window.enqueueMutation_(callback, {});
+  window.enqueueMutation_(callback, {});
+  window.notifyObservers_();
+  assertEquals(2, callbackCount);
+  assertEquals(3, mutationCount);
 }
 
 function testTwoWorkers() {
-  var q1 = [];
-  var q2 = [];
-
-  var callback1 = function(log) {
+  var callback1 = function(mutations) {
     count1++;
-    log.forEach(function(val) {
+    mutations.forEach(function(val) {
       if (val > 0)
-        q2.push(val - 1);
+        window.enqueueMutation_(callback2, val - 1);
     });
   }
 
-  var callback2 = function(log) {
+  var callback2 = function(mutations) {
     count2++;
-    log.forEach(function(val) {
+    mutations.forEach(function(val) {
       if (val > 0)
-        q1.push(val - 1);
+        window.enqueueMutation_(callback1, val - 1);
     });
   }
-
-  AspectWorkQueue.register(q1, callback1);
-  AspectWorkQueue.register(q2, callback2);
 
   var count1 = 0;
   var count2 = 0;
-  q1.push(0);
-  q2.push(0);
-
-  AspectWorkQueue.runUntilEmpty();
+  window.enqueueMutation_(callback1, 0);
+  window.enqueueMutation_(callback2, 0);
+  window.notifyObservers_();
   assertEquals(1, count1);
   assertEquals(1, count2);
 
   // Q1 will run, then Q2, then Q1.
   count1 = 0;
   count2 = 0;
-  q1.push(1);
-  q2.push(1);
-
-  AspectWorkQueue.runUntilEmpty();
+  window.enqueueMutation_(callback1, 1);
+  window.enqueueMutation_(callback2, 1);
+  window.notifyObservers_();
   assertEquals(2, count1);
   assertEquals(1, count2);
 
   // Q1, Q2, Q1, Q2, Q1.
   count1 = 0;
   count2 = 0;
-  q1.push(4);
+  window.enqueueMutation_(callback1, 4);
+  window.notifyObservers_();
 
-  AspectWorkQueue.runUntilEmpty();
   assertEquals(3, count1);
   assertEquals(2, count2);
 }

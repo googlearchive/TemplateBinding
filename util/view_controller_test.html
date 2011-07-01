@@ -22,7 +22,7 @@ limitations under the License.
 <script src="../platform/compat.js"></script>
 <script src="../platform/forwarding_handler.js"></script>
 <script src="../platform/weak_map.js"></script>
-<script src="../platform/aspect_work_queue.js"></script>
+<script src="../platform/observers.js"></script>
 <script src="../platform/object_observe.js"></script>
 <script src="../path.js"></script>
 <script src="../model.js"></script>
@@ -75,11 +75,11 @@ function testBasic() {
 
   function Controller(root) {
     ctorCount++;
-    this.model = root.model = Model.get([
+    this.model = [
       { name: 'one' },
       { name: 'two' },
       { name: 'three' }
-    ]);
+    ];
   }
   Controller.prototype = {
     handleClick: function(item, e) {

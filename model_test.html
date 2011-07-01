@@ -21,7 +21,7 @@ limitations under the License.
 <script src="platform/compat.js"></script>
 <script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
-<script src="platform/aspect_work_queue.js"></script>
+<script src="platform/observers.js"></script>
 <script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
@@ -67,12 +67,12 @@ function testEvent() {
 
   // Event should fire.
   model.id = 2;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
   assertEquals(model.id, data.id);
 
   data.id = 3;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
 
   if (observableObjects)
     assertEquals(1, eventCount); // Change to raw object wasn't detected.
@@ -101,25 +101,25 @@ function testObjectPropertySet() {
 
   expect.mutation = 'add';
   model.id = 0;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
 
   expect.mutation = 'delete';
   delete model.id;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, eventCount);
 
   // Stop observing -- shouldn't see an event
   Model.stopObservingPropertySet(model, callback);
   model.id = 101;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, eventCount);
 
   // Re-observe -- should see an new event again.
   Model.observePropertySet(model, callback);
   expect.mutation = 'delete';
   delete model.id;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(3, eventCount);
 }
 
@@ -132,15 +132,15 @@ function testObjectDeleteAddDelete() {
 
   // If mutation occurs in seperate "runs", two events fire.
   delete model.id;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   model.id = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, eventCount);
 
   // If mutation occurs in the same "run", no events fire (nothing changed).
   delete model.id;
   model.id = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, eventCount);
 }
 
@@ -213,7 +213,7 @@ function testPathValueBreadthFirstNotification() {
     }
   }
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals('add,0112222', notificationSequence);
 }
 
@@ -228,7 +228,7 @@ function testPathValueDescendantsCanBeRemovedDuringNotification() {
 
   // First test that the splice actually propagates down.
   m.unshift({a: 3});
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
 
   // Now remove the observation above while a higher-level is receiving the
@@ -239,7 +239,7 @@ function testPathValueDescendantsCanBeRemovedDuringNotification() {
 
   // The observation above should not have fired.
   m.unshift({a: 4});
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
 }
 
@@ -254,7 +254,7 @@ function testPathValueDescendantsCanBeResetDuringNotification() {
 
   // First test that the splice actually propagates down.
   m.unshift({a: 3});
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
 
   // Now reset the observation above while a higher-level is receiving the
@@ -267,7 +267,7 @@ function testPathValueDescendantsCanBeResetDuringNotification() {
 
   // The observation above should not have fired.
   m.unshift({a: 4});
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
 }
 
@@ -300,7 +300,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello, mom';
   m.a.b.c = 'hello, mom';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, eventCount);
   assertEquals(expect.model, Model.get(m, 'a.b.c'));
 
@@ -309,7 +309,7 @@ function testPathObservation() {
   m.a.b = {
     c: 'hello, dad'
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, eventCount);
   assertEquals(expect.model, Model.get(m, 'a.b.c'));
 
@@ -320,7 +320,7 @@ function testPathObservation() {
       c: 'hello, you'
     }
   };
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(3, eventCount);
   assertEquals(expect.model, Model.get(m, 'a.b.c'));
 
@@ -328,7 +328,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = undefined;
   m.a.b = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(4, eventCount);
   assertEquals(expect.model, Model.get(m, 'a.b.c'));
 
@@ -337,7 +337,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello, back again -- but not observing';
   m.a.b = {c: 'hello, back again -- but not observing'};
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(4, eventCount);
 
   // Resume observing
@@ -345,7 +345,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello. Back for reals';
   m.a.b.c = 'hello. Back for reals';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(5, eventCount);
 
   // Try to stop observing at different path. Scopes are different,
@@ -354,7 +354,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello. scopes are different';
   m.a.b.c = 'hello. scopes are different';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(6, eventCount);
 }
 
@@ -370,7 +370,7 @@ function testMultipleObservationsAreCollapsed() {
 
   assertEquals(pv1, pv2);
   m.id = 2;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -396,7 +396,7 @@ function testExceptionDoesntStopNotification() {
 
   m.id = 2;
   m.id2 = 2;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(4, count);
 }
 
@@ -407,7 +407,7 @@ function testSetSame() {
     fired = true;
   });
   m.id = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertFalse('Setting an own property to same value should not notify', fired);
 }
 
@@ -422,7 +422,7 @@ function testSetToSameAsPrototype() {
     fired = true;
   });
   m.id = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertFalse('Setting a property to same value should not notify', fired);
 }
 
@@ -440,7 +440,7 @@ function testSetReadOnly() {
     fired = true;
   });
   m.x = 2;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertFalse('Setting a read only property should not notify', fired);
 }
 
@@ -456,7 +456,7 @@ function testSetUndefined() {
     count++;
   });
   m.x = undefined;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -474,7 +474,7 @@ function testSetShadows() {
     count++;
   });
   m.x = 2;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -491,7 +491,7 @@ function testDeleteWithSameValueOnPrototype() {
     fired = true;
   });
   assertTrue(delete m.x);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertFalse('Deleting a property exposes the same value in this case', fired);
 }
 
@@ -510,7 +510,7 @@ function testDeleteWithDifferentValueOnPrototype() {
     assertEquals(2, oldValue);
   });
   assertTrue(delete m.x);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -527,7 +527,7 @@ function testDeleteOfNonConfigurable() {
     count++;
   });
   assertFalse(delete m.x);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(0, count);
 }
 
@@ -569,7 +569,7 @@ function testModelWithFunctions() {
     count++;
   });
   f.test = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 
   Model.observePropertySet(m, function(c) {
@@ -577,7 +577,7 @@ function testModelWithFunctions() {
     count++;
   });
   m.modifyField();
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 
   var innerObject = m.getInnerObject();
@@ -589,7 +589,7 @@ function testModelWithFunctions() {
                m.innerObject, innerObject);
 
   innerObject.x = 'y';
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, count);
 }
 
@@ -624,24 +624,24 @@ function testModelFunctionConstruct() {
     count++;
   });
   object.test = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 
   // "this" is not wrapped
   object.change();
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, object.test);
   assertEquals(1, count);
 
   // Internal change not observable.
   object.change2();
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(3, object.test);
   assertEquals(1, count);
 
   // Arguments should be unwrapped.
   object.change3(Model.get({}));
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(4, object.test);
   assertEquals(1, count);
 }
@@ -663,7 +663,7 @@ function testModelFunctionConstructReturnObject() {
     count++;
   });
   object.test = 1;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -693,13 +693,13 @@ function testArrayModel() {
   var two = {two: 2};
   var three = {three: 3};
   m[0] = two;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
 
   assertArrayEquals(Model.get([two, one]), m);
   assertEquals(1, count);
 
   m[1] = three;
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
 
   assertArrayEquals(Model.get([two, three]), m);
   assertEquals(2, count);
@@ -735,7 +735,7 @@ function testArrayModelSplice() {
 
   m.splice(1, 1, two, three);
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([zero, two, three], arr);
   assertArrayEquals([zeroModel, twoModel, threeModel], m);
   assertEquals(1, count);
@@ -747,21 +747,21 @@ function testArrayModelSplice() {
 
   m.splice(0, 1);
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([two, three], arr);
   assertArrayEquals([twoModel, threeModel], m);
   assertEquals(2, count);
 
   m.splice();
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, count);
 
   m.splice(0, 0);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, count);
 
   m.splice(0, -1);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(2, count);
 
   expected.mutation = 'splice';
@@ -770,7 +770,7 @@ function testArrayModelSplice() {
   expected.added = [1.5];
 
   m.splice(-1, 0, 1.5);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([two, 1.5, three], arr);
   assertArrayEquals([twoModel, 1.5, threeModel], m);
 
@@ -780,7 +780,7 @@ function testArrayModelSplice() {
   expected.added = [zeroModel];
 
   m.splice(3, 0, zeroModel);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([two, 1.5, three, zero], arr);
   assertArrayEquals([twoModel, 1.5, threeModel, zeroModel], m);
 
@@ -790,14 +790,13 @@ function testArrayModelSplice() {
   expected.added = [];
 
   m.splice(0);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(5, count);
   assertArrayEquals([], arr);
   assertArrayEquals([], m);
 }
 
 function testArrayModelSpliceDeleteTooMany() {
-
   var arr = ['a', 'b', 'c'];
   var m = Model.get(arr);
 
@@ -817,10 +816,9 @@ function testArrayModelSpliceDeleteTooMany() {
   expected.added = [];
 
   m.splice(2, 3);
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals(['a', 'b'], m);
 }
-
 
 function testArrayModelLength() {
   var m = Model.get([0, 1]);
@@ -842,7 +840,7 @@ function testArrayModelLength() {
 
   m.length = 5;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([0, 1, , , ,], m);
   assertEquals(1, count);
 
@@ -853,13 +851,13 @@ function testArrayModelLength() {
 
   m.length = 1;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([0], m);
   assertEquals(2, count);
 
   m.length = 1;
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([0], m);
   assertEquals(2, count);
 }
@@ -888,13 +886,13 @@ function testArrayModelPush() {
 
   m.push(two, three);
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals(Model.get([zero, one, two, three]), m);
   assertEquals(1, count);
 
   m.push();
 
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertEquals(1, count);
 }
 
@@ -919,7 +917,7 @@ function testArrayModelPop() {
   expected.added = [];
 
   assertEquals(Model.get(one), m.pop());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([Model.get(zero)], m);
   assertEquals(1, count);
 
@@ -927,12 +925,12 @@ function testArrayModelPop() {
   expected.removed = [Model.get(zero)];
 
   assertEquals(Model.get(zero), m.pop());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([], m);
   assertEquals(2, count);
 
   assertUndefined,(m.pop());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([], m);
   assertEquals(2, count);
 }
@@ -958,7 +956,7 @@ function testArrayModelShift() {
   expected.added = [];
 
   assertEquals(Model.get(zero), m.shift());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([Model.get(one)], m);
   assertEquals(1, count);
 
@@ -966,12 +964,12 @@ function testArrayModelShift() {
   expected.removed = [Model.get(one)];
 
   assertEquals(Model.get(one), m.shift());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([], m);
   assertEquals(2, count);
 
   assertUndefined,(m.shift());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals([], m);
   assertEquals(2, count);
 }
@@ -998,7 +996,7 @@ function testArrayModelUnshift() {
   expected.added = [Model.get(negOne)];
 
   assertEquals(3, m.unshift(negOne));
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals(Model.get([negOne, zero, one]), m);
   assertEquals(1, count);
 
@@ -1007,12 +1005,12 @@ function testArrayModelUnshift() {
   expected.added = Model.get([negThree, negTwo]);
 
   assertEquals(5, m.unshift(negThree, negTwo));
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals(Model.get([negThree, negTwo, negOne, zero, one]), m);
   assertEquals(2, count);
 
   assertUndefined,(m.unshift());
-  AspectWorkQueue.runUntilEmpty();
+  Model.notifyObservers_();
   assertArrayEquals(Model.get([negThree, negTwo, negOne, zero, one]), m);
   assertEquals(2, count);
 }
@@ -1031,11 +1029,22 @@ function testArrayModelIndexOf() {
   assertEquals(-1, m.indexOf({foo: 'bar'}));
 }
 
-function assertArrayTracker(tracker, log) {
-  log.clear().forEach(function(mutation) {
+// |tracker| and |arrayTrackerObserver| are both used in the testArrayTracker*
+// tests below.
+var tracker;
+var arrayTrackerObserver = function(mutations) {
+  mutations.forEach(function(mutation) {
     tracker.addMutation(mutation);
   });
+}
 
+function assertArrayTracker() {
+  // Note that we do window.notifyObservers_ here rather than
+  // Model.notifyObservers_() because the later will itself
+  // tricker dirtyChecking of the tested array, which is what
+  // we'd like to tricker with tracker.notify(), below, if proxies
+  // are not implemented.
+  window.notifyObservers_();
   tracker.notify();
   assertArrayEquals(tracker.target, tracker.copy);
 }
@@ -1043,113 +1052,120 @@ function assertArrayTracker(tracker, log) {
 function testArrayTrackerContained() {
   var data = ['a', 'b'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(1, 1);
   m.unshift('c', 'd', 'e');
   m.splice(1, 2, 'f');
 
-  assertArrayTracker(tracker, log);
+  assertArrayTracker();
 }
 
-function testArrayTrackereleteEmpty() {
+function testArrayTrackerDeleteEmpty() {
   var data = [];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   delete m[0];
   m.splice(0, 0, 'a', 'b', 'c');
 
-  assertArrayTracker(tracker, log);
+  assertArrayTracker();
 }
 
 function testArrayTrackerRightNonOverlap() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(0, 1, 'e');
   m.splice(2, 1, 'f', 'g');
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 function testArrayTrackerLeftNonOverlap() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(3, 1, 'f', 'g');
   m.splice(0, 1, 'e');
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 function testArrayTrackerRightAdjacent() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(1, 1, 'e');
   m.splice(2, 1, 'f', 'g');
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 function testArrayTrackerLeftAdjacent() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(2, 2, 'e');
   m.splice(1, 1, 'f', 'g');
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 function testArrayTrackerRightOverlap() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(1, 1, 'e');
   m.splice(1, 1, 'f', 'g');
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 function testArrayTrackerLeftOverlap() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(2, 1, 'e', 'f', 'g');  // a b [e f g] d
   m.splice(1, 2, 'h', 'i', 'j'); // a [h i j] f g d
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 function testArrayTrackerUpdateDelete() {
   var data = ['a', 'b', 'c', 'd'];
   var m = Object.getObservable(data);
-  var tracker = new ArrayTracker(m);
-  var log = new MutationLog();
-  Object.observe(m, log);
+
+  tracker = new ArrayTracker(m);
+  Object.observe(m, arrayTrackerObserver);
 
   m.splice(2, 1, 'e', 'f', 'g');  // a b [e f g] d
   m[0] = 'h';
   delete m[1];
-  assertArrayTracker(tracker, log);
+
+  assertArrayTracker();
 }
 
 var valMax = 16;
@@ -1224,13 +1240,13 @@ function testArrayTrackerFuzzer() {
   for (var i = 0; i < testCount; i++) {
     var data = randArray();
     var m = Object.getObservable(data);
-    var tracker = new ArrayTracker(m);
-    var log = new MutationLog();
-    Object.observe(m, log);
+
+    tracker = new ArrayTracker(m);
+    Object.observe(m, arrayTrackerObserver);
 
     randomArrayOperations(m, operationCount);
 
-    assertArrayTracker(tracker, log);
+    assertArrayTracker();
   }
 }
 
