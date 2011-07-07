@@ -115,12 +115,22 @@ function Model() {
     notificationQueue.push(tracker);
   };
 
+  var firstException;
+
+  function logExceptionDuringNotification(ex) {
+    if (Model.throwFirstException_ && !firstException)
+      firstException = ex;
+    else
+      console.error('Exception during Model mutation notification:', ex);
+  }
+
   var notificationQueueIsRunning = false;
 
   function startNotifications() {
     if (notificationQueueIsRunning)
       return;
     notificationQueueIsRunning = true;
+    firstException = undefined;
 
     for (var i = 0; i < notificationQueue.length; i++) {
       var tracker = notificationQueue[i];
@@ -131,6 +141,9 @@ function Model() {
 
     notificationQueue = [];
     notificationQueueIsRunning = false;
+
+    if (firstException)
+      throw firstException;
   };
 
   // Map: { model -> Tracker(model) };
@@ -380,7 +393,7 @@ function Model() {
         try {
           callback.apply(undefined, args);
         } catch (ex) {
-          console.error('Exception during Model mutation notification:', ex);
+          logExceptionDuringNotification(ex);
         }
       });
     },
@@ -491,7 +504,7 @@ function Model() {
       if (this.observers && this.value !== this.lastValue) {
         var oldValue = this.lastValue;
         this.lastValue = this.value;
-        exception = this.notifyObservers(this.value, oldValue);
+        this.notifyObservers(this.value, oldValue);
       }
 
       // Schedule descendants to notify
@@ -618,7 +631,7 @@ function Model() {
     },
 
     notifyPropertySetChange: function(name, type) {
-      return this.notifyObservers({
+      this.notifyObservers({
         propertyName: name,
         mutation: type,
         model: this.target

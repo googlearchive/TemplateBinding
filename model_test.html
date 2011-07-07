@@ -25,6 +25,8 @@ limitations under the License.
 <script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
+<script src="test_common.js"></script>
+
 <script>
 goog.require('goog.testing.jsunit');
 </script>
@@ -396,7 +398,9 @@ function testExceptionDoesntStopNotification() {
 
   m.id = 2;
   m.id2 = 2;
-  Model.notifyObservers_();
+  assertThrows(function() {
+    Model.notifyObservers_();
+  });
   assertEquals(4, count);
 }
 

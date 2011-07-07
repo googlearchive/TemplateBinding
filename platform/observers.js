@@ -35,11 +35,23 @@
 
   // "Private"
   this.notifyObservers_ = function() {
+    var exception;
+
     while (activeObservers.length) {
       var observer = activeObservers.shift();
       var mutations = observerMutations.get(observer);
       observerMutations['delete'](observer);
-      observer(mutations);
+      try {
+        observer(mutations);
+      } catch (ex) {
+        if (this.notifyObservers_.throwFirstException_ && !exception)
+          exception = ex;
+        else
+          console.error('Uncaught exception during notifyObservers_', ex);
+      }
     }
+
+    if (exception)
+      throw exception;
   };
 })()
