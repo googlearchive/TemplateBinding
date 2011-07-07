@@ -21,9 +21,8 @@ limitations under the License.
 <script src="compat.js"></script>
 <script src="weak_map.js"></script>
 <script src="forwarding_handler.js"></script>
-<script src="object_observe.js"></script>
+<script src="observers.js"></script>
 <script src="dom_mutation.js"></script>
-<script src="aspect_work_queue.js"></script>
 <script src="dom_observe.js"></script>
 <script>
 goog.require('goog.testing.jsunit');
@@ -31,6 +30,10 @@ goog.require('goog.testing.jsunit');
 </head>
 <body>
 <script>
+
+function notReached(el) {
+  fail('Called remove on ' + el);
+}
 
 function assertNextMutationIs(expected, log) {
   var mutation = log.clear()[0];
@@ -73,74 +76,61 @@ function browserSupportsAttributes() {
 function testAttributeChanged() {
   if (!browserSupportsAttributes()) return;
 
-  var log = new MutationLog;
-  document.observeAttribute('span', 'id', log);
+  var count = 0;
+  var expected;
+  function callback(mutation) {
+    assertEquals(expected.element, mutation.element);
+    assertEquals(expected.attribute, mutation.attribute);
+    count++;
+  }
+  document.observeAttribute('span', 'id', callback);
   var span = document.createElement('span');
   document.body.appendChild(span);
   // Adding an element and setting an attribute
   // should cause the attribute setting to be swallowed.
   span.id = 'default';
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 
   // Two sets should be collapsed into one.
   span.id = 'hell';
   span.id = 'hello';
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'AttributeChanged',
-    element: span,
-    attribute: 'id'
-  }, log);
+  expected = {element: span, attribute: 'id'};
+  window.notifyObservers_();
+  assertEquals(1, count);
 
   span.id = 'goodbye';
   // Removing, then adding, should be ignored.
   document.body.removeChild(span);
   document.body.appendChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'AttributeChanged',
-    element: span,
-    attribute: 'id'
-  }, log);
+  window.notifyObservers_();
+  assertEquals(2, count);
 
   span.removeAttribute('id');
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'AttributeChanged',
-    element: span,
-    attribute: 'id'
-  }, log);
+  window.notifyObservers_();
+  assertEquals(3, count);
 
   document.body.removeChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(3, count);
 
   var div = document.createElement('div');
   div.appendChild(span);
   document.body.appendChild(div);
   span.id = 'helloAgain';
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(3, count);
 
   span.id = 'modification';
   document.body.removeChild(div);
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'AttributeChanged',
-    element: span,
-    attribute: 'id'
-  }, log);
+  window.notifyObservers_();
+  assertEquals(4, count);
 
-  document.stopObservingAttribute('span', 'id', log);
+  document.stopObservingAttribute('span', 'id', callback);
   span.id = 'shouldnotbeobserved';
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(4, count);
 
   document.body.removeChild(div);
 }
@@ -148,75 +138,89 @@ function testAttributeChanged() {
 function testAttributeChangedNotFiredOnRemove() {
   if (!browserSupportsAttributes()) return;
 
-  var log = new MutationLog;
-  document.observeAttribute('span', 'id', log);
+  var count = 0;
+  function callback(mutation) {
+    count++;
+  }
+
+  document.observeAttribute('span', 'id', callback);
   var div = document.createElement('div');
   var span = document.createElement('span');
   div.appendChild(span);
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 
   div.removeChild(span);
   span.id = 'hello';
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 
   div.appendChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 
   span.id = 'goodbye';
   document.body.removeChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 }
 
 function testElementMutations() {
-  var log = new MutationLog;
-  document.observeElement('span', log);
+  var expectedInserted = undefined;
+  var expectedRemoved = undefined;
+  var insertCount = 0;
+  var removeCount = 0;
+  function inserted(el) {
+    assertEquals(expectedInserted, el);
+    insertCount++;
+  };
+  function removed(el) {
+    assertEquals(expectedRemoved, el);
+    removeCount++;
+  };
+  document.observeElementInserted('span', inserted);
+  document.observeElementRemoved('span', removed);
   var span = document.createElement('span');
   var div = document.createElement('div');
   div.appendChild(span);
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementAdded',
-    element: span,
-  }, log);
+  expectedInserted = span;
+  window.notifyObservers_();
+  assertEquals(1, insertCount);
+  assertEquals(0, removeCount);
 
   div.removeChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementRemoved',
-    element: span,
-  }, log);
+  expectedRemoved = span;
+  window.notifyObservers_();
+  assertEquals(1, insertCount);
+  assertEquals(1, removeCount);
 
-  document.stopObservingElement('span', log);
+  document.stopObservingElementInserted('span', inserted);
+  document.stopObservingElementRemoved('span', removed);
   div.appendChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(1, insertCount);
+  assertEquals(1, removeCount);
 
   document.body.removeChild(div);
 }
 
 function testSubtreeRemovalBehavior() {
-  var log = new MutationLog;
-  document.observeElement('span', log);
   var div1 = document.createElement('div');
   var div2 = document.createElement('div');
   var span = document.createElement('span');
   div1.appendChild(div2);
   div2.appendChild(span);
   document.body.appendChild(div1);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementAdded',
-    element: span
-  }, log);
+
+  var count = 0;
+  var expected = span;
+  function removed(el) {
+    count++;
+    assertEquals(expected, el);
+  }
+  document.observeElementRemoved('span', removed);
 
   document.body.removeChild(div1);
   // This add will be ignored since this is a detached subtree.
@@ -226,70 +230,75 @@ function testSubtreeRemovalBehavior() {
   // This add will be ignored because it was previously
   // marked as a "remove" (when div1 is queried for its descendants).
   div1.appendChild(document.createElement('span'));
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementRemoved',
-    element: span
-  }, log);
+  window.notifyObservers_();
+  assertEquals(1, count);
 }
 
 function testSubtreeMoveBehavior() {
-  var log = new MutationLog;
-  document.observeElement('span', log);
+  var count = 0;
+  var expected;
+  function callback(el) {
+    assertEquals(expected, el);
+    count++;
+  }
+  document.observeElementInserted('span', callback);
+  document.observeElementRemoved('span', notReached);
   var div = document.createElement('div');
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 
   document.body.removeChild(div);
   var span = document.createElement('span');
   div.appendChild(span);
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementAdded',
-    element: span
-  }, log);
+  expected = span;
+  window.notifyObservers_();
+  assertEquals(1, count);
+
+  document.stopObservingElementInserted('span', callback);
+  document.stopObservingElementRemoved('span', notReached);
 }
 
 function testSubtreeMoveBehavior2() {
-  var log = new MutationLog;
-  document.observeElement('span', log);
+  var count = 0;
+  var expected;
+  function callback(el) {
+    assertEquals(expected, el);
+    count++;
+  }
+  document.observeElementInserted('span', callback);
+  document.observeElementRemoved('span', callback);
   var div = document.createElement('div');
   var span = document.createElement('span');
   document.body.appendChild(div);
   document.body.appendChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementAdded',
-    element: span
-  }, log);
+  expected = span;
+  window.notifyObservers_();
+  assertEquals(1, count);
 
   document.body.removeChild(span);
   var div2 = div.appendChild(document.createElement('div'));
   div2.appendChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(1, count);
+
+  document.stopObservingElementInserted('span', callback);
+  document.stopObservingElementRemoved('span', notReached);
 }
 
 function testAddingToDetachedSubtree() {
-  var log = new MutationLog;
-  document.observeElement('b', log);
   var div = document.createElement('div');
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
 
+  document.observeElementInserted('b', notReached);
+  document.observeElementInserted('b', notReached);
   var span = document.createElement('span');
   var b = document.createElement('b');
   document.body.removeChild(div);
   div.appendChild(span);
   span.appendChild(b);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
 }
 
 function testRemoveThenAddElsewhere() {
@@ -300,76 +309,79 @@ function testRemoveThenAddElsewhere() {
   div1.appendChild(div2);
   document.body.appendChild(div1);
 
-  var log = new MutationLog;
-  document.observeElement('span', log);
+  var count = 0;
+  var expected;
+  function callback(el) {
+    assertEquals(expected, el);
+    count++;
+  }
+
+  document.observeElementInserted('span', notReached);
+  document.observeElementRemoved('span', callback);
   div1.removeChild(span);
   div1.removeChild(div2);
   div2.appendChild(span);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(1, log.length);
-  assertNextMutationIs({
-    type: 'ElementRemoved',
-    element: span
-  }, log);
+  expected = span;
+  window.notifyObservers_();
+  assertEquals(1, count);
+
+  document.stopObservingElementInserted('span', notReached);
+  document.stopObservingElementRemoved('span', callback);
 }
 
 function testMultipleElementObservations() {
-  var log = new MutationLog;
-  document.observeElement('em', log);
-  document.observeElement('strong', log);
+  var count = 0;
+  var expected = [];
+  function callback(el) {
+    assertEquals(expected[count], el);
+    count++;
+  }
+  document.observeElementInserted('em', callback);
+  document.observeElementInserted('strong', callback);
+
   var em = document.createElement('em');
   var strong = document.createElement('strong');
   var div = document.createElement('div');
   div.appendChild(strong);
   div.appendChild(em);
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(2, log.length);
-  var mutations = log.clear();
   // Order is based on the observers, not the order
   // of mutations.
-  assertMutationEquals({
-    type: 'ElementAdded',
-    element: em,
-  }, mutations[0]);
-  assertMutationEquals({
-    type: 'ElementAdded',
-    element: strong,
-  }, mutations[1]);
+  expected.push(em, strong);
+  window.notifyObservers_();
+  assertEquals(2, count);
+
+  document.stopObservingElementInserted('em', callback);
+  document.stopObservingElementInserted('strong', callback);
 }
 
 function testMultipleAttributeObservations() {
-  var log = new MutationLog;
-  document.observeAttribute('*', 'id', log);
-  document.observeAttribute('strong', 'data-foo', log);
+  if (!browserSupportsAttributes()) return;
+
+  var count = 0;
+  var expected = [];
+  function callback(mutation) {
+    assertEquals(expected[count].element, mutation.element);
+    assertEquals(expected[count].attribute, mutation.attribute);
+    count++;
+  }
+  document.observeAttribute('*', 'id', callback);
+  document.observeAttribute('strong', 'data-foo', callback);
   var div = document.createElement('div');
   var strong = document.createElement('strong');
   div.appendChild(strong);
   document.body.appendChild(div);
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(0, log.length);
+  window.notifyObservers_();
+  assertEquals(0, count);
 
   div.id = 'divId';
   strong.id = 'strongId';
   strong.setAttribute('data-foo', 'something');
-  AspectWorkQueue.runUntilEmpty();
-  assertEquals(3, log.length);
-  var mutations = log.clear();
-  assertMutationEquals({
-    type: 'AttributeChanged',
-    element: div,
-    attribute: 'id'
-  }, mutations[0]);
-  assertMutationEquals({
-    type: 'AttributeChanged',
-    element: strong,
-    attribute: 'id'
-  }, mutations[1]);
-  assertMutationEquals({
-    type: 'AttributeChanged',
-    element: strong,
-    attribute: 'data-foo'
-  }, mutations[2]);
+  expected.push({element: div, attribute: 'id'});
+  expected.push({element: strong, attribute: 'id'});
+  expected.push({element: strong, attribute: 'data-foo'});
+  window.notifyObservers_();
+  assertEquals(3, count);
 }
 
 </script>

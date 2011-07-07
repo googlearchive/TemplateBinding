@@ -14,153 +14,173 @@
 
 (function() {
 
+var INSERTED = 0x1;
+var REMOVED = 0x2;
+
 /**
- * Observe additions and removals of elements matching the given selector
+ * Observe insertions of elements matching the given selector
  * in the Document or DocumentFragment on which this method is called.
  *
- * When an element |el| matching |selector| is inserted, a mutation will
- * be appended to the log: {element: el, type: 'ElementAdded'}
- *
- * When an element |el| matching |selector|  is removed, a mutation will
- * be appended to the log: {element: el, type: 'ElementAdded'}
+ * When an element |el| matching |selector| is inserted, |callback|
+ * will be called with |el| as the single argument.
  *
  * @param {string} selector a CSS element selector, either a tag name or '*'
- * @param {MutationLog} log the log into which mutations will be written.
+ * @param {function} callback the callback to invoke on insertion
  */
-Document.prototype.observeElement = function(selector, log) {
+Document.prototype.observeElementInserted = function(selector, callback) {
+  observeElement(this, selector, callback, INSERTED);
+};
+
+/**
+ * Observe removals of elements matching the given selector
+ * in the Document or DocumentFragment on which this method is called.
+ *
+ * When an element |el| matching |selector| is removed, |callback|
+ * will be called with |el| as the single argument.
+ *
+ * @param {string} selector a CSS element selector, either a tag name or '*'
+ * @param {function} callback the callback to invoke on removal
+ */
+Document.prototype.observeElementRemoved = function(selector, callback) {
+  observeElement(this, selector, callback, REMOVED);
+};
+
+/**
+ * Stop observation of element insertion for the given |selector|
+ * and |callback|.
+ *
+ * @param {string} selector a CSS element selector, either a tag name or '*'
+ * @param {function} callback the callback to invoke on insertion
+ */
+Document.prototype.stopObservingElementInserted = function(selector, callback) {
+  stopObservingElement(this, selector, callback, INSERTED);
+};
+
+/**
+ * Stop observation of element removal for the given |selector|
+ * and |callback|.
+ *
+ * @param {string} selector a CSS element selector, either a tag name or '*'
+ * @param {function} callback the callback to invoke on removal
+ */
+Document.prototype.stopObservingElementRemoved = function(selector, callback) {
+  stopObservingElement(this, selector, callback, REMOVED);
+};
+
+function observeElement(node, selector, callback, type) {
+  selector = selector.toUpperCase();
   if (!isValidSelector(selector))
     throw Error('Invalid selector (not simple enough): ' + selector);
-  selector = selector.toUpperCase();
 
-  this.elementObservers_ = this.elementObservers_ || [];
-  for (var i = 0; i < this.elementObservers_.length; i++) {
-    var ob = this.elementObservers_[i];
-    if (ob.log === log) {
-      // Already observing, add our selector to the list if
-      // it's not already there.
-      if (ob.selectors.indexOf(selector) < 0)
-        ob.selectors.push(selector);
+  var observers = node.elementObservers_ = node.elementObservers_ || [];
+  for (var i = 0; i < observers.length; i++) {
+    var ob = observers[i];
+    if (ob.callback === callback) {
+      ob.selectors[selector] |= type;
       return;
     }
   }
 
-  var underlyingLog = new MutationLog;
-  observeSubtreeForChildlistChanged(this, underlyingLog);
+  var observerInfo = {
+    callback: callback,
+    selectors: {}
+  };
+  var observer = elementCallback.bind(undefined, observerInfo);
+  observeSubtreeForChildlistChanged(node, observer);
+  observerInfo.observer = observer;
+  observerInfo.selectors[selector] = type;
+  observers.push(observerInfo);
+}
 
-  var selectors = [selector];
-  var callback = elementCallback.bind(undefined, selectors, log, underlyingLog);
-  AspectWorkQueue.register(underlyingLog, callback);
-  this.elementObservers_.push({
-    selectors: selectors,
-    log: log,
-    underlyingLog: underlyingLog,
-  });
-};
-
-/**
- * Stop observation on the given |selector| and |log|.
- *
- * @param {string} selector a CSS element selector, either a tag name or '*'
- * @param {MutationLog} log the log into which mutations will be written.
- */
-Document.prototype.stopObservingElement = function(selector, log) {
+function stopObservingElement(node, selector, callback, type) {
+  var observers = node.elementObservers_;
+  if (!observers)
+    return;
   selector = selector.toUpperCase();
-  for (var i = 0; i < this.elementObservers_.length; i++) {
-    var ob = this.elementObservers_[i];
-    if (ob.log === log) {
-      var index = ob.selectors.indexOf(selector);
-      if (index >= 0)
-        ob.selectors.splice(index, 1);
-      if (!ob.selectors.length) {
-        AspectWorkQueue.release(ob.underlyingLog);
-        this.removeSubtreeChangedListener(ob.underlyingLog);
-        this.elementObservers_.splice(i, 1);
+  for (var i = 0; i < observers.length; i++) {
+    var ob = observers[i];
+    if (ob.callback === callback) {
+      if (ob.selectors[selector]) {
+        ob.selectors[selector] &= ~type;
+        if (!ob.selectors[selector])
+          delete ob.selectors[selector];
+        if (!Object.keys(ob.selectors).length) {
+          node.removeSubtreeChangedListener(ob.observer);
+          observers.splice(i, 1);
+        }
       }
       break;
     }
   }
-};
+}
 
 /**
  * Observe additions, removals, and updates of the given |attribute|
  * on elements matching |selector|.
  *
- * When a mutation occurs, a mutation will be appended to the log:
- * {element: el, attribute: attribute type: 'AttributeChanged'}
+ * When a mutation occurs, |callback| will be called with an object:
+ * {element: el, attribute: attribute}
  *
  * @param {string} selector a CSS element selector, either a tag name or '*'
  * @param {string} attribute the name of the attribute to be observed
- * @param {MutationLog} log the log into which mutations will be written.
+ * @param {function} callback the callback which is called with changes
  */
-Document.prototype.observeAttribute = function(selector, attribute, log) {
+Document.prototype.observeAttribute = function(selector, attribute, callback) {
+  selector = selector.toUpperCase();
+  attribute = attribute.toLowerCase();
   if (!isValidSelector(selector))
     throw Error('Invalid selector (not simple enough): ' + selector);
-  selector = selector.toUpperCase();
 
   this.attributeObservers_ = this.attributeObservers_ || [];
   for (var i = 0; i < this.attributeObservers_.length; i++) {
     var ob = this.attributeObservers_[i];
-    if (ob.log === log) {
-      for (var j = 0; j < ob.selectors.length; j++) {
-        if (ob.selectors[j].selector == selector) {
-          if (ob.selectors[j].attributes.indexOf(attribute) < 0)
-            ob.selectors[j].attributes.push(attribute);
-          return;
-        }
-      }
-      ob.selectors.push({
-        selector: selector,
-        attributes: [attribute]
-      });
+    if (ob.callback === callback) {
+      if (!ob.selectors[selector])
+        ob.selectors[selector] = {};
+      ob.selectors[selector][attribute] = true;
       return;
     }
   }
 
-  var underlyingLog = new MutationLog;
-  this.addSubtreeChangedListener(underlyingLog);
-  this.addSubtreeAttributeChangedListener(underlyingLog);
-  var selectors = [{selector: selector, attributes: [attribute]}];
-  var callback = attributeCallback.bind(
-      undefined, selectors, log, underlyingLog);
-  AspectWorkQueue.register(underlyingLog, callback);
-  this.attributeObservers_.push({
+  var selectors = {};
+  selectors[selector] = {};
+  selectors[selector][attribute] = true;
+  var observerInfo = {
     selectors: selectors,
-    log: log,
-    underlyingLog: underlyingLog,
-  });
+    callback: callback,
+  };
+  var observer = attributeCallback.bind(undefined, observerInfo);
+  observerInfo.observer = observer;
+  this.addSubtreeChangedListener(observer);
+  this.addSubtreeAttributeChangedListener(observer);
+  this.attributeObservers_.push(observerInfo);
 };
 
 /**
- * Stop observation of the given |selector|, |attribute| and |log|.
+ * Stop observation of the given |selector|, |attribute| and |callback|.
  *
  * @param {string} selector a CSS element selector, either a tag name or '*'
  * @param {string} attribute the name of the attribute to be observed
- * @param {MutationLog} log the log into which mutations will be written.
+ * @param {function} callback the callback to be called with changes
  */
-Document.prototype.stopObservingAttribute = function(selector, attribute, log) {
+Document.prototype.stopObservingAttribute =
+    function(selector, attribute, callback) {
   selector = selector.toUpperCase();
+  attribute = attribute.toLowerCase();
   for (var i = 0; i < this.attributeObservers_.length; i++) {
     var ob = this.attributeObservers_[i];
-    if (ob.log === log) {
-      for (var j = 0; j < ob.selectors.length; j++) {
-        var s = ob.selectors[j];
-        if (s.selector == selector) {
-          var index = s.attributes.indexOf(attribute);
-          if (index >= 0)
-            s.attributes.splice(index, 1);
-          if (!s.attributes.length) {
-            ob.selectors.splice(j, 1);
-            if (!ob.selectors.length) {
-              AspectWorkQueue.release(ob.underlyingLog);
-              this.removeSubtreeChangedListener(ob.underlyingLog);
-              this.removeSubtreeAttributeChangedListener(ob.underlyingLog);
-              this.attributeObservers_.splice(i, 1);
-            }
-          }
-          break;
+    if (ob.callback === callback) {
+      if (ob.selectors[selector] && ob.selectors[selector][attribute]) {
+        delete ob.selectors[selector][attribute];
+        if (!Object.keys(ob.selectors[selector]).length)
+          delete ob.selectors[selector];
+        if (!Object.keys(ob.selectors).length) {
+          this.removeSubtreeChangedListener(ob.observer);
+          this.removeSubtreeAttributeChangedListener(ob.observer);
+          this.attributeObservers_.splice(i, 1);
         }
       }
-      return;
+      break;
     }
   }
 };
@@ -174,20 +194,20 @@ DocumentFragment.prototype.observeAttribute =
 DocumentFragment.prototype.stopObservingAttribute =
     Document.prototype.stopObservingAttribute;
 
-function observeSubtreeForChildlistChanged(node, log, depth) {
-  node.addChildlistChangedListener(log);
+function observeSubtreeForChildlistChanged(node, observer, depth) {
+  node.addChildlistChangedListener(observer);
   node = node.firstChild;
   while (node) {
-    observeSubtreeForChildlistChanged(node, log);
+    observeSubtreeForChildlistChanged(node, observer);
     node = node.nextSibling;
   }
 }
 
-function stopObservingSubtreeForChildlistChanged(node, log) {
-  node.removeChildlistChangedListener(log);
+function stopObservingSubtreeForChildlistChanged(node, observer) {
+  node.removeChildlistChangedListener(observer);
   node = node.firstChild;
   while (node) {
-    stopObservingSubtreeForChildlistChanged(node, log);
+    stopObservingSubtreeForChildlistChanged(node, observer);
     node = node.nextSibling;
   }
 }
@@ -255,7 +275,7 @@ ElementCounter.prototype = {
 
 // Algorithm:
 //
-//   1. For each ChildlistChanged mutation from underlyingLog:
+//   1. For each ChildlistChanged mutation from in |mutations|:
 //     i. For each element added, walk its tree:
 //       a. Increment the counter for all matched elements in the subtree.
 //       b. Add ChildlistChanged listeners to every element in the subtree.
@@ -266,34 +286,35 @@ ElementCounter.prototype = {
 //      the log.
 //   4. For each element with a count < 0, add an ElementRemoved mutation to
 //      the log.
-function elementCallback(selectors, log, underlyingLog, mutations) {
+function elementCallback(observerInfo, mutations) {
+  var selectors = observerInfo.selectors;
   var elementCounter = new ElementCounter;
   mutations.forEach(function(mutation) {
     mutation.added.forEach(function(el) {
-      selectors.forEach(function(selector) {
+      for (var selector in selectors) {
         forAllMatches(el, selector, elementCounter.boundIncrement);
-      });
-      observeSubtreeForChildlistChanged(el, underlyingLog);
+      }
+      observeSubtreeForChildlistChanged(el, observerInfo.observer);
     });
     mutation.removed.forEach(function(el) {
-      selectors.forEach(function(selector) {
+      for (var selector in selectors) {
         forAllMatches(el, selector, elementCounter.boundDecrement);
-      });
-      stopObservingSubtreeForChildlistChanged(el, underlyingLog);
+      }
+      stopObservingSubtreeForChildlistChanged(el, observerInfo.observer);
     });
   });
-  elementCounter.getAdded().forEach(function(el) {
-    log.append({
-      type: 'ElementAdded',
-      element: el,
-    });
-  });
-  elementCounter.getRemoved().forEach(function(el) {
-    log.append({
-      type: 'ElementRemoved',
-      element: el,
-    });
-  });
+
+  function notify(type, el) {
+    if ((selectors['*'] & type) || (selectors[el.tagName] & type)) {
+      try {
+        observerInfo.callback(el);
+      } catch (e) {
+        console.error('Error: callback threw exception ' + e);
+      }
+    }
+  }
+  elementCounter.getAdded().forEach(notify.bind(undefined, INSERTED));
+  elementCounter.getRemoved().forEach(notify.bind(undefined, REMOVED));
 }
 
 // Algorithm:
@@ -305,19 +326,18 @@ function elementCallback(selectors, log, underlyingLog, mutations) {
 //      were added or removed.
 //   3. For each target, add a mutation to |log| iff the target was
 //      not listed as added, removed, or "transient" (added and later removed)
-//      in |underlyingLog|.
-function attributeCallback(selectors, log, underlyingLog, mutations) {
+//      in |log|.
+function attributeCallback(observerInfo, mutations) {
+  var selectors = observerInfo.selectors;
   var targets = [];
   mutations.forEach(function(mutation) {
     if (mutation.type != 'AttributeChanged')
       return;
     var element = mutation.target;
+    var tagName = element.tagName;
     var attribute = mutation.attrName;
-    function elementAndAttributeMatch(s) {
-      return matchesSelector(element, s.selector) &&
-          s.attributes.indexOf(attribute) >= 0;
-    }
-    if (selectors.some(elementAndAttributeMatch)) {
+    if ((selectors['*'] && selectors['*'][attribute]) ||
+        (selectors[tagName] && selectors[tagName][attribute])) {
       for (var i = 0; i < targets.length; i++) {
         if (targets[i].element === element &&
             targets[i].attribute == attribute) {
@@ -333,15 +353,15 @@ function attributeCallback(selectors, log, underlyingLog, mutations) {
     if (mutation.type != 'ChildlistChanged')
       return;
     mutation.added.forEach(function(el) {
-      selectors.forEach(function(s) {
-        forAllMatches(el, s.selector, elementCounter.boundIncrement);
-      });
+      for (var selector in selectors) {
+        forAllMatches(el, selector, elementCounter.boundIncrement);
+      }
     });
 
     mutation.removed.forEach(function(el) {
-      selectors.forEach(function(s) {
-        forAllMatches(el, s.selector, elementCounter.boundDecrement);
-      });
+      for (var selector in selectors) {
+        forAllMatches(el, selector, elementCounter.boundDecrement);
+      }
     });
   });
   var added = elementCounter.getAdded();
@@ -351,11 +371,14 @@ function attributeCallback(selectors, log, underlyingLog, mutations) {
     if (added.indexOf(t.element) < 0 &&
         removed.indexOf(t.element) < 0 &&
         transient.indexOf(t.element) < 0) {
-      log.append({
-        type: 'AttributeChanged',
-        element: t.element,
-        attribute: t.attribute,
-      });
+      try {
+        observerInfo.callback({
+            element: t.element,
+            attribute: t.attribute,
+        });
+      } catch (e) {
+        console.log('Error: callback threw exception ' + e);
+      }
     }
   });
 }
