@@ -41,46 +41,9 @@ goog.require('goog.testing.jsunit');
 </head>
 <body>
 
-<div id="model-container">
-  <template instantiate="XX" id="t1">
-    <p>Crew member: {{name}}, Job title: {{title}}</p>
-  </template>
-
-  <template instantiate="XY" id="t2" ref="t1"></template>
-</div>
-
-<div id="scopeBindingContainer">
-  <template instantiate="">
-    <div modelScope="{{ scope }}">Hi {{name}}</div>
-  </template>
-</div>
-
-<ul id="iteration-container">
-  <template iterate="contacts">
-    <li>{{name}}</li>
-  </template>
-</ul>
-
 <div id="test-div"></div>
 
 <script>
-
-var data = {
-  scope: 'XX',
-  XX: {name: 'Leela', title: 'Captain'},
-  XY: {name: 'Fry', title: 'Delivery boy'},
-  XZ: {name: 'Zoidberg', title: 'Doctor'}
-};
-
-var data2 = Model.get({
-  contacts: [
-    {name: 'Erik'},
-    {name: 'Rafael'},
-    {name: 'Neal'}
-  ]
-});
-
-document.getElementById('iteration-container').model = data2;
 
 var testDiv;
 
@@ -105,8 +68,18 @@ function createTestHtml(s) {
 }
 
 function testDecorated() {
-  var modelContainer = document.getElementById('model-container');
-  modelContainer.model = data;
+  var div = createTestHtml(
+      '<template instantiate="XX" id="t1">' +
+        '<p>Crew member: {{name}}, Job title: {{title}}</p>' +
+      '</template>' +
+      '<template instantiate="XY" id="t2" ref="t1"></template>');
+
+  div.model = Model.get({
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  });
 
   var t1 = document.getElementById('t1');
   var instance = t1.nextElementSibling;
@@ -117,14 +90,13 @@ function testDecorated() {
   assertEquals('Crew member: Fry, Job title: Delivery boy',
                instance.textContent);
 
-  assertEquals(4, modelContainer.children.length);
+  assertEquals(4, div.children.length);
 
-  // 5 to start with plus 3 per template instantiation, plus
-  // terminator comment nodes.
-  assertEquals(5 + 2 * 3 + 2, modelContainer.childNodes.length);
+  // 2 templates x 3 nodes per template (template, <p>, terminator)
+  assertEquals(2 * 3, div.childNodes.length);
 
-  assertEquals('P', modelContainer.childNodes[3].tagName);
-  assertEquals('P', modelContainer.childNodes[9].tagName);
+  assertEquals('P', div.childNodes[1].tagName);
+  assertEquals('P', div.childNodes[4].tagName);
 }
 
 function testDefaultStyles() {
@@ -179,6 +151,13 @@ function testInstantiateWithRef() {
 }
 
 function testInstantiateWithScope() {
+  var data = {
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  };
+
   var div = createTestHtml(
       '<template instantiate="XX">Hi {{ name }}</template>');
 
@@ -187,6 +166,13 @@ function testInstantiateWithScope() {
 }
 
 function testInstantiateChanged() {
+  var data = {
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  };
+
   var div = createTestHtml(
       '<template instantiate="XX">Hi {{ name }}</template>');
 
@@ -203,8 +189,18 @@ function testInstantiateChanged() {
 }
 
 function testModelScopeAttributeBinding() {
-  var div = document.getElementById('scopeBindingContainer');
-  div.model = data;
+  var div = createTestHtml(
+      '<template instantiate="">' +
+        '<div modelScope="{{ scope }}">Hi {{name}}</div>' +
+      '</template>');
+
+  div.model = Model.get({
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  });
+
   assertEquals('Hi Leela',
       div.firstElementChild.nextElementSibling.textContent);
   div.model.scope = 'XY';
@@ -227,9 +223,6 @@ function testBindToClassName() {
   Model.notifyObservers_();
   assertEquals('foo bar', div.childNodes[1].className);
 }
-
-var div;
-var t;
 
 function assertNodesAre() {
   // <template> is at index 0 and instances starts at 1 and use 2 nodes each.
