@@ -278,10 +278,15 @@ function destructTemplates(node) {
     return;
 
   function destructTemplate(el) {
-    if (el.templateIterator_)
+    if (el.templateIterator_) {
       el.templateIterator_.destruct();
+      el.templateIterator_ = undefined;
+    }
   }
 
+  // TODO(rafaelw): This is somewhat inefficient. Consider speeding up.
+  // If there are nested templates, this will cause inner templates
+  // to be visited multiple times.
   var templates = node.querySelectorAll('template');
   for (var i = templates.length - 1; i >= 0; i--) {
     destructTemplate(templates[i]);

@@ -731,6 +731,36 @@ function testNestedIterateSelfRef() {
   assertEquals('Item 2', div.childNodes[i++].textContent);
 }
 
+function testNestedIterateDeletionOfMultipleSubTemplates() {
+  var div = createTestHtml(
+      '<ul>' +
+        '<template iterate id=t1>' +
+          '<li>{{name}}' +
+            '<ul>' +
+              '<template ref=t1 iterate="items"></template>' +
+            '</ul>' +
+          '</li>' +
+        '</template>' +
+      '</ul>');
+
+  var m = Model.get([
+    {
+      name: 'Item 1',
+      items: [
+        {
+          name: 'Item 1.1'
+        }
+      ]
+    }
+  ]);
+
+  div.model = m;
+
+  Model.notifyObservers_();
+  m.splice(0, 1);
+  Model.notifyObservers_();
+}
+
 function testDeepNested() {
   var div = createTestHtml(
     '<template instantiate="a">' +
