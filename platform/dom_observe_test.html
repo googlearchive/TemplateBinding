@@ -62,6 +62,7 @@ function assertMutationEquals(expected, actual) {
   assertEquals(count, Object.keys(actual).length);
 }
 
+// WebKit doesn't send DOMAttrModified events.
 function browserSupportsAttributes() {
   var el = document.createElement('div');
   var sendsAttributeEvents = false;
@@ -71,6 +72,18 @@ function browserSupportsAttributes() {
   el.addEventListener('DOMAttrModified', attributeEventDetector, false);
   el.setAttribute('id', 'foo');
   return sendsAttributeEvents;
+}
+
+// WebKit doesn't send mutation events when not attached to the document events.
+function browserSupportsDetachedEvents() {
+  var el = document.createElement('div');
+  var sendsDetachedEvents = false;
+  function eventDetector(event) {
+    sendsDetachedEvents = true;
+  }
+  el.addEventListener('DOMNodeInserted', eventDetector, false);
+  el.appendChild(document.createElement('span'));
+  return sendsDetachedEvents;
 }
 
 function testAttributeChanged() {
@@ -207,6 +220,8 @@ function testElementMutations() {
 }
 
 function testSubtreeRemovalBehavior() {
+  if (!browserSupportsDetachedEvents()) return;
+
   var div1 = document.createElement('div');
   var div2 = document.createElement('div');
   var span = document.createElement('span');
@@ -235,6 +250,8 @@ function testSubtreeRemovalBehavior() {
 }
 
 function testSubtreeMoveBehavior() {
+  if (!browserSupportsDetachedEvents()) return;
+
   var count = 0;
   var expected;
   function callback(el) {
