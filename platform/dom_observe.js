@@ -22,7 +22,8 @@ var REMOVED = 0x2;
  * in the Document or DocumentFragment on which this method is called.
  *
  * When an element |el| matching |selector| is inserted, |callback|
- * will be called with |el| as the single argument.
+ * will be called and passed an object with two keys:
+ * 'element' (which will be |el|) and 'type' which will be 'ElementInserted'.
  *
  * @param {string} selector a CSS element selector, either a tag name or '*'
  * @param {function} callback the callback to invoke on insertion
@@ -36,7 +37,8 @@ Document.prototype.observeElementInserted = function(selector, callback) {
  * in the Document or DocumentFragment on which this method is called.
  *
  * When an element |el| matching |selector| is removed, |callback|
- * will be called with |el| as the single argument.
+ * will be called and passed an object with two keys:
+ * 'element' (which will be |el|) and 'type' which will be 'ElementRemoved'.
  *
  * @param {string} selector a CSS element selector, either a tag name or '*'
  * @param {function} callback the callback to invoke on removal
@@ -282,10 +284,10 @@ ElementCounter.prototype = {
 //     ii. For each element removed, walk its tree:
 //       a. Decrement the counter for all matched elements in the subtree.
 //       b. Remove ChildlistChanged listeners to every element in the subtree.
-//   3. For each element with a count > 0, add an ElementAdded mutation to
-//      the log.
-//   4. For each element with a count < 0, add an ElementRemoved mutation to
-//      the log.
+//   3. For each element with a count > 0, call the callback with an
+//      ElementInserted mutation.
+//   4. For each element with a count < 0, call the callback with an
+//      ElementRemoved mutation.
 function elementCallback(observerInfo, mutations) {
   var selectors = observerInfo.selectors;
   var elementCounter = new ElementCounter;
@@ -307,7 +309,10 @@ function elementCallback(observerInfo, mutations) {
   function notify(type, el) {
     if ((selectors['*'] & type) || (selectors[el.tagName] & type)) {
       try {
-        observerInfo.callback(el);
+        observerInfo.callback({
+            element: el,
+            type: type == INSERTED ? 'ElementInserted' : 'ElementRemoved',
+        });
       } catch (e) {
         console.error('Error: callback threw exception ' + e);
       }

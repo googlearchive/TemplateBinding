@@ -184,12 +184,14 @@ function testElementMutations() {
   var expectedRemoved = undefined;
   var insertCount = 0;
   var removeCount = 0;
-  function inserted(el) {
-    assertEquals(expectedInserted, el);
+  function inserted(mutation) {
+    assertEquals('ElementInserted', mutation.type);
+    assertEquals(expectedInserted, mutation.element);
     insertCount++;
   };
-  function removed(el) {
-    assertEquals(expectedRemoved, el);
+  function removed(mutation) {
+    assertEquals('ElementRemoved', mutation.type);
+    assertEquals(expectedRemoved, mutation.element);
     removeCount++;
   };
   document.observeElementInserted('span', inserted);
@@ -231,9 +233,9 @@ function testSubtreeRemovalBehavior() {
 
   var count = 0;
   var expected = span;
-  function removed(el) {
+  function removed(mutation) {
     count++;
-    assertEquals(expected, el);
+    assertEquals(expected, mutation.element);
   }
   document.observeElementRemoved('span', removed);
 
@@ -254,8 +256,8 @@ function testSubtreeMoveBehavior() {
 
   var count = 0;
   var expected;
-  function callback(el) {
-    assertEquals(expected, el);
+  function callback(mutation) {
+    assertEquals(expected, mutation.element);
     count++;
   }
   document.observeElementInserted('span', callback);
@@ -280,8 +282,8 @@ function testSubtreeMoveBehavior() {
 function testSubtreeMoveBehavior2() {
   var count = 0;
   var expected;
-  function callback(el) {
-    assertEquals(expected, el);
+  function callback(mutation) {
+    assertEquals(expected, mutation.element);
     count++;
   }
   document.observeElementInserted('span', callback);
@@ -328,8 +330,8 @@ function testRemoveThenAddElsewhere() {
 
   var count = 0;
   var expected;
-  function callback(el) {
-    assertEquals(expected, el);
+  function callback(mutation) {
+    assertEquals(expected, mutation.element);
     count++;
   }
 
@@ -349,8 +351,8 @@ function testRemoveThenAddElsewhere() {
 function testMultipleElementObservations() {
   var count = 0;
   var expected = [];
-  function callback(el) {
-    assertEquals(expected[count], el);
+  function callback(mutation) {
+    assertEquals(expected[count], mutation.element);
     count++;
   }
   document.observeElementInserted('em', callback);
