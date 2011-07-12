@@ -247,7 +247,11 @@ function createSnapshot(iterator) {
       if (child.tagName == 'TEMPLATE') {
         recursiveExtract(child);
       } else {
-        var templates = child.querySelectorAll(':not(template) template');
+        // TODO(rafaelw): Consider speeding up: This will visit deeply nested
+        // templates multiple times. This is currently ok because
+        // HTMLTemplateElement.templateIterator exists early if it has already
+        // snapshotted its templateDom & bindings.
+        var templates = child.querySelectorAll('template');
         forEach(templates, recursiveExtract);
       }
     }
@@ -806,7 +810,11 @@ TemplateInstance.prototype = createObject({
       if (node.tagName == 'TEMPLATE') {
         buildNestedTemplate(node);
       } else if (node.nodeType == Node.ELEMENT_NODE) {
-        var templates = node.querySelectorAll(':not(template) template');
+        // Note: this is not in danger of visiting deeply nested templates
+        // since this instance is in the DOM and all templates in the DOM
+        // will have had there prototype DOM lifted into their templateDom
+        // property.
+        var templates = node.querySelectorAll('template');
         forEach(templates, buildNestedTemplate);
       }
     }
