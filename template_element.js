@@ -12,16 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var HTMLTemplateElement;
-
 (function() {
 
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
 var bindAttributeParser = new BindAttributeParser;
 
+var templateAttributeDirectives = {
+  'template': true,
+  'iterate': true,
+  'instantiate': true,
+  'ref': true
+}
+
+var semanticTemplateElements = {
+  'THEAD': true,
+  'TBODY': true,
+  'TFOOT': true,
+  'TH': true,
+  'TR': true,
+  'TD': true,
+  'COLGROUP': true,
+  'COL': true,
+  'OPTION': true
+}
+
+var allTemplatesSelectors = 'template, ' +
+    Object.keys(semanticTemplateElements).map(function(tagName) {
+      return tagName.toLowerCase() + '[template]';
+    }).join(', ');
+
+function allTemplatesFromNode(node) {
+  return node.querySelectorAll(allTemplatesSelectors);
+}
+
+function isAttributeTemplate(el) {
+  return semanticTemplateElements[el.tagName] &&
+      el.hasAttribute('template');
+}
+
+function isTemplateElement(el) {
+  return el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
+}
+
 document.addEventListener('DOMContentLoaded', function(e) {
-  var templates = document.querySelectorAll('template');
+  var templates = allTemplatesFromNode(document);
   forEach(templates, HTMLTemplateElement.decorate);
 }, false);
 
@@ -48,7 +83,14 @@ function buildBindingsRepresentation(node) {
   var anyAttributeBindings = false;
   var anyTemplates = false;
   var modelScope = '';
-  if (node.nodeType == Node.ELEMENT_NODE) {
+  // Bindings may exist *on* "attribute-Template" elements
+  // (e.g. <tr template iterate class="{{ foo }}"). Avoid building the
+  // binding representation for those bindings on the template element.
+  // Once the "semantic template" is separated from its prototype
+  // (cloneAndSeperateAttributeTemplate), the bindings representation can be
+  // built.
+  if (node.nodeType == Node.ELEMENT_NODE &&
+      !isTemplateElement(node)) {
     for (var i = 0; i < node.attributes.length; i++) {
       var attr = node.attributes[i];
       if (hasPlaceHolder(attr.nodeValue)) {
@@ -83,7 +125,7 @@ function buildBindingsRepresentation(node) {
   var descr = {};
   var anyNested = false;
   // Don't traverse into templates. Templates gets stamped out by the iterator.
-  if (node.tagName != 'TEMPLATE') {
+  if (!isTemplateElement(node)) {
     for (var i = 0; i < node.childNodes.length; i++) {
       var repr = buildBindingsRepresentation(node.childNodes[i]);
       if (repr) {
@@ -215,6 +257,21 @@ function transferBindingsToNode(node, phantom) {
   }
 }
 
+function cloneAndSeperateAttributeTemplate(templateElement) {
+  var clone = templateElement.cloneNode(false);
+  var attribs = templateElement.attributes;
+  var count = attribs.length;
+  while (count-- > 0) {
+    var attrib = attribs[count];
+    if (templateAttributeDirectives[attrib.name])
+      clone.removeAttribute(attrib.name);
+    else
+      templateElement.removeAttribute(attrib.name);
+  }
+
+  return clone;
+}
+
 /**
  * Creates a snapshot of the DOM and binding descriptions for a template and
  * puts it on the iterator for that template.
@@ -223,10 +280,21 @@ function transferBindingsToNode(node, phantom) {
 function createSnapshot(iterator) {
   var templateElement = iterator.templateElement;
 
-  var df = iterator.templateDom_ =
+  var templateDomRoot = iterator.templateDom_ =
       templateElement.ownerDocument.createDocumentFragment();
   var bindings = iterator.bindingDescriptions_ = {};
-  var i = 0;
+
+  if (isAttributeTemplate(templateElement)) {
+    // The template element is also a semantic element (e.g. <td>, <option>).
+    // In the case, the "separated" semantic element (the element minus its
+    // template-related directives) must be cloned and used as the root of
+    // the templateDom.
+    var newRoot = cloneAndSeperateAttributeTemplate(templateElement);
+    templateDomRoot.appendChild(newRoot);
+    templateDomRoot = newRoot;
+    bindings[0] = buildBindingsRepresentation(newRoot) || {};
+    bindings = bindings[0];
+  }
 
   function recursiveExtract(template) {
     HTMLTemplateElement.decorate(template);
@@ -234,9 +302,10 @@ function createSnapshot(iterator) {
     template.templateIterator;
   }
 
+  var i = 0;
   while (templateElement.hasChildNodes()) {
     // Move original element to the snapshot document fragment.
-    var child = df.appendChild(templateElement.firstChild);
+    var child = templateDomRoot.appendChild(templateElement.firstChild);
     var b = buildBindingsRepresentation(child);
     if (b)
       bindings[i] = b
@@ -244,14 +313,14 @@ function createSnapshot(iterator) {
 
     // Find template nodes and extract their DOM too.
     if (child.nodeType == Node.ELEMENT_NODE) {
-      if (child.tagName == 'TEMPLATE') {
+      if (isTemplateElement(child)) {
         recursiveExtract(child);
       } else {
         // TODO(rafaelw): Consider speeding up: This will visit deeply nested
         // templates multiple times. This is currently ok because
         // HTMLTemplateElement.templateIterator exists early if it has already
         // snapshotted its templateDom & bindings.
-        var templates = child.querySelectorAll('template');
+        var templates = allTemplatesFromNode(child);
         forEach(templates, recursiveExtract);
       }
     }
@@ -291,12 +360,12 @@ function destructTemplates(node) {
   // TODO(rafaelw): This is somewhat inefficient. Consider speeding up.
   // If there are nested templates, this will cause inner templates
   // to be visited multiple times.
-  var templates = node.querySelectorAll('template');
+  var templates = allTemplatesFromNode(node);
   for (var i = templates.length - 1; i >= 0; i--) {
     destructTemplate(templates[i]);
   }
 
-  if (node.tagName == 'TEMPLATE')
+  if (isTemplateElement(node))
     destructTemplate(node);
 }
 
@@ -317,11 +386,6 @@ HTMLTemplateElement = function() {
   return el;
 };
 
-function isHTMLTemplateElement(el) {
-  return el instanceof HTMLTemplateElement ||
-      el.decorate === HTMLTemplateElement.prototype.decorate;
-}
-
 var hasProto = '__proto__' in {};
 
 function copyOwnProperties(from, to) {
@@ -335,7 +399,10 @@ HTMLTemplateElement.decorate = function(el) {
   if (el.templateIsDecorated_)
     return;
 
-  if (hasProto)
+  // Note: because we need to treat some semantic elements as template elements
+  // (like tr or td), but don't want to reassign their proto (gecko doesn't
+  // like that), we copyOwnProperties for those elements.
+  if (el.tagName == "TEMPLATE" && hasProto)
     el.__proto__ = HTMLTemplateElement.prototype;
   else
     copyOwnProperties(HTMLTemplateElement.prototype, el);
@@ -758,7 +825,7 @@ TemplateInstance.prototype = createObject({
    */
   get lastManagedNode() {
     var node = this.lastNode;
-    if (node.tagName == 'TEMPLATE') {
+    if (isTemplateElement(node)) {
       var iterator = node.templateIterator_;
       if (iterator)
         return iterator.lastManagedNode;
@@ -788,8 +855,8 @@ TemplateInstance.prototype = createObject({
     var clone = templateDom.cloneNode(true);
 
     // Cloning does not forward the template iterator so we do it manually.
-    var orgTemplates = templateDom.querySelectorAll('template');
-    var cloneTemplates = clone.querySelectorAll('template');
+    var orgTemplates = allTemplatesFromNode(templateDom);
+    var cloneTemplates = allTemplatesFromNode(clone);
 
     for (var i = 0; i < orgTemplates.length; i++) {
       HTMLTemplateElement.decorate(cloneTemplates[i]);
@@ -808,14 +875,14 @@ TemplateInstance.prototype = createObject({
       transferBindingsToNode(node, this.phantomBindings_[i], templateScope);
 
       // Also init newly created template elements.
-      if (node.tagName == 'TEMPLATE') {
+      if (isTemplateElement(node)) {
         buildNestedTemplate(node);
       } else if (node.nodeType == Node.ELEMENT_NODE) {
         // Note: this is not in danger of visiting deeply nested templates
         // since this instance is in the DOM and all templates in the DOM
         // will have had there prototype DOM lifted into their templateDom
         // property.
-        var templates = node.querySelectorAll('template');
+        var templates = allTemplatesFromNode(node);
         forEach(templates, buildNestedTemplate);
       }
     }
@@ -902,12 +969,16 @@ TemplateInstance.prototype = createObject({
     var node = this.firstNode;
     while (node && !isTemplateDelimiter(node)) {
       node.templateScope_ = templateScope;
-      if (node.tagName == 'TEMPLATE' && node.templateIterator_)
+      if (isTemplateElement(node) && node.templateIterator_)
         node = node.templateIterator_.lastManagedNode;
       node = node.nextSibling;
     }
     this.dirtyTemplateScope_ = false;
   }
 });
+
+this.HTMLTemplateElement = HTMLTemplateElement;
+// Expose for testing
+this.HTMLTemplateElement.allTemplatesSelectors = allTemplatesSelectors;
 
 })();

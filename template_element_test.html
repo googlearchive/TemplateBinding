@@ -62,9 +62,12 @@ function createTestHtml(s) {
   div.innerHTML = s;
   testDiv.appendChild(div);
 
-  Array.prototype.forEach.call(div.querySelectorAll('template'), function(t) {
-    HTMLTemplateElement.decorate(t);
-  });
+  Array.prototype.forEach.call(div.querySelectorAll(
+      HTMLTemplateElement.allTemplatesSelectors),
+    function(t) {
+      HTMLTemplateElement.decorate(t);
+    }
+  );
 
   return div;
 }
@@ -729,6 +732,43 @@ function testNestedIterateSelfRef() {
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('template-instance', div.childNodes[i++].textContent);
   assertEquals('Item 2', div.childNodes[i++].textContent);
+}
+
+
+function testNestedIterateTable() {
+  var div = createTestHtml(
+      '<table><tbody>' +
+        '<tr template iterate>' +
+          '<td template iterate class="{{ val }}">{{ val }}</td>' +
+        '</tr>' +
+      '</tbody></table>');
+
+  var m = Model.get([
+    [{ val: 0 }, { val: 1 }],
+    [{ val: 2 }, { val: 3 }]
+  ]);
+
+  div.model = m;
+
+  var i = 1;
+  var tbody = div.childNodes[0].childNodes[0];
+
+  // 1 for the <tr template>, 2 * (1 tr + terminator)
+  assertEquals(5, tbody.childNodes.length);
+
+  // 1 for the <td template>, 2 * (1 td + terminator)
+  assertEquals(5, tbody.childNodes[1].childNodes.length);
+  assertEquals('0', tbody.childNodes[1].childNodes[1].textContent)
+  assertEquals('1', tbody.childNodes[1].childNodes[3].textContent)
+
+  // 1 for the <td template>, 2 * (1 td + terminator)
+  assertEquals(5, tbody.childNodes[3].childNodes.length);
+  assertEquals('2', tbody.childNodes[3].childNodes[1].textContent)
+  assertEquals('3', tbody.childNodes[3].childNodes[3].textContent)
+
+  // Asset the 'class' binding is retained on the semantic template (just check
+  // the last one).
+  assertEquals('3', tbody.childNodes[3].childNodes[3].getAttribute("class"));
 }
 
 function testNestedIterateDeletionOfMultipleSubTemplates() {
