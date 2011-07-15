@@ -332,7 +332,7 @@ function copyOwnProperties(from, to) {
 }
 
 HTMLTemplateElement.decorate = function(el) {
-  if (el instanceof HTMLTemplateElement)
+  if (el.templateIsDecorated_)
     return;
 
   if (hasProto)
@@ -350,6 +350,7 @@ HTMLTemplateElement.prototype = createObject({
   __proto__: htmlElement.prototype,
 
   decorate: function() {
+    this.templateIsDecorated_ = true;
     this.maybeApplyTemplate_();
   },
 
