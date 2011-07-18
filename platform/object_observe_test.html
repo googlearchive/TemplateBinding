@@ -234,6 +234,30 @@ function testModelWithFunctions() {
   }, log);
 }
 
+function testMutationsWithinObservableArgumentCallbacks() {
+  var m = Object.getObservable([
+    { val: 1}
+  ]);
+
+  var count = 0;
+  Object.observe(m[0], function() {
+    count++;
+  })
+
+  m[0].val = 2,
+  window.notifyObservers_();
+  assertEquals(1, count);
+
+  // Callbacks provided to observables arrays should be invoked with observable
+  // arguments
+  m.forEach(function(item) {
+    item.val++;
+  });
+  window.notifyObservers_();
+  assertEquals(2, count);
+}
+
+
 function testModelFunctionConstruct() {
   var m = Object.getObservable(function(x, y, z) {
     assertEquals('x', x);

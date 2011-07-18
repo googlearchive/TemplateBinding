@@ -244,6 +244,16 @@
     }
   };
 
+  var arrayIterators = {
+    filter: true,
+    forEach: true,
+    every: true,
+    map: true,
+    some: true,
+    reduce: true,
+    reduceRight: true
+  };
+
   var arrayHandlerProto = createObject({
     __proto__: objectHandlerProto,
 
@@ -256,30 +266,40 @@
     },
 
     get: function(receiver, name) {
-      if (this.object[name] !== Array.prototype[name] ||
-          !arrayMutationHandlers.hasOwnProperty(name)) {
-        return objectHandlerProto.get.apply(this, arguments);
+      // Iterators need to "re-wrap" items when provided to the |callback|.
+      // However, since iterators don't care much to be provided wet or dry
+      // objects, we just use the default implementation and allow wet objects
+      // to be passed in and thus back out via the callback.
+      if (arrayIterators.hasOwnProperty(name)) {
+        return Array.prototype[name];
       }
 
-      var handler = this;
-      return Object.getObservable(function() {
-        // During these methods we ignore mutations to the element since we
-        // are managing these method side effects as an atomic 'splice'
-        // notification.
-        var mutation;
-        try {
-          mutation = arrayMutationHandlers[name].apply(this, arguments);
-          if (mutation) {
-            handler.batchCount_++;
-            objectHandlerProto.logMutation.call(handler, mutation);
-          }
+      // Array operations all log 'splice' mutations and mute the flow of
+      // property set/gets during the operation.
+      if (arrayMutationHandlers.hasOwnProperty(name)) {
+        var handler = this;
+        return Object.getObservable(function() {
+          // During these methods we ignore mutations to the element since we
+          // are managing these method side effects as an atomic 'splice'
+          // notification.
+          var mutation;
+          try {
+            mutation = arrayMutationHandlers[name].apply(this, arguments);
+            if (mutation) {
+              handler.batchCount_++;
+              objectHandlerProto.logMutation.call(handler, mutation);
+            }
 
-          return handler.object[name].apply(this, arguments);
-        } finally {
-          if (mutation)
-            handler.batchCount_--;
-        }
-      });
+            return handler.object[name].apply(this, arguments);
+          } finally {
+            if (mutation)
+              handler.batchCount_--;
+          }
+        });
+      }
+
+      // Default behavior
+      return objectHandlerProto.get.apply(this, arguments);
     },
 
     set: function(receiver, name, val) {
