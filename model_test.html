@@ -34,7 +34,10 @@ goog.require('goog.testing.jsunit');
 <body>
 <script>
 
-var observableObjects = !!Object.getObservable;
+// Proxy.create is an unconvincing improvement over brute dirty checking.
+// Proxy-based observation is now disabled, even if Proxy.create() is
+// available.
+var observableObjects = false ; //!!Object.getObservable;
 if (!observableObjects) {
   Object.getObservable = function(obj) { return obj; };
   Object.observe = function() {};
