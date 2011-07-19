@@ -34,11 +34,7 @@ goog.require('goog.testing.jsunit');
 <body>
 <script>
 
-// Proxy.create is an unconvincing improvement over brute dirty checking.
-// Proxy-based observation is now disabled, even if Proxy.create() is
-// available.
-var observableObjects = false ; //!!Object.getObservable;
-if (!observableObjects) {
+if (!Model.observableObjects_) {
   Object.getObservable = function(obj) { return obj; };
   Object.observe = function() {};
 }
@@ -79,7 +75,7 @@ function testEvent() {
   data.id = 3;
   Model.notifyObservers_();
 
-  if (observableObjects)
+  if (Model.observableObjects_)
     assertEquals(1, eventCount); // Change to raw object wasn't detected.
   else
     assertEquals(2, eventCount); // Forced dirty checking caught the change.
@@ -173,6 +169,20 @@ function testGetPath() {
   assertEquals('xyz', Model.get(m, 'a.b.c'));
   assertEquals(m.a.b, Model.get(m, 'a.b'));
   assertEquals(m.a, Model.get(m, 'a'));
+}
+
+function testMutationWithinObserver() {
+  var m = Model.get({});
+  var count = 0;
+
+  Model.observe(m, 'foo', function() {
+    count++;
+    m.foo = 'bat';
+  });
+
+  m.foo = 'bar';
+  Model.notifyObservers_();
+  assertEquals(2, count);
 }
 
 function testPathValueBreadthFirstNotification() {
@@ -601,7 +611,7 @@ function testModelWithFunctions() {
 }
 
 function testModelFunctionConstruct() {
-  if (!observableObjects)
+  if (!Model.observableObjects_)
     return;
 
   var m = Model.get(function(x, y, z) {

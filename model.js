@@ -21,27 +21,27 @@ function Model() {
   // Proxy.create is an unconvincing improvement over brute dirty checking.
   // Proxy-based observation is now disabled, even if Proxy.create() is
   // available.
-  var observableObjects = false ; //!!Object.getObservable;
+  Model.observableObjects_ = !!Object.getObservable;
 
   function getObservable(data) {
-    return observableObjects ? Object.getObservable(data) : data;
+    return Model.observableObjects_ ? Object.getObservable(data) : data;
   }
 
   function objectObserve(model) {
-    if (observableObjects)
+    if (Model.observableObjects_)
       Object.observe(model, projectMutations);
     else
       addToObservedList(model);
   }
 
   function objectStopObserving(model) {
-    if (observableObjects)
+    if (Model.observableObjects_)
       Object.stopObserving(model, projectMutations);
     else
       removeFromObservedList(model);
   }
 
-  var observedList = observableObjects ? undefined : [];
+  var observedList = Model.observableObjects_ ? undefined : [];
 
   function addToObservedList(model) {
     observedList.push(modelTrackerMap.get(model));
@@ -101,8 +101,11 @@ function Model() {
   Model.notifyObservers_ = function() {
     window.notifyObservers_();
 
-    if (!observableObjects)
-      dirtyCheckAll();
+    if (!Model.observableObjects_) {
+      do {
+        dirtyCheckAll();
+      } while (notificationsMade)
+    }
   }
 
   // Within a "notification context", notifications happen in particular order:
@@ -119,6 +122,7 @@ function Model() {
   };
 
   var firstException;
+  var notificationsMade;
 
   function logExceptionDuringNotification(ex) {
     if (Model.throwFirstException_ && !firstException)
@@ -133,6 +137,7 @@ function Model() {
     if (notificationQueueIsRunning)
       return;
     notificationQueueIsRunning = true;
+    notificationsMade = false;
     firstException = undefined;
 
     for (var i = 0; i < notificationQueue.length; i++) {
@@ -393,6 +398,8 @@ function Model() {
         return;
       var args = arguments;
       this.observers.concat().forEach(function(callback) {
+        notificationsMade = true;
+
         try {
           callback.apply(undefined, args);
         } catch (ex) {
@@ -906,7 +913,7 @@ function Model() {
     },
 
     notify: function() {
-      if (!observableObjects || ArrayTracker.forceSpliceRecalc)
+      if (!Model.observableObjects_ || ArrayTracker.forceSpliceRecalc)
         this.generateSplices();
 
       // TODO(rafaelw): Optimize. ArrayTracker only needs to notify a subset

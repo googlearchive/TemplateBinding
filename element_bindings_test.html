@@ -978,6 +978,7 @@ function testExceptionInTransform() {
 }
 
 function testMinimalReads() {
+  var accessesPerNotifyObservers = Model.observableObjects_ ? 1 : 2;
   var el = document.createElement('div');
   function Data(a, b) {
     this.a_ = a;
@@ -1012,14 +1013,14 @@ function testMinimalReads() {
   el.model.a = 'c';
   Model.notifyObservers_();
   assertEquals('c b', el.foo);
-  assertEquals(2, aAccess);
-  assertEquals(2, bAccess);
+  assertEquals(1 + 1 * accessesPerNotifyObservers, aAccess);
+  assertEquals(1 + 1 * accessesPerNotifyObservers, bAccess);
 
   el.model.b = 'd';
   Model.notifyObservers_();
   assertEquals('c d', el.foo);
-  assertEquals(3, aAccess);
-  assertEquals(3, bAccess);
+  assertEquals(1 + 2 * accessesPerNotifyObservers, aAccess);
+  assertEquals(1 + 2 * accessesPerNotifyObservers, bAccess);
 }
 
 function testAsyncBinding() {
