@@ -771,6 +771,22 @@ function testNestedIterateTable() {
   assertEquals('3', tbody.childNodes[3].childNodes[3].getAttribute("class"));
 }
 
+function testBindToModelScopeInsideInstantiate() {
+  var div = createTestHtml(
+    '<template instantiate="foo">' +
+      '<div>' +
+        '<span modelScope="{{bar}}">' +
+        '</span>' +
+      '</div>' +
+    '</template>');
+
+  var m = Model.get({ foo: { bar: 'baz' }});
+  div.model = m;
+  
+  Model.notifyObservers_();
+  assertEquals('baz', div.childNodes[1].childNodes[0].modelScope);
+}
+
 function testNestedIterateDeletionOfMultipleSubTemplates() {
   var div = createTestHtml(
       '<ul>' +

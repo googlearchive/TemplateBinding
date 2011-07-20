@@ -235,24 +235,21 @@ function transferBindingsToNode(node, phantom) {
   if (!phantom)
     return;
 
+  // templateScope_ needs to be handled first because it can affect
+  // the value of pathToOwner when bindings are bound to nodes.
+  if ('templateScope_' in phantom)
+    node.templateScope_ = phantom.templateScope_;
+
   for (var key in phantom) {
-    switch (key) {
-      case 'bindings_':
-        node.bindings_ = node.bindings_ || {};
-        for (var name in phantom.bindings_) {
-          var b = node.bindings_[name] = phantom.bindings_[name];
-          b.rebindTo(node);
-          b.sync_ = true;
-        }
-        break;
-
-      case 'templateScope_':
-        node.templateScope_ = phantom.templateScope_;
-        break;
-
-      default:
-        if (isIndex(key))
-          transferBindingsToNode(node.childNodes[key], phantom[key]);
+    if (key == 'bindings_') {
+      node.bindings_ = node.bindings_ || {};
+      for (var name in phantom.bindings_) {
+        var b = node.bindings_[name] = phantom.bindings_[name];
+        b.rebindTo(node);
+        b.sync_ = true;
+      }
+    } else if (isIndex(key)) {
+      transferBindingsToNode(node.childNodes[key], phantom[key]);
     }
   }
 }

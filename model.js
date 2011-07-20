@@ -21,7 +21,7 @@ function Model() {
   // Proxy.create is an unconvincing improvement over brute dirty checking.
   // Proxy-based observation is now disabled, even if Proxy.create() is
   // available.
-  Model.observableObjects_ = !!Object.getObservable;
+  Model.observableObjects_ = false; //!!Object.getObservable;
 
   function getObservable(data) {
     return Model.observableObjects_ ? Object.getObservable(data) : data;
