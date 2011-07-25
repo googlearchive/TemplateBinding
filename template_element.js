@@ -231,9 +231,13 @@ function isIndex(s) {
  * @param {Node} node The node to transfer the bindings to.
  * @param {Object} phantom The object with the bindings.
  */
-function transferBindingsToNode(node, phantom) {
-  if (!phantom)
+function transferBindingsToNode(node, phantom, templateScope) {
+  if (!phantom) {
+    // If no phantom bindings, we still need to ensure that the nodes have the
+    // right templateScope.
+    node.templateScope_ = templateScope;
     return;
+  }
 
   // templateScope_ needs to be handled first because it can affect
   // the value of pathToOwner when bindings are bound to nodes.

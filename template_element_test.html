@@ -1157,6 +1157,18 @@ function testAttributeBindingExpression() {
   assertEquals('NaN', input.value);
 }
 
+function testDynamicallyDecoratedNestedTemplateScope() {
+  var div = createTestHtml(
+      '<template instantiate="inner">' +
+      '<div id="container"></div>' +
+      '</template>');
+  div.model = {inner: {foo: 'bar'}};
+  var container = div.querySelector('#container');
+  container.innerHTML = '<template instantiate><b>{{foo}}</b></template>';
+  HTMLTemplateElement.decorate(div.querySelectorAll('template')[1]);
+  assertEquals('bar', div.querySelector('b').textContent);
+}
+
 </script>
 </body>
 </html>
