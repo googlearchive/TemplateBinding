@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2011 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>document.observeOwnedNodes test</title>
+<script src="../third_party/closure/closure/goog/base.js"></script>
+<script src="compat.js"></script>
+<script src="weak_map.js"></script>
+<script src="observers.js"></script>
+<script src="document_observe_owned_nodes.js"></script>
+<script src="document_observe_projections.js"></script>
+
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+  <div id="test-div"></div>
+
+<script>
+
+var testDiv;
+var addedRemoved;
+var mutationsDelivered;
+
+var observer = function(mutations) {
+  mutationsDelivered = true;
+  addedRemoved = computeAddedRemoved(document, mutations);
+};
+
+function startObserving() {
+  document.observeOwnedNodes(observer);
+}
+
+function stopObserving() {
+  document.stopObservingOwnedNodes(observer);
+}
+
+function setUp() {
+  testDiv = document.getElementById('test-div');
+}
+
+function tearDown() {
+  stopObserving();
+  testDiv.textContent = '';
+}
+
+function assertAddedRemovedAre(expectAdded, expectRemoved, addedRemoved) {
+  function compareNodeArrayIgnoreOrder(expected, actual) {
+    assertEquals(expected.length, actual.length);
+    expected.forEach(function(node) {
+      assertTrue(actual.indexOf(node) >= 0);
+    });
+  }
+
+  compareNodeArrayIgnoreOrder(expectAdded, addedRemoved[0]);
+  compareNodeArrayIgnoreOrder(expectRemoved, addedRemoved[1])
+}
+
+function testAddRemoveBasic() {
+  startObserving();
+
+  var div = testDiv.appendChild(document.createElement('div'));
+  var span = div.appendChild(document.createElement('span'));
+  window.notifyObservers_();
+  assertAddedRemovedAre([div, span], [], addedRemoved);
+
+  div.removeChild(span);
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [span], addedRemoved);
+
+  stopObserving();
+  div.appendChild(span);
+  mutationsDelivered = false;
+  window.notifyObservers_();
+  assertFalse(mutationsDelivered);
+}
+
+function testAddAndRemoveOutsideTree() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  var span = document.createElement('span');
+  div1.appendChild(div2);
+  div2.appendChild(span);
+  testDiv.appendChild(div1);
+
+  startObserving();
+  testDiv.removeChild(div1);
+  // This add will be ignored since this is a detached subtree.
+  div1.appendChild(document.createElement('span'));
+  div1.removeChild(div2);
+  div2.removeChild(span);
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [div1, div2, span], addedRemoved);
+
+  // This add will be ignored because it happens outside the document tree.
+  div1.appendChild(document.createElement('span'));
+  var mutationsDelivered = false;
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [], addedRemoved);
+}
+
+function testAddOutsideOfTreeAndReinsert() {
+  // Setup
+  var div1 = document.createElement('div');
+  testDiv.appendChild(div1);
+
+  startObserving();
+  testDiv.removeChild(div1);
+  // This add is taking place while outside the tree, but should be considered
+  // and 'add' because the parent node is later replaced.
+  var span = div1.appendChild(document.createElement('span'));
+  testDiv.appendChild(div1);
+  window.notifyObservers_();
+  assertAddedRemovedAre([span], [], addedRemoved);
+}
+
+function testMove() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  var span = document.createElement('span');
+  div1.appendChild(div2);
+  div2.appendChild(span);
+  testDiv.appendChild(div1);
+
+  startObserving();
+
+  testDiv.removeChild(div1);
+  div1.removeChild(div2);
+  testDiv.appendChild(div2);
+  testDiv.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [], addedRemoved);
+}
+
+function testAddingToDetachedSubtree() {
+  // Setup
+  var div1 = document.createElement('div');
+  testDiv.appendChild(div1);
+
+  startObserving();
+  testDiv.removeChild(div1);
+  var div2 = document.createElement('div');
+  var span = document.createElement('span');
+  div1.appendChild(div2);
+  div2.appendChild(span);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [div1], addedRemoved);
+}
+
+function testReorderInsideTree() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  var div3 = document.createElement('div');
+  div1.appendChild(div2);
+  div2.appendChild(div3);
+  testDiv.appendChild(div1);
+
+  startObserving();
+
+  testDiv.removeChild(div1);
+  div1.removeChild(div2);
+  div2.removeChild(div3);
+  testDiv.appendChild(div3);
+  div3.appendChild(div2);
+  div2.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [], addedRemoved);
+}
+
+function testReorderInsideTreeAndAddMiddle() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  var div3 = document.createElement('div');
+  div1.appendChild(div2);
+  div2.appendChild(div3);
+  testDiv.appendChild(div1);
+
+  startObserving();
+
+  testDiv.removeChild(div1);
+  div1.removeChild(div2);
+  div2.removeChild(div3);
+  testDiv.appendChild(div3);
+  div3.appendChild(div2);
+  var div4 = document.createElement('div');
+  div2.appendChild(div4);
+  div4.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([div4], [], addedRemoved);
+}
+
+function testReorderOutsideTree() {
+  // Setup
+  var div1 = document.createElement('div');
+  div1.id = 'div1';
+  var div2 = document.createElement('div');
+  div2.id = 'div2';
+  var div3 = document.createElement('div');
+  div3.id = 'div3';
+  div1.appendChild(div2);
+  div2.appendChild(div3);
+
+  startObserving();
+
+  div1.removeChild(div2);
+  div2.removeChild(div3);
+  div3.appendChild(div2);
+  div2.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [], addedRemoved);
+}
+
+function testReorderAndRemoveFromTree() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  var div3 = document.createElement('div');
+  div1.appendChild(div2);
+  div2.appendChild(div3);
+  testDiv.appendChild(div1);
+
+  startObserving();
+
+  testDiv.removeChild(div1);
+  div1.removeChild(div2);
+  div2.removeChild(div3);
+  div3.appendChild(div2);
+  div2.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [div1, div2, div3], addedRemoved);
+}
+
+function testReorderAndRemoveSubtree() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  div1.appendChild(div2);
+  testDiv.appendChild(div1);
+
+  startObserving();
+
+  div1.removeChild(div2);
+  testDiv.appendChild(div2);
+  div2.appendChild(div1);
+  div2.removeChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [div1], addedRemoved);
+}
+
+function testReorderOutsideAndAddToTree() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  var div3 = document.createElement('div');
+  div1.appendChild(div2);
+  div2.appendChild(div3);
+
+  startObserving();
+
+  div1.removeChild(div2);
+  div2.removeChild(div3);
+  div3.appendChild(div2);
+  div2.appendChild(div1);
+  testDiv.appendChild(div3);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([div1, div2, div3], [], addedRemoved);
+}
+
+function testReorderOutsideAndAddSubtree() {
+  // Setup
+  var div1 = document.createElement('div');
+  var div2 = document.createElement('div');
+  div1.appendChild(div2);
+
+  startObserving();
+
+  div1.removeChild(div2);
+  div2.appendChild(div1);
+  testDiv.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([div1], [], addedRemoved);
+}
+
+</script>
+</body>
+</html>
