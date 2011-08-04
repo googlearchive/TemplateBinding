@@ -15,13 +15,23 @@
 function computeAddedRemoved(doc, mutations) {
   var parentChanges = new WeakMap;
   var affectedElements = [];
+  var affectedMap = new WeakMap;
+
+  function addToAffected(el) {
+    if (affectedMap.has(el))
+      return;
+    affectedMap.set(el, true);
+    affectedElements.push(el);
+    for (var i = 0; i < el.childNodes.length; i++) {
+      addToAffected(el.childNodes[i]);
+    }
+  }
 
   function getChangeRecord(subject) {
     var change = parentChanges.get(subject);
     if (!change) {
       change = {};
       parentChanges.set(subject, change);
-      affectedElements.push(subject);
     }
 
     return change;
@@ -30,6 +40,8 @@ function computeAddedRemoved(doc, mutations) {
   mutations.forEach(function(mutation) {
     mutation.removed.forEach(function(subject) {
       var change = getChangeRecord(subject);
+      addToAffected(subject);
+      
       if (change.addedTo)
         change.addedTo = undefined;
       else
@@ -38,6 +50,7 @@ function computeAddedRemoved(doc, mutations) {
 
     mutation.added.forEach(function(subject) {
       getChangeRecord(subject).addedTo = mutation.target;
+      addToAffected(subject);
     });
   });
 
@@ -86,15 +99,8 @@ function computeAddedRemoved(doc, mutations) {
 
   var added = [];
   var removed = [];
-
-  affectedElements.forEach(function(el) {
-    var change = parentChanges.get(el);
-
-    if (change.removedFrom === change.addedTo)
-      return;  // No net change.
-
-    var wasReachable = change.removedFrom ?
-        getWasReachable(change.removedFrom) : false;
+  function maybeAddedOrRemoved(el) {
+    var wasReachable = getWasReachable(el);
     var isReachable = getIsReachable(el);
 
     // No change in reachability -- nothing to report.
@@ -105,7 +111,8 @@ function computeAddedRemoved(doc, mutations) {
       added.push(el);
     else
       removed.push(el);
-  });
+  }
+  affectedElements.forEach(maybeAddedOrRemoved);
 
   return [added, removed];
 }

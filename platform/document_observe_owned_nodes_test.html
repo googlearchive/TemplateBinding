@@ -309,6 +309,205 @@ function testReorderOutsideAndAddSubtree() {
   assertAddedRemovedAre([div1], [], addedRemoved);
 }
 
+function testRemoveSubtreeAndAddToExternal() {
+  // Setup
+  var div1 = document.createElement('div');
+  div1.id = '1';
+  
+  var div2 = document.createElement('div');
+  div1.appendChild(div2);
+  div2.id = '2';
+  
+  testDiv.appendChild(div1);
+  var div3 = document.createElement('div');
+  div3.id = '3';
+  
+  startObserving();
+  testDiv.removeChild(div1);
+  div3.appendChild(div1);
+
+  window.notifyObservers_();
+  assertAddedRemovedAre([], [div1, div2], addedRemoved);
+}
+
+// FUZZER
+
+function randInt(start, end) {
+  return Math.round(Math.random()*(end-start) + start);
+}
+
+var tagMenu = [
+  'DIV',
+  'SPAN',
+  'P'
+];
+
+function randomNode() {
+  return document.createElement(tagMenu[randInt(0, tagMenu.length - 1)]);
+}
+
+function randDist(count, amount) {
+  var buckets = [];
+
+  while(count-- > 0)
+    buckets[count] = 0;
+
+  while (amount > 0) {
+    var add = randInt(0, 1);
+    buckets[randInt(0, buckets.length - 1)] += add;
+    amount -= add;
+  }
+
+  return buckets;
+}
+
+var MAX_CHILDREN = 8;
+
+function randomTree(root, numNodes) {
+  if (numNodes <= 0)
+    return;
+
+  var childCount = Math.min(numNodes, MAX_CHILDREN);
+  var childDist = randDist(childCount, numNodes - childCount);
+  for (var i = 0; i < childDist.length; i++) {
+    var child = root.appendChild(randomNode());
+    child.id = root.id + '.' + String.fromCharCode(65 + i);  // asci('A') + i.
+    randomTree(child, childDist[i]);
+  }
+}
+
+function assertTreesEqual(node, copy) {
+  assertEquals(node.tagName, copy.tagName);
+  assertEquals(node.id, copy.id);
+  assertEquals(node.childNodes.length, copy.childNodes.length);
+  for (var i = 0; i < node.childNodes.length; i++) {
+    assertTreesEqual(node.childNodes[i], copy.childNodes[i]);
+  }
+}
+
+function testRandomCloneAndTestCopy() {
+  randomTree(testDiv, 512);
+  var copy = testDiv.cloneNode(true);
+  assertTreesEqual(testDiv, copy);
+}
+
+var TREE_SIZE = 512;
+
+function getReachable(root, reachable, excludeRoot) {
+  reachable = reachable || [];
+  if (!excludeRoot)
+    reachable.push(root);
+  if (!root.childNodes || ! root.childNodes.length)
+    return;
+
+  for (var i = 0; i < root.childNodes.length; i++) {
+    getReachable(root.childNodes[i], reachable);
+  }
+
+  return reachable;
+}
+
+function nodeIsDescendant(root, target) {
+  if (!target)
+    return false;
+  if (root === target)
+    return true;
+
+  return nodeIsDescendant(root, target.parentNode);
+}
+
+function selectNodeAtRandom(nodes, excludeNodeAndDescendants) {
+  var node;
+  while (!node || nodeIsDescendant(excludeNodeAndDescendants, node))
+    node = nodes[randInt(0, nodes.length - 1)];
+  return node;
+}
+
+function nodeToStr(node) {
+  return node.id;
+}
+
+function removeNodeAtRandom(nonRootNodes) {
+  var node = selectNodeAtRandom(nonRootNodes);
+  var parent = node.parentNode;
+  return node;
+}
+
+function insertNodeAtRandom(allNodes, node) {
+  var parent = selectNodeAtRandom(allNodes, node);
+  // NOTE: The random index here maybe be childNodes[childNodes.length]
+  // which is undefined, meaning 'insert at end of childlist'.
+  var beforeNode = parent.childNodes[randInt(0, parent.childNodes.length)];
+  parent.insertBefore(node, beforeNode);
+}
+
+function randomMove(allNodes, nonRootNodes) {
+  insertNodeAtRandom(allNodes, removeNodeAtRandom(nonRootNodes));
+}
+
+var NON_DOC_ROOTS_MAX = 3;
+
+function createMap(nodes) {
+  var map = new WeakMap();
+  nodes.forEach(function(node) {
+    map.set(node, true);
+  });
+
+  return map;
+}
+
+var PASSES = 32;
+var MOVES_PER_PASS = 32;
+
+function testAddedRemovedFuzzer() {
+  var allNodes = []
+  var nonRootNodes = [];
+
+  // Generate random document.
+  randomTree(testDiv, TREE_SIZE);
+  getReachable(testDiv, allNodes);
+  getReachable(testDiv, nonRootNodes, true);
+
+  // Generate some fragments which lie outside the document.
+  var nonDocCount = randInt(1, NON_DOC_ROOTS_MAX);
+  for (var i = 0; i < nonDocCount; i++) {
+    var nonDoc = randomNode();
+    nonDoc.id = 'ext' + i;
+    randomTree(nonDoc, randInt(Math.floor(TREE_SIZE / 8),
+                               Math.floor(TREE_SIZE / 4)));
+    getReachable(nonDoc, allNodes);
+    getReachable(nonDoc, nonRootNodes, true);
+  }
+
+  startObserving();
+  for (var pass = 0; pass < PASSES; pass++) {
+    var preReachable = getReachable(testDiv);
+    var preMap = createMap(preReachable);
+
+    for (var move = 0; move < MOVES_PER_PASS; move++) {
+      randomMove(allNodes, nonRootNodes);
+    }
+
+    var postReachable = getReachable(testDiv);
+    var postMap = createMap(postReachable);
+
+    var removed = [];
+    preReachable.forEach(function(node) {
+      if (!postMap.has(node))
+        removed.push(node);
+    });
+
+    var added = [];
+    postReachable.forEach(function(node) {
+      if (!preMap.has(node))
+        added.push(node);
+    });
+
+    window.notifyObservers_();
+    assertAddedRemovedAre(added, removed, addedRemoved);
+  }
+}
+
 </script>
 </body>
 </html>
