@@ -51,10 +51,13 @@ function enqueueMutation(document, mutation) {
   });
 }
 
+var indexOf = Array.prototype.indexOf.call.bind(Array.prototype.indexOf);
+
 function domNodeInserted(event) {
   enqueueMutation(event.target.ownerDocument, {
     target: event.target.parentNode,
     type: 'ChildlistChanged',
+    index: indexOf(event.target.parentNode.childNodes, event.target),
     added: [event.target],
     removed: []
   });
@@ -66,6 +69,7 @@ function domNodeRemoved(event) {
   enqueueMutation(event.target.ownerDocument, {
     target: event.target.parentNode,
     type: 'ChildlistChanged',
+    index: indexOf(event.target.parentNode.childNodes, event.target),
     added: [],
     removed: [event.target]
   });
