@@ -166,8 +166,8 @@ function isBindableInputProperty(type, property) {
 function getEventForInputType(type) {
   switch (type) {
     case 'checkbox':
-    case 'radio':
       return 'click';
+    case 'radio':
     case 'select-multiple':
     case 'select-one':
       return 'change';
@@ -184,6 +184,43 @@ function bindsTwoWay(element) {
 
 function sourceIsDOMNode(source) {
   return source && 'parentElement' in source;
+}
+
+function isNodeInDocument(node) {
+  var doc = node.ownerDocument;
+  while (node.parentNode) {
+    node = node.parentNode;
+  }
+  return node === doc;
+}
+
+// |element| is assumed to be an HTMLInputElement with |type| == 'radio'.
+// Returns an array containing all radio buttons other than |element| that
+// have the same |name|, either in the form that |element| belongs to or,
+// if no form, in the document tree to which |element| belongs.
+//
+// This implementation is based upon the HTML spec definition of a
+// "radio button group":
+//   http://www.whatwg.org/specs/web-apps/current-work/multipage/number-state.html#radio-button-group
+//
+function getAssociatedRadioButtons(element) {
+  if (!isNodeInDocument(element))
+    return [];
+  var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
+  if (element.form) {
+    return filter(element.form.elements, function(el) {
+      return el != element &&
+          el instanceof HTMLInputElement &&
+          el.type == 'radio' &&
+          el.name == element.name;
+    });
+  } else {
+    var radios = element.ownerDocument.querySelectorAll(
+        'input[type="radio"][name="' + element.name + '"]');
+    return filter(radios, function(el) {
+      return el != element && !el.form;
+    });
+  }
 }
 
 function addBindingSourceToModelOwner(element, bindingSource) {
@@ -584,6 +621,21 @@ Binding.prototype = {
       return;
 
     sources[0].value = newValue;
+
+    if (this.target_ instanceof HTMLInputElement &&
+        this.target_.type == 'radio' &&
+        newValue) {
+      getAssociatedRadioButtons(this.target_).forEach(function(r) {
+        if (r.bindings_ &&
+            r.bindings_.checked &&
+            r.bindings_.checked.sources &&
+            r.bindings_.checked.sources.length &&
+            r.bindings_.checked.sources[0].value) {
+          // Set the value directly to avoid an infinite call stack.
+          r.bindings_.checked.sources[0].value = false;
+        }
+      });
+    }
 
     // We need to run the work queue so that changes to the affected model
     // can be picked up.

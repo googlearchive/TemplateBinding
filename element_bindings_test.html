@@ -717,10 +717,9 @@ function testBindAttributeTransform() {
   delete Transform.registry.myTrans;
 }
 
-function testInputElementCheckboxRadio() {
+function testInputElementCheckbox() {
   var m = Model.get({val: true});
 
-  // Checkbox
   var el = document.createElement('input');
   el.type = 'checkbox';
   el.addBinding('checked', new Binding('val'));
@@ -739,27 +738,120 @@ function testInputElementCheckboxRadio() {
   el.checked = false;
   dispatchEvent('click', el);
   assertEquals(false, m.val);
+}
 
-  // Radio
-  m = Model.get({val: true});
-  var el = document.createElement('input');
-  el.type = 'radio';
-  el.addBinding('checked', new Binding('val'));
-  el.model = m;
+function testInputElementRadio() {
+  var m = Model.get({val1: true, val2: false, val3: false, val4: true});
+  var RADIO_GROUP_NAME = 'test';
+
+  var container = document.body.appendChild(document.createElement('div'));
+  container.model = m;
+
+  var el1 = container.appendChild(document.createElement('input'));
+  el1.type = 'radio';
+  el1.name = RADIO_GROUP_NAME;
+  el1.addBinding('checked', new Binding('val1'));
+
+  var el2 = container.appendChild(document.createElement('input'));
+  el2.type = 'radio';
+  el2.name = RADIO_GROUP_NAME;
+  el2.addBinding('checked', new Binding('val2'));
+
+  var el3 = container.appendChild(document.createElement('input'));
+  el3.type = 'radio';
+  el3.name = RADIO_GROUP_NAME;
+  el3.addBinding('checked', new Binding('val3'));
+
+  var el4 = container.appendChild(document.createElement('input'));
+  el4.type = 'radio';
+  el4.name = 'othergroup';
+  el4.addBinding('checked', new Binding('val4'));
+
   Model.notifyObservers_();
-  assertEquals(true, el.checked);
+  assertEquals(true, el1.checked);
+  assertEquals(false, el2.checked);
+  assertEquals(false, el3.checked);
+  assertEquals(true, el4.checked);
 
-  m.val = false;
+  m.val1 = false;
+  m.val2 = true;
   Model.notifyObservers_();
-  assertEquals(false, el.checked);
+  assertEquals(false, el1.checked);
+  assertEquals(true, el2.checked);
+  assertEquals(false, el3.checked);
+  assertEquals(true, el4.checked);
 
-  el.checked = true;
-  dispatchEvent('click', el);
-  assertEquals(true, m.val);
+  el1.checked = true;
+  dispatchEvent('change', el1);
+  assertEquals(true, m.val1);
+  assertEquals(false, m.val2);
+  assertEquals(false, m.val3);
+  assertEquals(true, m.val4);
 
-  el.checked = false;
-  dispatchEvent('click', el);
-  assertEquals(false, m.val);
+  el3.checked = true;
+  dispatchEvent('change', el3);
+  assertEquals(false, m.val1);
+  assertEquals(false, m.val2);
+  assertEquals(true, m.val3);
+  assertEquals(true, m.val4);
+
+  document.body.removeChild(container);
+}
+
+function testInputElementRadioMultipleForms() {
+  var m = Model.get({val1: true, val2: false, val3: false, val4: true});
+  var RADIO_GROUP_NAME = 'test';
+
+  var container = document.body.appendChild(document.createElement('div'));
+  container.model = m;
+  var form1 = container.appendChild(document.createElement('form'));
+  var form2 = container.appendChild(document.createElement('form'));
+
+  var el1 = form1.appendChild(document.createElement('input'));
+  el1.type = 'radio';
+  el1.name = RADIO_GROUP_NAME;
+  el1.addBinding('checked', new Binding('val1'));
+
+  var el2 = form1.appendChild(document.createElement('input'));
+  el2.type = 'radio';
+  el2.name = RADIO_GROUP_NAME;
+  el2.addBinding('checked', new Binding('val2'));
+
+  var el3 = form2.appendChild(document.createElement('input'));
+  el3.type = 'radio';
+  el3.name = RADIO_GROUP_NAME;
+  el3.addBinding('checked', new Binding('val3'));
+
+  var el4 = form2.appendChild(document.createElement('input'));
+  el4.type = 'radio';
+  el4.name = RADIO_GROUP_NAME;
+  el4.addBinding('checked', new Binding('val4'));
+
+  Model.notifyObservers_();
+  assertEquals(true, el1.checked);
+  assertEquals(false, el2.checked);
+  assertEquals(false, el3.checked);
+  assertEquals(true, el4.checked);
+
+  el2.checked = true;
+  dispatchEvent('change', el2);
+  assertEquals(false, m.val1);
+  assertEquals(true, m.val2);
+
+  // Radio buttons in form2 should be unaffected
+  assertEquals(false, m.val3);
+  assertEquals(true, m.val4);
+
+  el3.checked = true;
+  dispatchEvent('change', el3);
+  assertEquals(true, m.val3);
+  assertEquals(false, m.val4);
+
+  // Radio buttons in form1 should be unaffected
+  assertEquals(false, m.val1);
+  assertEquals(true, m.val2);
+
+  document.body.removeChild(container);
 }
 
 function testSelectElementValue() {
