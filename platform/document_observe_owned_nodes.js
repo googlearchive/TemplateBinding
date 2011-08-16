@@ -46,8 +46,8 @@ function enqueueMutation(document, mutation) {
   if (!document.observers_)
     return;
 
-  document.observers_.forEach(function(observer) {
-    window.enqueueMutation_(observer.callback, mutation);
+  document.observers_.forEach(function(callback) {
+    document.mutationsMap_.get(callback).push(mutation);
   });
 }
 
@@ -81,32 +81,38 @@ function domNodeRemoved(event) {
 Document.prototype.observeOwnedNodes = function(callback) {
   if (!this.observers_) {
     this.observers_ = [];
+    this.mutationsMap_ = new WeakMap;
   }
 
-  for (var i = 0; i < this.observers_.length; i++) {
-    var observer = this.observers_[i];
-    if (observer.callback === callback)
-      return;
-  }
+  var index = this.observers_.indexOf(callback);
+  if (index >= 0)
+    return;
 
-  this.observers_.push({
-    callback: callback
-  })
+  this.observers_.push(callback);
+  this.mutationsMap_.set(callback, []);
 };
 
 Document.prototype.stopObservingOwnedNodes = function(callback) {
   if (!this.observers_ || !this.observers_.length)
     return;
 
-  var i = 0;
-  for (; i < this.observers_.length; i++) {
-    var observer = this.observers_[i];
-    if (observer.callback === callback)
-      break;
-  }
+  var index = this.observers_.indexOf(callback);
+  if (index < 0)
+    return;
 
-  if (i < this.observers_.length)
-    this.observers_.splice(i, 1);
+  this.observers_.splice(index, 1);
+  this.mutationsMap_.delete(callback);
 };
+
+Document.prototype.deliverMutations = function() {
+  if (!document.observers_)
+    return;
+
+  this.observers_.forEach(function(callback) {
+    var mutations = document.mutationsMap_.get(callback);
+    callback(mutations);
+    mutations.length = 0;
+  });
+}
 
 })()

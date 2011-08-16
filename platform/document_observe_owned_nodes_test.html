@@ -18,9 +18,7 @@ limitations under the License.
 <head>
 <title>document.observeOwnedNodes test</title>
 <script src="../third_party/closure/closure/goog/base.js"></script>
-<script src="compat.js"></script>
 <script src="weak_map.js"></script>
-<script src="observers.js"></script>
 <script src="document_observe_owned_nodes.js"></script>
 <script src="document_observe_projections.js"></script>
 
@@ -34,20 +32,17 @@ goog.require('goog.testing.jsunit');
 <script>
 
 var testDiv;
-var changed;
-var mutationsDelivered;
-
-var observer = function(mutations) {
-  mutationsDelivered = true;
-  changed = computeChangesToDocument(document, mutations);
-};
+var tracker;
+var fastTracker;
 
 function startObserving() {
-  document.observeOwnedNodes(observer);
+  tracker = new MutationTracker(testDiv);
+  fastTracker = new FastMutationTracker(testDiv);
+  document.observeOwnedNodes(fastTracker.observer);
 }
 
 function stopObserving() {
-  document.stopObservingOwnedNodes(observer);
+  document.stopObservingOwnedNodes(fastTracker.observer);
 }
 
 function setUp() {
@@ -59,27 +54,55 @@ function tearDown() {
   testDiv.textContent = '';
 }
 
-function assertAddedMovedRemoved(expectAdded, expectMoved, expectRemoved) {
-  function compareNodeArrayIgnoreOrder(expected, actual) {
-    assertEquals(expected.length, actual.length);
-    expected.forEach(function(node) {
-      assertTrue(actual.indexOf(node) >= 0);
-    });
+function compareNodeArrayIgnoreOrder(expected, actual) {
+  assertEquals(expected.length, actual.length);
+  expected.forEach(function(node) {
+    assertTrue(actual.indexOf(node) >= 0);
+  });
+}
+
+function compareTrackersAndGetChanges() {
+  document.deliverMutations();
+
+  function getChanges(tracker) {
+    return {
+      changedParent: tracker.getChangedParent(),
+      added: tracker.getAdded(),
+      removed: tracker.getRemoved(),
+      childlistChanges: tracker.getChildlistChanges()
+    }
   }
 
-  var results = {
-    NodeAdded: [],
-    NodeMoved: [],
-    NodeRemoved: []
-  };
+  var changes = getChanges(tracker);
+  var fastChanges = getChanges(fastTracker);
 
-  changed.forEach(function(change) {
-    results[change.mutation].push(change.target);
+  tracker.reset();
+  fastTracker.reset();
+
+  Object.keys(changes).forEach(function(key) {
+    compareNodeArrayIgnoreOrder(changes[key], fastChanges[key]);
   });
 
-  compareNodeArrayIgnoreOrder(expectAdded, results.NodeAdded);
-  compareNodeArrayIgnoreOrder(expectMoved, results.NodeMoved);
-  compareNodeArrayIgnoreOrder(expectRemoved, results.NodeRemoved);
+  return changes;
+}
+
+function assertAddedMovedRemoved(expectAdded, expectMoved, expectRemoved) {
+  var changes = compareTrackersAndGetChanges();
+
+  var addedMap = new WeakMap;
+  changes.added.forEach(function(el) {
+    addedMap.set(el, true);
+  });
+
+  var moved = [];
+  changes.childlistChanges.forEach(function(el) {
+    if (!addedMap.has(el))
+      moved.push(el);
+  });
+
+  compareNodeArrayIgnoreOrder(expectAdded, changes.added);
+  compareNodeArrayIgnoreOrder(expectRemoved, changes.removed);
+  compareNodeArrayIgnoreOrder(expectMoved, moved);
 }
 
 function testAddRemoveBasic() {
@@ -87,18 +110,10 @@ function testAddRemoveBasic() {
 
   var div = testDiv.appendChild(document.createElement('div'));
   var span = div.appendChild(document.createElement('span'));
-  window.notifyObservers_();
   assertAddedMovedRemoved([div, span], [], []);
 
   div.removeChild(span);
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], [span]);
-
-  stopObserving();
-  div.appendChild(span);
-  mutationsDelivered = false;
-  window.notifyObservers_();
-  assertFalse(mutationsDelivered);
 }
 
 function testAddAndRemoveOutsideTree() {
@@ -113,13 +128,11 @@ function testAddAndRemoveOutsideTree() {
   div1.appendChild(document.createElement('span'));
   div1.removeChild(div2);
   div2.removeChild(span);
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], [div1, div2, span]);
 
   // This add will be ignored because it happens outside the document tree.
   div1.appendChild(document.createElement('span'));
   var mutationsDelivered = false;
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], []);
 }
 
@@ -133,8 +146,7 @@ function testAddOutsideOfTreeAndReinsert() {
   // and 'add' because the parent node is later replaced.
   var span = div1.appendChild(document.createElement('span'));
   testDiv.appendChild(div1);
-  window.notifyObservers_();
-  assertAddedMovedRemoved([span], [div1], []);
+  assertAddedMovedRemoved([span], [], []);
 }
 
 function testMove() {
@@ -150,8 +162,7 @@ function testMove() {
   testDiv.appendChild(div2);
   testDiv.appendChild(div1);
 
-  window.notifyObservers_();
-  assertAddedMovedRemoved([], [div1, div2], []);
+  assertAddedMovedRemoved([], [div2], []);
 }
 
 function testAddingToDetachedSubtree() {
@@ -165,7 +176,6 @@ function testAddingToDetachedSubtree() {
   div1.appendChild(div2);
   div2.appendChild(span);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], [div1]);
 }
 
@@ -184,7 +194,6 @@ function testReorderInsideTree() {
   div3.appendChild(div2);
   div2.appendChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [div1, div2, div3], []);
 }
 
@@ -205,7 +214,6 @@ function testReorderInsideTreeAndAddMiddle() {
   div2.appendChild(div4);
   div4.appendChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([div4], [div1, div2, div3], []);
 }
 
@@ -222,7 +230,6 @@ function testReorderOutsideTree() {
   div3.appendChild(div2);
   div2.appendChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], []);
 }
 
@@ -240,7 +247,6 @@ function testReorderAndRemoveFromTree() {
   div3.appendChild(div2);
   div2.appendChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], [div1, div2, div3]);
 }
 
@@ -256,7 +262,6 @@ function testReorderAndRemoveSubtree() {
   div2.appendChild(div1);
   div2.removeChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [div2], [div1]);
 }
 
@@ -274,7 +279,6 @@ function testReorderOutsideAndAddToTree() {
   div2.appendChild(div1);
   testDiv.appendChild(div3);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([div1, div2, div3], [], []);
 }
 
@@ -289,7 +293,6 @@ function testReorderOutsideAndAddSubtree() {
   div2.appendChild(div1);
   testDiv.appendChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([div1], [], []);
 }
 
@@ -303,14 +306,44 @@ function testRemoveSubtreeAndAddToExternal() {
   testDiv.removeChild(div1);
   div3.appendChild(div1);
 
-  window.notifyObservers_();
   assertAddedMovedRemoved([], [], [div1, div2]);
+}
+
+function testMoveDetectNoop() {
+  // Setup
+  var divA = testDiv.appendChild(document.createElement('div'));
+  divA.id = 'a';
+  var divB = testDiv.appendChild(document.createElement('div'));
+  divB.id = 'b';
+  var divC = testDiv.appendChild(document.createElement('div'));
+  divC.id = 'c';
+  var divD = testDiv.appendChild(document.createElement('div'));
+  divD.id = 'd';
+  var divE = testDiv.appendChild(document.createElement('div'));
+  divE.id = 'e';
+  var divF = testDiv.appendChild(document.createElement('div'));
+  divE.id = 'f';
+  var divG = document.createElement('div');
+  divG.id = 'g';
+
+  startObserving();                 // A  B  C  D  E  F
+
+  insertAfter(testDiv, divD, divA); // A [D] B  C  E  F
+  insertAfter(testDiv, divC, divA); // A [C  D] B  E  F
+  insertAfter(testDiv, divB, divC); // A [C  B  D] E  F
+  insertAfter(testDiv, divD, divA); // A [D  C  B] E  F
+  insertAfter(testDiv, divG, divE); // A [D  C  B] E [G] F
+  insertAfter(testDiv, divE, divG); // A [D  C  B  G  E] F
+
+  // Final effect is A [D C] B [G] E F
+
+  assertAddedMovedRemoved([divG], [divD, divC], []);
 }
 
 // FUZZER
 
 function randInt(start, end) {
-  return Math.round(Math.random()*(end-start) + start);
+  return Math.round(Math.random() * (end-start) + start);
 }
 
 var tagMenu = [
@@ -319,8 +352,12 @@ var tagMenu = [
   'P'
 ];
 
+var nodePrivateIdCounter = 1;
+
 function randomNode() {
-  return document.createElement(tagMenu[randInt(0, tagMenu.length - 1)]);
+  var node = document.createElement(tagMenu[randInt(0, tagMenu.length - 1)]);
+  node.__id__ = nodePrivateIdCounter++;
+  return node;
 }
 
 function randDist(count, amount) {
@@ -417,8 +454,6 @@ function randomMove(allNodes, nonRootNodes) {
 }
 
 function insertAfter(parent, node, refNode) {
-  if (node.parentNode)
-    node.parentNode.removeChild(node);
   parent.insertBefore(node, refNode ? refNode.nextSibling : parent.firstChild);
 }
 
@@ -431,7 +466,7 @@ function deepCloneAndCreateMapping(target, map) {
   return clone;
 }
 
-function applyChanged(orig, clone, map) {
+function applyChanged(orig, clone, map, tracker) {
 
   function getClone(origNode) {
     if (!origNode)
@@ -445,56 +480,43 @@ function applyChanged(orig, clone, map) {
     return cloneNode;
   }
 
-  var handlers = {
-    NodeRemoved: function(change) {
-      var cloneNode = getClone(change.target);
-      if (cloneNode.parentNode)
-        cloneNode.parentNode.removeChild(cloneNode);
-    },
+  function removeNode(node) {
+    var cloneNode = getClone(node);
+    if (cloneNode.parentNode)
+      cloneNode.parentNode.removeChild(cloneNode);
+  }
 
-    NodeAdded: function(change) {
-      var origNode = change.target;
-      var cloneNode = getClone(origNode);
-      var cloneParent = getClone(origNode.parentNode);
-      var clonePrev = getClone(origNode.previousSibling);
+  function moveOrInsertNode(node) {
+    var cloneNode = getClone(node);
+    var cloneParent = getClone(node.parentNode);
+    var clonePrev = getClone(node.previousSibling);
+
+    // TODO(rafaelw): Handle the case where a move is effectively a noop.
+    if (cloneParent !== cloneNode.parentNode ||
+        clonePrev !== cloneNode.previousSibling) {
       insertAfter(cloneParent, cloneNode, clonePrev);
-    },
-
-    NodeMoved: function(change) {
-      var origNode = change.target;
-      var cloneNode = getClone(origNode);
-      var cloneParent = getClone(origNode.parentNode);
-      var clonePrev = getClone(origNode.previousSibling);
-
-      // TODO(rafaelw): Handle the case where a move is effectively a noop.
-      if (cloneParent !== cloneNode.parentNode ||
-          clonePrev !== cloneNode.previousSibling) {
-        insertAfter(cloneParent, cloneNode, clonePrev);
-      }
     }
   }
+
+  var removed = tracker.getRemoved();
+  var addedOrMoved = tracker.getChildlistChanges();
+
+  // Process removals first
+  removed.forEach(removeNode);
 
   // NOTE: Applying the changes can result in an attempting to add a child
   // to a parent which is presently an ancestor of the parent. This can occur
   // based on random ordering of moves. The way we handle this is to first
-  // remove all changed nodes from their parents, then apply. Because of this,
-  // we go ahead a treat all changes as a NodeRemoved, possibly followed by a
-  // NodeAdded or NodeMoved.
-  changed.forEach(function(change) {
-    handlers.NodeRemoved(change);
-  });
+  // remove all changed nodes from their parents, then apply.
+  addedOrMoved.forEach(removeNode);
+  addedOrMoved.forEach(moveOrInsertNode);
 
-  changed.forEach(function(change) {
-    if (change.mutation == 'NodeRemoved')
-      return;
-
-    handlers[change.mutation](change);
-  });
+  tracker.reset();
 }
 
 var TREE_SIZE = 512;
-var PASSES = 32;
-var MOVES_PER_PASS = 32;
+var PASSES = 64;
+var MOVES_PER_PASS = 64;
 var NON_DOC_ROOTS_MAX = 3;
 
 function testAddedRemovedFuzzer() {
@@ -522,13 +544,23 @@ function testAddedRemovedFuzzer() {
     var map = new WeakMap;
     var clone = deepCloneAndCreateMapping(testDiv, map);
 
+    var fastMap = new WeakMap;
+    var fastClone = deepCloneAndCreateMapping(testDiv, fastMap);
+
     for (var move = 0; move < MOVES_PER_PASS; move++) {
       randomMove(allNodes, nonRootNodes);
     }
 
-    window.notifyObservers_();
-    applyChanged(testDiv, clone, map);
+    document.deliverMutations();
+
+    compareNodeArrayIgnoreOrder(tracker.getChangedParent(),
+                                fastTracker.getChangedParent());
+
+    applyChanged(testDiv, clone, map, tracker);
     assertTreesEqual(testDiv, clone);
+
+    applyChanged(testDiv, fastClone, fastMap, fastTracker);
+    assertTreesEqual(testDiv, fastClone);
   }
 }
 
