@@ -77,6 +77,7 @@ h1, h2, h3 {
 
 </style>
 <!--
+Here's an example of the Twitter data we expect to retrieve:
 
 {
   "from_user_id_str":"516761",
@@ -101,6 +102,7 @@ h1, h2, h3 {
 
   <h1>Twitter Demo</h1>
 
+  <!-- Here, we are defining the View templates that our Model will bind to. -->
   <template instantiate>
     <input type="search" value="{{ term }}">
   </template>
@@ -133,52 +135,100 @@ h1, h2, h3 {
 
 <script>
 
+// Utility function that, among other things, gets data from Twitter.  Using 
+// JSONP lets us get around Same Origin Policy restrictions.  Importantly, once
+// the Model is updated once the data is retrieved.
 var jsonp = function() {
   var count = 0;
+
+  /**
+   * @param {string} url The URL to retrieve data from
+   * @param {function} f The callback function to invoke when data is retrieved.
+   * @param {Object|undefined} scope The scope in which to invoke `f`.  Thisi is
+   *    global by default.
+   */
   return function(url, f, scope) {
     var script = document.createElement('script');
     var name = 'callback_' + count++;
+
     window[name] = function() {
       delete window[name];
       f.apply(scope||null, arguments);
       script.parentNode.removeChild(script);
       script = null;
+
+      // The script had loaded, update the Model observers.  This updates the
+      // View (DOM).
       Model.notifyObservers_();
     };
+
     script.src = url + '&callback=' + name;
     document.head.appendChild(script);
   }
 }();
 
+
 var details = document.getElementById('details');
 
+
+/**
+ * Define the Controller that will be bound to the `<body>` element. If you take
+ * look at the `<body>` element, you can see that `data-controller` is
+ * referencing `Controller`.
+ * @param {HTMLElement} root The element that Controller is bound to.
+ * @returns {Controller}
+ */
 function Controller(root) {
+  // Get the Model that this Controller is bound to, store it onto on the
+  // `model` property of the element.
   root.model = Model.get(this);
+
+  // Define the default `term` to search Twitter for.
   this.term = 'Google Chrome';
 }
 
+
 Controller.prototype = {
   term_: '',
+
   results: null,
 
+  // Getter for `term_`
   get term() {
     return this.term_;
   },
 
-  set term(term) {
-    if (term == this.term_)
+  /**
+   * Setter for `term_`.  Stores the `newTerm` internally, and also retrieves
+   * new Twitter data for that term.
+   * @param {string} newTerm
+   */
+  set term(newTerm) {
+    if (newTerm == this.term_)
       return;
-    this.term_ = term;
 
+    this.term_ = newTerm;
     var self = Model.get(this);
 
-    jsonp('http://search.twitter.com/search.json?q=' + encodeURIComponent(term),
+    jsonp(
+      // The URL to retrieve data from.  The Twitter search query is in this
+      // URL, please see https://dev.twitter.com/docs/using-search for more info
+      // on the Twitter API.
+      'http://search.twitter.com/search.json?q=' + encodeURIComponent(newTerm),
+
+      // Once we have the requested data, store it to the Model's `results`
+      // parameter.
       function(value) {
         self.results = value.results;
       }
     );
   },
 
+  /**
+   * Finds the index of the given user in the Controller's `results` array.
+   * @param {string} user The user to to find.
+   * @returns {number} Is -1 if not found.
+   */
   indexOfUser: function(user) {
     if (this.results) {
       for (var i = 0; i < this.results.length; i++) {
@@ -189,6 +239,12 @@ Controller.prototype = {
     return -1;
   },
 
+  /**
+   * Updates the Details View on the DOM.  In this example, this method is bound
+   * to the "click" event of the `#list` View.
+   * @param {Object} item The Model that is bound to the element that was
+   *    clicked.
+   */
   updateDetails: function(item) {
     var index = this.indexOfUser(item.from_user);
     if (index >= 0)
