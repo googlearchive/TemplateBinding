@@ -20,32 +20,35 @@ limitations under the License.
 <script src="include.js"></script>
 <style>
 
+html {
+}
+
 body {
+  font: 13px sans-serif;
+}
+
+#demo-container {
+  background: #0a3a4a;
   display: -webkit-box;
   display: -moz-box;
   -webkit-box-orient: vertical;
   -moz-box-orient: vertical;
-  margin: 0;
-  padding: 5px;
-  font: 13px sans-serif;
-  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  width: 960px;
   -moz-box-sizing: border-box;
 }
 
-body > div {
+#results-container {
   display: -webkit-box;
   display: -moz-box;
   -webkit-box-orient: horizontal;
   -moz-box-orient: horizontal;
+  margin: 20px 0px 0px;
 }
 
 body > * {
   width: 100%;
-}
-
-#details-pane {
-  -moz-box-flex: 1;
-  margin-left: 5px;
 }
 
 #details img {
@@ -54,6 +57,7 @@ body > * {
 }
 
 h1, h2, h3 {
+  color: #3DADC1;
   margin: 0;
   padding-top: 5px;
 }
@@ -73,6 +77,45 @@ h1, h2, h3 {
 
 #list > li:hover {
   background: #ddd;
+}
+
+#user-list, #details-pane {
+  padding: 10px;
+}
+
+#user-list {
+  background-color: #33A6B2;
+  width: 140px;
+}
+
+#details-pane {
+  background: #196674;
+  -moz-box-flex: 1;
+  margin-left: 5px;
+  width: 780px;
+}
+
+#user-list h2 {
+  color: #196674;
+}
+
+#details-pane h2 {
+  color: #33A6B2;
+}
+
+#details p {
+  color: #aaa;
+}
+
+.user-link {
+  color: #C1B020;
+}
+
+input[type="search"] {
+  font-size: 1.8em;
+  /*width: 900px;*/
+  margin: 20px auto 0px;
+  display: block;
 }
 
 </style>
@@ -99,40 +142,40 @@ Here's an example of the Twitter data we expect to retrieve:
 -->
 </head>
 <body data-controller="Controller">
+  <div id="demo-container">
+    <h1>Twitter Demo</h1>
 
-  <h1>Twitter Demo</h1>
+    <!-- Here, we are defining the View templates that our Model will bind to. -->
+    <template instantiate>
+      <input type="search" value="{{ term }}">
+    </template>
 
-  <!-- Here, we are defining the View templates that our Model will bind to. -->
-  <template instantiate>
-    <input type="search" value="{{ term }}">
-  </template>
+    <div id="results-container">
+      <div id="user-list">
+        <h2>Users</h2>
 
-  <div>
-    <div>
-      <h2>Users</h2>
+        <ul id="list">
+          <template iterate="results">
+            <li data-action="click:updateDetails">{{from_user}}</li>
+          </template>
+        </ul>
+      </div>
 
-      <ul id="list">
-        <template iterate="results">
-          <li data-action="click:updateDetails">{{from_user}}</li>
-        </template>
-      </ul>
-    </div>
+      <div id="details-pane">
+        <h2>Details</h2>
 
-    <div id="details-pane">
-      <h2>Details</h2>
-
-      <div id="details" modelscope="results[0]">
-        <template instantiate>
-          <img src="{{profile_image_url}}">
-          <h3><a href="http://twitter.com/{{from_user}}">{{from_user}}</a></h3>
-          <p>{{text}}</p>
-          <p>Created at: {{created_at}}</p>
-          <p>Language code: {{iso_language_code}}</p>
-        </template>
+        <div id="details" modelscope="results[0]">
+          <template instantiate>
+            <img src="{{profile_image_url}}">
+            <h3><a class="user-link" href="http://twitter.com/{{from_user}}">{{from_user}}</a></h3>
+            <p>{{text}}</p>
+            <p>Created at: {{created_at}}</p>
+            <p>Language code: {{iso_language_code}}</p>
+          </template>
+        </div>
       </div>
     </div>
   </div>
-
 <script>
 
 // Utility function that, among other things, gets data from Twitter.  Using 
