@@ -178,7 +178,7 @@ Here's an example of the Twitter data we expect to retrieve:
   </div>
 <script>
 
-// Utility function that, among other things, gets data from Twitter.  Using 
+// Utility function that, among other things, gets data from Twitter.  Using
 // JSONP lets us get around Same Origin Policy restrictions.  Importantly, once
 // the Model is updated once the data is retrieved.
 var jsonp = function() {
@@ -186,9 +186,10 @@ var jsonp = function() {
 
   /**
    * @param {string} url The URL to retrieve data from
-   * @param {function} f The callback function to invoke when data is retrieved.
-   * @param {Object|undefined} scope The scope in which to invoke `f`.  Thisi is
-   *    global by default.
+   * @param {function} f The callback function to invoke when data is
+   *    retrieved.
+   * @param {Object|undefined} scope The scope in which to invoke `f`.  This
+   *    is global by default.
    */
   return function(url, f, scope) {
     var script = document.createElement('script');
@@ -215,15 +216,15 @@ var details = document.getElementById('details');
 
 
 /**
- * Define the Controller that will be bound to the `<body>` element. If you take
- * look at the `<body>` element, you can see that `data-controller` is
+ * Define the Controller that will be bound to the `<body>` element. If you
+ * take look at the `<body>` element, you can see that `data-controller` is
  * referencing `Controller`.
  * @param {HTMLElement} root The element that Controller is bound to.
  * @returns {Controller}
  */
 function Controller(root) {
-  // Get the Model that this Controller is bound to, store it onto on the
-  // `model` property of the element.
+  // Get the Model that this Controller is bound to, set it to the `model`
+  // property of the element.
   root.model = Model.get(this);
 
   // Define the default `term` to search Twitter for.
@@ -255,8 +256,8 @@ Controller.prototype = {
 
     jsonp(
       // The URL to retrieve data from.  The Twitter search query is in this
-      // URL, please see https://dev.twitter.com/docs/using-search for more info
-      // on the Twitter API.
+      // URL, please see https://dev.twitter.com/docs/using-search for more
+      // info on the Twitter API.
       'http://search.twitter.com/search.json?q=' + encodeURIComponent(newTerm),
 
       // Once we have the requested data, store it to the Model's `results`
@@ -270,7 +271,7 @@ Controller.prototype = {
   /**
    * Finds the index of the given user in the Controller's `results` array.
    * @param {string} user The user to to find.
-   * @returns {number} Is -1 if not found.
+   * @returns {number} Is -1 if `user` is not found.
    */
   indexOfUser: function(user) {
     if (this.results) {
@@ -283,8 +284,8 @@ Controller.prototype = {
   },
 
   /**
-   * Updates the Details View on the DOM.  In this example, this method is bound
-   * to the "click" event of the `#list` View.
+   * Updates the Details View on the DOM.  In this example, this method is
+   * bound to the "click" event of the `#list` View.
    * @param {Object} item The Model that is bound to the element that was
    *    clicked.
    */
