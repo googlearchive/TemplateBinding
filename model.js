@@ -12,36 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function Model() {
-  throw Error('Use Model.get instead')  ;
-}
+var Model = {};
 
 (function() {
 
-  // Proxy.create is an unconvincing improvement over brute dirty checking.
-  // Proxy-based observation is now disabled, even if Proxy.create() is
-  // available.
-  Model.observableObjects_ = false; //!!Object.getObservable;
-
-  function getObservable(data) {
-    return Model.observableObjects_ ? Object.getObservable(data) : data;
-  }
-
-  function objectObserve(model) {
-    if (Model.observableObjects_)
-      Object.observe(model, projectMutations);
-    else
-      addToObservedList(model);
-  }
-
-  function objectStopObserving(model) {
-    if (Model.observableObjects_)
-      Object.stopObserving(model, projectMutations);
-    else
-      removeFromObservedList(model);
-  }
-
-  var observedList = Model.observableObjects_ ? undefined : [];
+  var observedList = [];
 
   function addToObservedList(model) {
     observedList.push(modelTrackerMap.get(model));
@@ -101,11 +76,9 @@ function Model() {
   Model.notifyObservers_ = function() {
     window.notifyObservers_();
 
-    if (!Model.observableObjects_) {
-      do {
-        dirtyCheckAll();
-      } while (notificationsMade)
-    }
+    do {
+      dirtyCheckAll();
+    } while (notificationsMade)
   }
 
   // Within a "notification context", notifications happen in particular order:
@@ -165,12 +138,11 @@ function Model() {
   }
 
   function getModelTracker(data) {
-    var model = getObservable(data);
-    var tracker = modelTrackerMap.get(model);
+    var tracker = modelTrackerMap.get(data);
     if (!tracker) {
-      var tracker = createTracker(model);
-      modelTrackerMap.set(model, tracker);
-      objectObserve(model);
+      var tracker = createTracker(data);
+      modelTrackerMap.set(data, tracker);
+      addToObservedList(data);
     }
 
     return tracker;
@@ -183,7 +155,7 @@ function Model() {
    * @return {*} The current value at |path| from |data| -- If the value is
    *     an object, then an "observable" (proxy) is returned.
    */
-  Model.get = function(data, path) {
+  Model.getValueAtPath = function(data, path) {
     if (path) {
       path = new Path(path);
       if (path.length > 0) {
@@ -197,10 +169,7 @@ function Model() {
       }
     }
 
-    if (!isObject(data))
-      return data;
-
-    return getObservable(data);
+    return data;
   };
 
   /**
@@ -226,16 +195,14 @@ function Model() {
     if (!isObject(data))
       return;
 
-    var model = getObservable(data);
-
-    var tracker = modelTrackerMap.get(model);
+    var tracker = modelTrackerMap.get(data);
     if (!tracker)
       return;
 
     tracker.removeObserver(callback);
     if (!tracker.dependants) {
-      objectStopObserving(model);
-      modelTrackerMap['delete'](model);
+      removeFromObservedList(data);
+      modelTrackerMap['delete'](data);
     }
   };
 
@@ -279,9 +246,7 @@ function Model() {
     if (path.length == 0)
       return;
 
-    var model = getObservable(data);
-
-    var tracker = modelTrackerMap.get(model);
+    var tracker = modelTrackerMap.get(data);
     if (!tracker)
       return;
 
@@ -297,8 +262,8 @@ function Model() {
     pathTracker.removeObserver(callback);
 
     if (!tracker.dependants) {
-      objectStopObserving(model);
-      modelTrackerMap['delete'](model);
+      removeFromObservedList(data);
+      modelTrackerMap['delete'](data);
     }
   };
 
@@ -307,15 +272,14 @@ function Model() {
   }
 
   function stopObservingPropertyValue(data, name, pathTracker) {
-    var model = getObservable(data);
-    var tracker = modelTrackerMap.get(model);
+    var tracker = modelTrackerMap.get(data);
     if (!tracker)
       return;
 
     tracker.removeValueObserver(name, pathTracker);
     if (!tracker.dependants) {
-      objectStopObserving(model);
-      modelTrackerMap['delete'](model);
+      removeFromObservedList(data);
+      modelTrackerMap['delete'](data);
     }
   }
 
@@ -913,8 +877,7 @@ function Model() {
     },
 
     notify: function() {
-      if (!Model.observableObjects_ || ArrayTracker.forceSpliceRecalc)
-        this.generateSplices();
+      this.generateSplices();
 
       // TODO(rafaelw): Optimize. ArrayTracker only needs to notify a subset
       // of its value observers.
@@ -941,12 +904,8 @@ function Model() {
       this.notifyObservers({
         mutation: 'splice',
         index: index,
-        added: added.map(function(item) {
-          return Model.get(item);
-        }),
-        removed: removed.map(function(item) {
-          return Model.get(item);
-        })
+        added: added,
+        removed: removed
       });
     },
 

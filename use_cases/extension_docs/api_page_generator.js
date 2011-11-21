@@ -252,7 +252,7 @@ function renderTemplate() {
 
   var templates = document.querySelectorAll('template');
   Array.prototype.forEach.call(templates, HTMLTemplateElement.decorate);
-  document.body.model = Model.get(pageData);
+  document.body.model = pageData;
 
   selectCurrentPageOnLeftNav();
 

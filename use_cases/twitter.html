@@ -153,7 +153,7 @@ var jsonp = function() {
 var details = document.getElementById('details');
 
 function Controller(root) {
-  root.model = Model.get(this);
+  root.model = this;
   this.term = 'Google Chrome';
 }
 
@@ -170,7 +170,7 @@ Controller.prototype = {
       return;
     this.term_ = term;
 
-    var self = Model.get(this);
+    var self = this;
 
     jsonp('http://search.twitter.com/search.json?q=' + encodeURIComponent(term),
       function(value) {

@@ -22,7 +22,6 @@ limitations under the License.
 <script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
 <script src="platform/observers.js"></script>
-<script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="element_model.js"></script>
@@ -92,7 +91,7 @@ function testObserveOnElement() {
 
   Model.observe(d, 'model', callback);
 
-  d.model = Model.get({});
+  d.model = {};
   Model.notifyObservers_();
   assertEquals(1, count);
 }
@@ -105,11 +104,11 @@ function testObserveOnElement2() {
     count++;
   }
 
-  var divModel = Model.get(div);
+  var divModel = div;
 
   Model.observe(divModel, 'model', callback);
 
-  divModel.model = Model.get({});
+  divModel.model = {};
   Model.notifyObservers_();
   assertEquals(1, count);
 }

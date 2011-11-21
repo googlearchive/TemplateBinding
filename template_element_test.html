@@ -23,7 +23,6 @@ limitations under the License.
 <script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
 <script src="platform/observers.js"></script>
-<script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="transform.js"></script>
@@ -79,12 +78,12 @@ function testDecorated() {
       '</template>' +
       '<template instantiate="XY" id="t2" ref="t1"></template>');
 
-  div.model = Model.get({
+  div.model = {
     scope: 'XX',
     XX: {name: 'Leela', title: 'Captain'},
     XY: {name: 'Fry', title: 'Delivery boy'},
     XZ: {name: 'Zoidberg', title: 'Doctor'}
-  });
+  };
 
   var t1 = document.getElementById('t1');
   var instance = t1.nextElementSibling;
@@ -199,12 +198,12 @@ function testModelScopeAttributeBinding() {
         '<div modelScope="{{ scope }}">Hi {{name}}</div>' +
       '</template>');
 
-  div.model = Model.get({
+  div.model = {
     scope: 'XX',
     XX: {name: 'Leela', title: 'Captain'},
     XY: {name: 'Fry', title: 'Delivery boy'},
     XZ: {name: 'Zoidberg', title: 'Doctor'}
-  });
+  };
 
   assertEquals('Hi Leela',
       div.firstElementChild.nextElementSibling.textContent);
@@ -220,7 +219,7 @@ function testBindToClassName() {
       '</template>');
   var t = div.firstChild;
 
-  div.model = Model.get({ val: false});
+  div.model = { val: false};
   t.instantiate = '';
   assertEquals('foo ', div.childNodes[1].className);
 
@@ -235,7 +234,7 @@ function assertNodesAre() {
   var nodesPerInstance = 2;
   assertEquals(arguments.length * nodesPerInstance + startIndex,
                div.childNodes.length);
-  var model = Model.get(div.computedModel, t.iterate);
+  var model = Model.getValueAtPath(div.computedModel, t.iterate);
 
   for (var i = 0; i < arguments.length; i++) {
     var targetNode = div.childNodes[i * nodesPerInstance + startIndex];
@@ -249,13 +248,13 @@ function testIterate() {
   div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
   t = div.firstChild;
 
-  var m = div.model = Model.get({
+  var m = div.model = {
     contacts: [
       {name: 'Raf'},
       {name: 'Arv'},
       {name: 'Neal'}
     ]
-  });
+  };
 
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
@@ -292,14 +291,14 @@ function testIterateBelowModelScopeChange() {
   var div = createTestHtml('<div modelScope="contacts">' +
                            '<template iterate>Hi {{ name }}</template></div>');
 
-  var m = div.model = Model.get({
+  var m = div.model = {
     contacts: [
       {name: 'Raf'}
     ],
     schmontacts: [
       {name: 'Adam'}
     ]
-  });
+  };
 
   assertEquals('Hi Raf', div.firstChild.childNodes[1].textContent);
 
@@ -312,9 +311,9 @@ function testInstatiateWithModelScope() {
   // doesn't cause an error to be thrown.
   div = createTestHtml('<template instantiate>' +
       '<div modelScope="foo" hidden="">{{ bar }}</div></template>');
-  var m = div.model = Model.get({
+  var m = div.model = {
     foo: {bar: 'baz'}
-  });
+  };
 
   assertEquals('baz', div.childNodes[1].childNodes[0].textContent);
 }
@@ -324,13 +323,13 @@ function testIterateModelSet() {
       '<template iterate="contacts">' +
         'Hi {{ name }}' +
       '</template>');
-  var m = div.model = Model.get({
+  var m = div.model = {
     contacts: [
       {name: 'Raf'},
       {name: 'Arv'},
       {name: 'Neal'}
     ]
-  });
+  };
   t = div.firstChild;
 
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -340,11 +339,11 @@ function testIterateEmptyIteratePath() {
   div = createTestHtml('<template iterate>Hi {{ name }}</template>');
   t = div.firstChild;
 
-  var m = div.model = Model.get([
+  var m = div.model = [
     {name: 'Raf'},
     {name: 'Arv'},
     {name: 'Neal'}
-  ]);
+  ];
 
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
@@ -389,11 +388,11 @@ function testIterateReuse() {
   div = createTestHtml('<template iterate>Hi {{ name }}</template>');
   t = div.firstChild;
 
-  var m = div.model = Model.get([
+  var m = div.model = [
     {name: 'Raf'},
     {name: 'Arv'},
     {name: 'Neal'}
-  ]);
+  ];
 
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
   var node1 = div.childNodes[1];
@@ -422,7 +421,7 @@ function testTwoLevelsDeepBug() {
   div = createTestHtml(
     '<template instantiate><span><span>{{ foo }}</span></span></template>');
 
-  div.model = Model.get({foo: 'bar'});
+  div.model = {foo: 'bar'};
 
   assertEquals('bar',
                div.childNodes[1].childNodes[0].childNodes[0].textContent);
@@ -432,11 +431,11 @@ function testIterateDoesNotCallFormat() {
   div = createTestHtml('<template iterate>Hi {{ name }}</template>');
   t = div.firstChild;
 
-  var m = div.model = Model.get([
+  var m = div.model = [
     {name: 'Raf'},
     {name: 'Arv'},
     {name: 'Neal'}
-  ]);
+  ];
 
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
@@ -483,9 +482,9 @@ function testChecked() {
         '<input type="checkbox" checked="{{a}}">' +
       '</template>');
   var t = div.firstChild;
-  var m = div.model = Model.get({
+  var m = div.model = {
     a: true
-  });
+  };
   t.instantiate = '';
 
   var instanceInput = t.nextSibling;
@@ -503,12 +502,12 @@ function testChecked() {
 function nestedHelper(s, start) {
   var div = createTestHtml(s);
 
-  var m = Model.get({
+  var m = {
     a: {
       b: 1,
       c: {d: 2}
     },
-  });
+  };
 
   div.model = m;
 
@@ -548,7 +547,7 @@ function testNestedWithRef() {
 function nestedIterateInstantiateHelper(s, start) {
   var div = createTestHtml(s);
 
-  var m = Model.get({
+  var m = {
     a: [
       {
         b: 1,
@@ -559,7 +558,7 @@ function nestedIterateInstantiateHelper(s, start) {
         c: {d: 22}
       }
     ]
-  });
+  };
 
   div.model = m;
 
@@ -609,7 +608,7 @@ function testNestedIterateInstantiateWithRef() {
 function nestedIterateIterateHelper(s, start) {
   var div = createTestHtml(s);
 
-  var m = Model.get({
+  var m = {
     a: [
       {
         b: 1,
@@ -620,7 +619,7 @@ function nestedIterateIterateHelper(s, start) {
         c: [{d: 21}, {d: 22}]
       }
     ]
-  });
+  };
 
   div.model = m;
 
@@ -681,7 +680,7 @@ function testNestedIterateSelfRef() {
         '<template ref="t" iterate="items"></template>' +
       '</template>');
 
-  var m = Model.get([
+  var m = [
     {
       name: 'Item 1',
       items: [
@@ -703,7 +702,7 @@ function testNestedIterateSelfRef() {
       name: 'Item 2',
       items: []
     },
-  ]);
+  ];
 
   div.model = m;
 
@@ -743,10 +742,10 @@ function testNestedIterateTable() {
         '</tr>' +
       '</tbody></table>');
 
-  var m = Model.get([
+  var m = [
     [{ val: 0 }, { val: 1 }],
     [{ val: 2 }, { val: 3 }]
-  ]);
+  ];
 
   div.model = m;
 
@@ -780,7 +779,7 @@ function testBindToModelScopeInsideInstantiate() {
       '</div>' +
     '</template>');
 
-  var m = Model.get({ foo: { bar: 'baz' }});
+  var m = { foo: { bar: 'baz' }};
   div.model = m;
   
   Model.notifyObservers_();
@@ -799,7 +798,7 @@ function testNestedIterateDeletionOfMultipleSubTemplates() {
         '</template>' +
       '</ul>');
 
-  var m = Model.get([
+  var m = [
     {
       name: 'Item 1',
       items: [
@@ -808,7 +807,7 @@ function testNestedIterateDeletionOfMultipleSubTemplates() {
         }
       ]
     }
-  ]);
+  ];
 
   div.model = m;
 
@@ -827,13 +826,13 @@ function testDeepNested() {
       '</p>' +
     '</template>');
 
-  var m = div.model = Model.get({
+  var m = div.model = {
     a: {
       b: {
         c: 42
       }
     }
-  });
+  };
 
   assertEquals('P', div.childNodes[1].tagName);
   assertEquals('TEMPLATE', div.childNodes[1].firstChild.tagName);
@@ -850,7 +849,7 @@ function testDeepNestedWithModelScope() {
       '</p>' +
     '</template>');
 
-  var m = div.model = Model.get({
+  var m = div.model = {
     a: {
       b: {
         c: {
@@ -858,7 +857,7 @@ function testDeepNestedWithModelScope() {
         }
       }
     }
-  });
+  };
 
   assertEquals('P', div.childNodes[1].tagName);
   assertEquals('TEMPLATE', div.childNodes[1].firstChild.tagName);
@@ -924,12 +923,12 @@ function testInstantiateNested() {
         '</template>' +
       '</template>');
 
-  var m = div.model = Model.get({
+  var m = div.model = {
     name: 'Hermes',
     wife: {
       name: 'LaBarbara'
     }
-  });
+  };
 
   assertEquals(7, div.childNodes.length);
   assertEquals('Name: Hermes', div.childNodes[1].textContent);
@@ -953,12 +952,12 @@ function testInstantiateRecursive() {
         '<template instantiate="friend" ref="t"></template>' +
       '</template>');
 
-  var m = div.model = Model.get({
+  var m = div.model = {
     name: 'Fry',
     friend: {
       name: 'Bender'
     }
-  });
+  };
 
   assertEquals(7, div.childNodes.length);
   assertEquals('Name: Fry', div.childNodes[1].textContent);
@@ -1014,7 +1013,7 @@ function testChangeRefId() {
       '<template iterate>' +
         '<template ref="a" instantiate></template>' +
       '</template>');
-  div.model = Model.get([]);
+  div.model = [];
 
   assertEquals(3, div.childNodes.length);
 

@@ -41,7 +41,7 @@ limitations under the License.
   </div>
 
 <script>
-document.body.model = Model.get({
+document.body.model = {
   people: [
     {
       name: 'Un'
@@ -53,7 +53,7 @@ document.body.model = Model.get({
       name: 'Trois'
     }
   ]
-});
+};
 
 function clickHandler(e) {
   e.target.computedModel.selected = !e.target.computedModel.selected;

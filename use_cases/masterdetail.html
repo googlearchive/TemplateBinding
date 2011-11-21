@@ -61,7 +61,7 @@ limitations under the License.
 <script>
 
 function addNewItem() {
-  var newItem = Model.get({price: 0, name: ''});
+  var newItem = {price: 0, name: ''};
   items.push(newItem);
   focusExistingProduct(newItem);
 }
@@ -92,7 +92,7 @@ function focusExistingProduct(item) {
 var listContainer = document.getElementById('listContainer');
 var detailContainer = document.getElementById('detailContainer');
 
-var items = Model.get([
+var items = [
   {
     name: 'GrillMaster 2000',
     price: 199.99
@@ -105,7 +105,7 @@ var items = Model.get([
     name: 'Novelty Vomit',
     price: 4.99
   }
-]);
+];
 
 var sortProp = '';
 function sortFunc(a, b) {

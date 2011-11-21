@@ -100,7 +100,7 @@ function setModel(model) {
 
   // Notify listeners. This will be a noop because of first check in this
   // function.
-  Model.get(this).model = model;
+  this.model = model;
 
   if (this.model_ === undefined)
     resetBindingSources(this);
@@ -109,7 +109,7 @@ function setModel(model) {
 }
 
 function getModel() {
-  return Model.get(this.model_);
+  return this.model_;
 }
 
 function getComputedModel() {
@@ -122,7 +122,7 @@ function getComputedModel() {
   if (!model)
     return undefined;
 
-  return Model.get(model, Path.join(this.templateScope_, this.modelScope));
+  return Model.getValueAtPath(model, Path.join(this.templateScope_, this.modelScope));
 }
 
 var computedModelDescriptor = {

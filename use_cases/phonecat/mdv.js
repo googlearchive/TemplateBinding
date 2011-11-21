@@ -4,7 +4,6 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../../platform/forwarding_handler.js',
   '../../platform/weak_map.js',
   '../../platform/observers.js',
-  '../../platform/object_observe.js',
   '../../path.js',
   '../../model.js',
   '../../transform.js',

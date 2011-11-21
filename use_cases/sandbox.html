@@ -118,7 +118,7 @@ function update() {
   exampleElm.innerHTML = markup;
 
   try {
-    eval('m = exampleElm.model = Model.get(' + data + ');');
+    eval('m = exampleElm.model = ' + data + ';');
     var templates = exampleElm.querySelectorAll('template');
     forEach(templates, HTMLTemplateElement.decorate);
     outputElm.innerHTML = escapeHTML(exampleElm.innerHTML);

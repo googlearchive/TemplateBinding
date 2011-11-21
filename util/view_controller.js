@@ -31,7 +31,6 @@
 
     var controller = new this[controllerClass](elm);
     if (controller.model) {
-      controller.model = Model.get(controller.model);
       elm.model = controller.model;
     }
     elm.controller = controller;

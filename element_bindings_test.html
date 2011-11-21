@@ -22,7 +22,6 @@ limitations under the License.
 <script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
 <script src="platform/observers.js"></script>
-<script src="platform/object_observe.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="transform.js"></script>
@@ -104,8 +103,8 @@ function testFormat() {
     }
   };
   Model.notifyObservers_();
-  assertEquals('B, C', b.format(Model.get(data, 'a.b'),
-                                Model.get(data, 'a.c')));
+  assertEquals('B, C', b.format(Model.getValueAtPath(data, 'a.b'),
+                                Model.getValueAtPath(data, 'a.c')));
 }
 
 function testSimpleBinding() {
@@ -202,7 +201,7 @@ function testBindToForeignNode() {
 
 function testBindToNonNodeModel() {
   var el = document.createElement('div');
-  var m = Model.get({a: '1'});
+  var m = {a: '1'};
 
   el.addBinding('foo', new Binding(m, 'a'));
 
@@ -215,7 +214,7 @@ function testBindToNonNodeModel() {
 
 function testBindToNamedModel() {
   var el = document.createElement('div');
-  document.models = Model.get({a: '1'});
+  document.models = {a: '1'};
 
   el.addBinding('foo', new Binding('#a'));
   Model.notifyObservers_();
@@ -361,11 +360,11 @@ function testSimpleBindingChangeAncestorModelScope() {
 }
 
 function testBindToModelScope() {
-  var m = Model.get({
+  var m = {
     scope: 'foo',
     foo: {x: 'abc'},
     bar: {x: 'def'}
-  });
+  };
 
   var d1 = document.createElement('div');
   d1.model = m;
@@ -534,7 +533,7 @@ function dispatchEvent(type, target) {
 }
 
 function testInputElementTextBinding() {
-  var m = Model.get({val: 'ping'});
+  var m = {val: 'ping'};
 
   var el = document.createElement('input');
   el.addBinding('value', '{{val}}');
@@ -547,13 +546,13 @@ function testInputElementTextBinding() {
   assertEquals('pong', m.val);
 
   // Try a deep path.
-  m = Model.get({
+  m = {
     a: {
       b: {
         c: 'ping'
       }
     }
-  });
+  };
 
   el.addBinding('value', '{{ a.b.c }}');
   el.model = m;
@@ -562,7 +561,7 @@ function testInputElementTextBinding() {
 
   el.value = 'pong';
   dispatchEvent('input', el);
-  assertEquals('pong', Model.get(m, 'a.b.c'));
+  assertEquals('pong', Model.getValueAtPath(m, 'a.b.c'));
 
   // Start with the model property being absent.
   delete m.a.b.c;
@@ -571,7 +570,7 @@ function testInputElementTextBinding() {
 
   el.value = 'pong';
   dispatchEvent('input', el);
-  assertEquals('pong', Model.get(m, 'a.b.c'));
+  assertEquals('pong', Model.getValueAtPath(m, 'a.b.c'));
 
   // Model property unreachable (and unsettable).
   delete m.a.b;
@@ -580,7 +579,7 @@ function testInputElementTextBinding() {
 
   el.value = 'pong';
   dispatchEvent('input', el);
-  assertEquals(undefined, Model.get(m, 'a.b.c'));
+  assertEquals(undefined, Model.getValueAtPath(m, 'a.b.c'));
 }
 
 function testSimpleTransform() {
@@ -594,7 +593,7 @@ function testSimpleTransform() {
     }
   };
 
-  var m = Model.get({val: 1});
+  var m = {val: 1};
   var el = document.createElement('input');
   el.addBinding('value', new Binding('val', trans));
   el.model = m;
@@ -626,7 +625,7 @@ function testDeclarativeTransform() {
 
   Transform.registry.myTrans = MyTrans;
 
-  var m = Model.get({val: 1});
+  var m = {val: 1};
   var el = document.createElement('input');
   el.addBinding('value',
                 '{{ val | myTrans("a", \'b\', 1) }}');
@@ -648,7 +647,7 @@ function testDeclarativeTransform() {
 function testClassListTransform() {
   var el = document.createElement('div');
   el.addBinding('className', '{{ val | toggle("selected") }}');
-  el.model = Model.get({ val: false });
+  el.model = { val: false };
   Model.notifyObservers_();
   assertEquals('', el.className);
 
@@ -659,7 +658,7 @@ function testClassListTransform() {
   // Test impicit naming
   el = document.createElement('div');
   el.addBinding('className', '{{ selected | toggle }}');
-  el.model = Model.get({ selected: false });
+  el.model = { selected: false };
   Model.notifyObservers_();
   assertEquals('', el.className);
 
@@ -670,7 +669,7 @@ function testClassListTransform() {
   // Test impicit naming
   el = document.createElement('div');
   el.addBinding('className', 'classA {{ selected | toggle }} classB');
-  el.model = Model.get({ selected: false });
+  el.model = { selected: false };
   Model.notifyObservers_();
   assertEquals('classA  classB', el.className);
 
@@ -699,7 +698,7 @@ function testBindAttributeTransform() {
 
   Transform.registry.myTrans = MyTrans;
 
-  var m = Model.get({val: 1});
+  var m = {val: 1};
   var el = document.createElement('input');
   el.bind = 'value: val | myTrans("a", \'b\', 1)';
   el.model = m;
@@ -718,7 +717,7 @@ function testBindAttributeTransform() {
 }
 
 function testInputElementCheckbox() {
-  var m = Model.get({val: true});
+  var m = {val: true};
 
   var el = document.createElement('input');
   el.type = 'checkbox';
@@ -741,7 +740,7 @@ function testInputElementCheckbox() {
 }
 
 function testInputElementRadio() {
-  var m = Model.get({val1: true, val2: false, val3: false, val4: true});
+  var m = {val1: true, val2: false, val3: false, val4: true};
   var RADIO_GROUP_NAME = 'test';
 
   var container = document.body.appendChild(document.createElement('div'));
@@ -799,7 +798,7 @@ function testInputElementRadio() {
 }
 
 function testInputElementRadioMultipleForms() {
-  var m = Model.get({val1: true, val2: false, val3: false, val4: true});
+  var m = {val1: true, val2: false, val3: false, val4: true};
   var RADIO_GROUP_NAME = 'test';
 
   var container = document.body.appendChild(document.createElement('div'));
@@ -855,7 +854,7 @@ function testInputElementRadioMultipleForms() {
 }
 
 function testSelectElementValue() {
-  var m = Model.get({value: 'foo'});
+  var m = {value: 'foo'};
 
   // Value
   var el = document.createElement('select');
@@ -883,7 +882,7 @@ function testSelectElementValue() {
 }
 
 function testSelectElementSelectedIndex() {
-  var m = Model.get({index: 0});
+  var m = {index: 0};
 
   // Value
   var el = document.createElement('select');
@@ -915,9 +914,9 @@ function testInputElementTextBindingWithModelScope() {
   var child = div.appendChild(document.createElement('div'));
   var input = child.appendChild(document.createElement('input'));
 
-  var m = Model.get({
+  var m = {
     a: {}
-  });
+  };
   div.model = m;
 
   child.modelScope = 'a';
@@ -934,11 +933,11 @@ function testBindToChecked() {
   var input = child.appendChild(document.createElement('input'));
   input.type = 'checkbox';
 
-  var m = Model.get({
+  var m = {
     a: {
       b: false
     }
-  });
+  };
   div.model = m;
 
   child.modelScope = 'a';
@@ -956,7 +955,7 @@ function testBindToChecked() {
 
 function testExpressionBinding() {
   var el = document.createElement('div');
-  var m = el.model = Model.get({a: 1, b: 2});
+  var m = el.model = {a: 1, b: 2};
   el.addBinding('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
   Model.notifyObservers_();
   assertEquals('1 + 2 = 3', el.foo);
@@ -976,7 +975,7 @@ function testExpressionBinding() {
 
 function testExpressionAttributeBinding() {
   var el = document.createElement('input');
-  var m = el.model = Model.get({a: 1, b: 2});
+  var m = el.model = {a: 1, b: 2};
   el.bind = 'value: expr(a, b) a + b';
   assertEquals('3', el.value);
 
@@ -995,7 +994,7 @@ function testExpressionAttributeBinding() {
 
 function testMultipleReferences() {
   var el = document.createElement('div');
-  var m = el.model = Model.get({foo: 'bar'});
+  var m = el.model = {foo: 'bar'};
   el.addBinding('foo', '{{foo}} {{ expr(foo) foo }}');
   assertEquals('bar bar', el.foo);
   el.modelScope = 'foo';
@@ -1010,14 +1009,14 @@ function testExpressionBindingThis() {
 
 function testExpressionBindingNoCoerce() {
   var el = document.createElement('div');
-  var m = el.model = Model.get({
+  var m = el.model = {
     a: {
       b: 1
     },
     c: {
       d: 2
     }
-  });
+  };
   el.addBinding('foo', '{{ expr(a.b, c.d) b + d }}');
   assertEquals(3, el.foo);
 }

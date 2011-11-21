@@ -86,11 +86,11 @@ var elRangeA = document.getElementById('rangeA');
 var elRangeB = document.getElementById('rangeB');
 var elRangeC = document.getElementById('rangeC');
 
-var m1 = Model.get({
+var m1 = {
   rangeA: 50,
   rangeB: 50,
   rangeC: 50
-});
+};
 
 inequivalence.model = m1;
 elRangeA.addBinding('value', '{{ rangeA | number }}');
@@ -146,11 +146,11 @@ var elPercentA = document.getElementById('percentA');
 var elPercentB = document.getElementById('percentB');
 var elSumFixed = document.getElementById('sumFixed');
 
-var m2 = Model.get({
+var m2 = {
   a: 5, b: 5, sum: 10,
   percentA: 50, percentB: 50,
   sumFixed: false
-});
+};
 
 sumsAndPercentagesView.model = m2;
 elA.addBinding('value', '{{ a | number }}');

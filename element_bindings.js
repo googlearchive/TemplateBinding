@@ -397,7 +397,7 @@ BindingSource.prototype = {
       return; // Can't assign to an object with no path.
 
     if (property.length > 1) {
-      source = Model.get(source, property.slice(0, property.length - 1));
+      source = Model.getValueAtPath(source, property.slice(0, property.length - 1));
       property = property.slice(property.length - 1);
     }
 

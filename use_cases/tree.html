@@ -56,7 +56,7 @@ limitations under the License.
 
 <script>
 function Controller(root) {
-  this.model = root.model = Model.get([
+  this.model = root.model = [
     {
       name: 'Root',
       children: [
@@ -78,7 +78,7 @@ function Controller(root) {
         {name: 'Item 3'}
       ]
     }
-  ]);
+  ];
 }
 
 Controller.prototype = {
