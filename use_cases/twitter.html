@@ -217,14 +217,13 @@ var details = document.getElementById('details');
 
 /**
  * Define the Controller that will be bound to the `<body>` element. If you
- * take look at the `<body>` element, you can see that `data-controller` is
+ * take a look at the `<body>` element, you can see that `data-controller` is
  * referencing `Controller`.
  * @param {HTMLElement} root The element that Controller is bound to.
  * @returns {Controller}
  */
 function Controller(root) {
-  // Get the Model that this Controller is bound to, set it to the `model`
-  // property of the element.
+  // In this example, the `body`'s model is also this instance of Controller.
   root.model = this;
 
   // Define the default `term` to search Twitter for.
