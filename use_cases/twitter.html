@@ -20,32 +20,35 @@ limitations under the License.
 <script src="include.js"></script>
 <style>
 
+html {
+}
+
 body {
+  font: 13px sans-serif;
+}
+
+#demo-container {
+  background: #0a3a4a;
   display: -webkit-box;
   display: -moz-box;
   -webkit-box-orient: vertical;
   -moz-box-orient: vertical;
-  margin: 0;
-  padding: 5px;
-  font: 13px sans-serif;
-  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  width: 960px;
   -moz-box-sizing: border-box;
 }
 
-body > div {
+#results-container {
   display: -webkit-box;
   display: -moz-box;
   -webkit-box-orient: horizontal;
   -moz-box-orient: horizontal;
+  margin: 20px 0px 0px;
 }
 
 body > * {
   width: 100%;
-}
-
-#details-pane {
-  -moz-box-flex: 1;
-  margin-left: 5px;
 }
 
 #details img {
@@ -54,6 +57,7 @@ body > * {
 }
 
 h1, h2, h3 {
+  color: #3DADC1;
   margin: 0;
   padding-top: 5px;
 }
@@ -75,8 +79,48 @@ h1, h2, h3 {
   background: #ddd;
 }
 
+#user-list, #details-pane {
+  padding: 10px;
+}
+
+#user-list {
+  background-color: #33A6B2;
+  width: 140px;
+}
+
+#details-pane {
+  background: #196674;
+  -moz-box-flex: 1;
+  margin-left: 5px;
+  width: 780px;
+}
+
+#user-list h2 {
+  color: #196674;
+}
+
+#details-pane h2 {
+  color: #33A6B2;
+}
+
+#details p {
+  color: #aaa;
+}
+
+.user-link {
+  color: #C1B020;
+}
+
+input[type="search"] {
+  font-size: 1.8em;
+  /*width: 900px;*/
+  margin: 20px auto 0px;
+  display: block;
+}
+
 </style>
 <!--
+Here's an example of the Twitter data we expect to retrieve:
 
 {
   "from_user_id_str":"516761",
@@ -98,87 +142,137 @@ h1, h2, h3 {
 -->
 </head>
 <body data-controller="Controller">
+  <div id="demo-container">
+    <h1>Twitter Demo</h1>
 
-  <h1>Twitter Demo</h1>
+    <!-- Here, we are defining the View templates that our Model will bind to. -->
+    <template instantiate>
+      <input type="search" value="{{ term }}">
+    </template>
 
-  <template instantiate>
-    <input type="search" value="{{ term }}">
-  </template>
+    <div id="results-container">
+      <div id="user-list">
+        <h2>Users</h2>
 
-  <div>
-    <div>
-      <h2>Users</h2>
+        <ul id="list">
+          <template iterate="results">
+            <li data-action="click:updateDetails">{{from_user}}</li>
+          </template>
+        </ul>
+      </div>
 
-      <ul id="list">
-        <template iterate="results">
-          <li data-action="click:updateDetails">{{from_user}}</li>
-        </template>
-      </ul>
-    </div>
+      <div id="details-pane">
+        <h2>Details</h2>
 
-    <div id="details-pane">
-      <h2>Details</h2>
-
-      <div id="details" modelscope="results[0]">
-        <template instantiate>
-          <img src="{{profile_image_url}}">
-          <h3><a href="http://twitter.com/{{from_user}}">{{from_user}}</a></h3>
-          <p>{{text}}</p>
-          <p>Created at: {{created_at}}</p>
-          <p>Language code: {{iso_language_code}}</p>
-        </template>
+        <div id="details" modelscope="results[0]">
+          <template instantiate>
+            <img src="{{profile_image_url}}">
+            <h3><a class="user-link" href="http://twitter.com/{{from_user}}">{{from_user}}</a></h3>
+            <p>{{text}}</p>
+            <p>Created at: {{created_at}}</p>
+            <p>Language code: {{iso_language_code}}</p>
+          </template>
+        </div>
       </div>
     </div>
   </div>
-
 <script>
 
+// Utility function that, among other things, gets data from Twitter.  Using
+// JSONP lets us get around Same Origin Policy restrictions.  Importantly, once
+// the Model is updated once the data is retrieved.
 var jsonp = function() {
   var count = 0;
+
+  /**
+   * @param {string} url The URL to retrieve data from
+   * @param {function} f The callback function to invoke when data is
+   *    retrieved.
+   * @param {Object|undefined} scope The scope in which to invoke `f`.  This
+   *    is global by default.
+   */
   return function(url, f, scope) {
     var script = document.createElement('script');
     var name = 'callback_' + count++;
+
     window[name] = function() {
       delete window[name];
       f.apply(scope||null, arguments);
       script.parentNode.removeChild(script);
       script = null;
+
+      // The script had loaded, update the Model observers.  This updates the
+      // View (DOM).
       Model.notifyObservers_();
     };
+
     script.src = url + '&callback=' + name;
     document.head.appendChild(script);
   }
 }();
 
+
 var details = document.getElementById('details');
 
+
+/**
+ * Define the Controller that will be bound to the `<body>` element. If you
+ * take look at the `<body>` element, you can see that `data-controller` is
+ * referencing `Controller`.
+ * @param {HTMLElement} root The element that Controller is bound to.
+ * @returns {Controller}
+ */
 function Controller(root) {
+  // Get the Model that this Controller is bound to, set it to the `model`
+  // property of the element.
   root.model = this;
+
+  // Define the default `term` to search Twitter for.
   this.term = 'Google Chrome';
 }
 
+
 Controller.prototype = {
   term_: '',
+
   results: null,
 
+  // Getter for `term_`
   get term() {
     return this.term_;
   },
 
-  set term(term) {
-    if (term == this.term_)
+  /**
+   * Setter for `term_`.  Stores the `newTerm` internally, and also retrieves
+   * new Twitter data for that term.
+   * @param {string} newTerm
+   */
+  set term(newTerm) {
+    if (newTerm == this.term_)
       return;
-    this.term_ = term;
 
     var self = this;
+    this.term_ = newTerm;
 
-    jsonp('http://search.twitter.com/search.json?q=' + encodeURIComponent(term),
+    jsonp(
+      // The URL to retrieve data from.  The Twitter search query is in this
+      // URL, please see https://dev.twitter.com/docs/using-search for more
+      // info on the Twitter API.
+      'http://search.twitter.com/search.json?q=' + encodeURIComponent(newTerm),
+
+      // Once we have the requested data, store it to the Model's `results`
+      // parameter.
       function(value) {
         self.results = value.results;
       }
     );
   },
 
+  /**
+   * Finds the index of the given user in the Controller's `results` array.
+   * @param {string} user The user to to find.
+   * @returns {number} Is -1 if `user` is not found.
+   */
   indexOfUser: function(user) {
     if (this.results) {
       for (var i = 0; i < this.results.length; i++) {
@@ -189,6 +283,12 @@ Controller.prototype = {
     return -1;
   },
 
+  /**
+   * Updates the Details View on the DOM.  In this example, this method is
+   * bound to the "click" event of the `#list` View.
+   * @param {Object} item The Model that is bound to the element that was
+   *    clicked.
+   */
   updateDetails: function(item) {
     var index = this.indexOfUser(item.from_user);
     if (index >= 0)
