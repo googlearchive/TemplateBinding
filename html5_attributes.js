@@ -30,19 +30,21 @@ var getAttributeKind = (function() {
     contextmenu: true,
     dir: true,
     draggable: true,
+    dropzone: true,
+    hidden: true,
     id: true,
     itemid: true,
     itemprop: true,
     itemref: true,
     itemscope: true,
     itemtype: true,
-    hidden: true,
     lang: true,
     role: true,
-    style: true,
     spellcheck: true,
+    style: true,
     tabindex: true,
-    title: true
+    title: true,
+    translate: true
   };
 
   // This is generated using data from:
@@ -116,9 +118,7 @@ var getAttributeKind = (function() {
       hreflang: true,
       type: true
     },
-    abbr: {
-      title: true
-    },
+    abbr: {},
     address: {},
     area: {
       alt: true,
@@ -136,9 +136,12 @@ var getAttributeKind = (function() {
     aside: {},
     audio: {
       src: true,
+      crossorigin: true,
       preload: true,
       autoplay: true,
+      mediagroup: true,
       loop: true,
+      muted: true,
       controls: true
     },
     b: {},
@@ -147,15 +150,17 @@ var getAttributeKind = (function() {
       target: true
     },
     bdi: {},
-    bdo: {
-      dir: true
-    },
+    bdo: {},
     blockquote: {
       cite: true
     },
     body: {
+      onafterprint: true,
+      onbeforeprint: true,
       onbeforeunload: true,
+      onblur: true,
       onerror: true,
+      onfocus: true,
       onhashchange: true,
       onload: true,
       onmessage: true,
@@ -203,9 +208,14 @@ var getAttributeKind = (function() {
       disabled: true,
       checked: true,
       radiogroup: true,
-      title: true
+      command: true
     },
-    datalist: {},
+    data: {
+      value: true
+    },
+    datalist: {
+      option: true
+    },
     dd: {},
     del: {
       cite: true,
@@ -214,12 +224,7 @@ var getAttributeKind = (function() {
     details: {
       open: true
     },
-    device: {
-      type: true
-    },
-    dfn: {
-      title: true
-    },
+    dfn: {},
     div: {},
     dl: {},
     dt: {},
@@ -264,6 +269,7 @@ var getAttributeKind = (function() {
     i: {},
     iframe: {
       src: true,
+      srcdoc: true,
       name: true,
       sandbox: true,
       seamless: true,
@@ -273,6 +279,7 @@ var getAttributeKind = (function() {
     img: {
       alt: true,
       src: true,
+      crossorigin: true,
       usemap: true,
       ismap: true,
       width: true,
@@ -337,8 +344,7 @@ var getAttributeKind = (function() {
       media: true,
       hreflang: true,
       type: true,
-      sizes: true,
-      title: true
+      sizes: true
     },
     map: {
       name: true
@@ -357,9 +363,9 @@ var getAttributeKind = (function() {
     meter: {
       value: true,
       min: true,
+      max: true,
       low: true,
       high: true,
-      max: true,
       optimum: true
     },
     nav: {},
@@ -367,8 +373,10 @@ var getAttributeKind = (function() {
     object: {
       data: true,
       type: true,
+      typemustmatch: true,
       name: true,
       usemap: true,
+      form: true,
       width: true,
       height: true
     },
@@ -423,6 +431,7 @@ var getAttributeKind = (function() {
       form: true,
       multiple: true,
       name: true,
+      required: true,
       size: true
     },
     small: {},
@@ -436,14 +445,13 @@ var getAttributeKind = (function() {
     style: {
       media: true,
       type: true,
-      scoped: true,
-      title: true
+      scoped: true
     },
     sub: {},
     summary: {},
     sup: {},
     table: {
-      summary: true
+      border: true
     },
     tbody: {},
     td: {
@@ -469,6 +477,7 @@ var getAttributeKind = (function() {
     th: {
       colspan: true,
       rowspan: true,
+      headers: true,
       scope: true
     },
     thead: {},
@@ -479,19 +488,24 @@ var getAttributeKind = (function() {
     title: {},
     tr: {},
     track: {
+      'default': true,
       kind: true,
       label: true,
       src: true,
       srclang: true
     },
+    u: {},
     ul: {},
     'var': {},
     video: {
       src: true,
+      crossorigin: true,
       poster: true,
       preload: true,
       autoplay: true,
+      mediagroup: true,
       loop: true,
+      muted: true,
       controls: true,
       width: true,
       height: true
@@ -515,6 +529,7 @@ var getAttributeKind = (function() {
     itemscope: true,
     loop: true,
     multiple: true,
+    muted: true,
     novalidate: true,
     open: true,
     pubdate: true,
