@@ -24,7 +24,7 @@ function xhr(url, onSuccess, onError) {
         if (xhr.status < 300 && xhr.responseText) {
           window.clearTimeout(abortTimerId);
           onSuccess(xhr.responseText);
-          Model.notifyObservers_();
+          Model.dirtyCheck();
         } else {
           handleError("Failure to fetch content");
         }

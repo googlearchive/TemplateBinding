@@ -206,7 +206,7 @@ function testModelScopeAttributeBinding() {
   assertEquals('Hi Leela',
       div.firstElementChild.nextElementSibling.textContent);
   div.model.scope = 'XY';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('Hi Fry', div.firstElementChild.nextElementSibling.textContent);
 }
 
@@ -222,7 +222,7 @@ function testBindToClassName() {
   assertEquals('foo ', div.childNodes[1].className);
 
   div.model.val = true;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('foo bar', div.childNodes[1].className);
 }
 
@@ -257,31 +257,31 @@ function testIterate() {
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
   m.contacts.push({name: 'Alex'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
 
   m.contacts.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
 
   m.contacts.splice(1, 2);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Rafael', 'Hi Alex');
 
   m.contacts.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m.contacts.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m.contacts = [{name: 'Alex'}];
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Alex');
 
   m.contacts.length = 0;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre();
 }
 
@@ -346,27 +346,27 @@ function testIterateEmptyIteratePath() {
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
   m.push({name: 'Alex'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
 
   m.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
 
   m.splice(1, 2);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Rafael', 'Hi Alex');
 
   m.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
   m = div.model = [{name: 'Alex'}];
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Alex');
 }
 
@@ -398,7 +398,7 @@ function testIterateReuse() {
   var node3 = div.childNodes[5];
 
   m.splice(1, 1, {name: 'Erik'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Raf', 'Hi Erik', 'Hi Neal');
   assertEquals('model[0] did not change so the node should not have changed',
                node1, div.childNodes[1]);
@@ -408,7 +408,7 @@ function testIterateReuse() {
 
   node2 = div.childNodes[3];
   m.splice(0, 0, {name: 'Alex'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Erik', 'Hi Neal');
   assertEquals('Should reuse node1', node1, div.childNodes[3]);
   assertEquals('Should reuse node2', node2, div.childNodes[5]);
@@ -451,11 +451,11 @@ function testIterateDoesNotCallFormat() {
   };
 
   m.splice(0, 0, {name: 'Alex'});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Arv', 'Hi Neal');
 
   m.splice(0, 2);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Arv', 'Hi Neal');
 
   // Restore format.
@@ -464,7 +464,7 @@ function testIterateDoesNotCallFormat() {
   delete b3.format;
 
   m[0].name = 'Erik';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertNodesAre('Hi Erik', 'Hi Neal');
 }
 
@@ -515,11 +515,11 @@ function nestedHelper(s, start) {
   assertEquals('2', div.childNodes[i++].textContent);
 
   m.a.b = 11;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('11', div.childNodes[start].textContent);
 
   m.a.c = {d: 22};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('22', div.childNodes[start + 2].textContent);
 }
 
@@ -577,7 +577,7 @@ function nestedIterateInstantiateHelper(s, start) {
     c: {d: 33}
   };
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('3', div.childNodes[start + 5].textContent);
   assertEquals('33', div.childNodes[start + 7].textContent);
 }
@@ -643,7 +643,7 @@ function nestedIterateIterateHelper(s, start) {
   };
 
   i = start + 4;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('3', div.childNodes[start + 7].textContent);
   assertEquals('31', div.childNodes[start + 9].textContent);
   assertEquals('32', div.childNodes[start + 11].textContent);
@@ -724,7 +724,7 @@ function testNestedIterateSelfRef() {
   };
 
   i = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('Item 1 changed', div.childNodes[i++].textContent);
   assertEquals('TEMPLATE', div.childNodes[i++].tagName);
   assertEquals('template-instance', div.childNodes[i++].textContent);
@@ -780,7 +780,7 @@ function testBindToModelScopeInsideInstantiate() {
   var m = { foo: { bar: 'baz' }};
   div.model = m;
   
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('baz', div.childNodes[1].childNodes[0].modelScope);
 }
 
@@ -809,9 +809,9 @@ function testNestedIterateDeletionOfMultipleSubTemplates() {
 
   div.model = m;
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   m.splice(0, 1);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
 }
 
 function testDeepNested() {
@@ -933,12 +933,12 @@ function testInstantiateNested() {
   assertEquals('Wife: LaBarbara', div.childNodes[3].textContent);
 
   m.child = {name: 'Dwight'};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(9, div.childNodes.length);
   assertEquals('Child: Dwight', div.childNodes[6].textContent);
 
   delete m.wife;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(7, div.childNodes.length);
   assertEquals('Child: Dwight', div.childNodes[4].textContent);
 }
@@ -962,12 +962,12 @@ function testInstantiateRecursive() {
   assertEquals('Name: Bender', div.childNodes[3].textContent);
 
   m.friend.friend = {name: 'Leela'};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(10, div.childNodes.length);
   assertEquals('Name: Leela', div.childNodes[5].textContent);
 
   m.friend = {name: 'Leela'};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(7, div.childNodes.length);
   assertEquals('Name: Leela', div.childNodes[3].textContent);
 }
@@ -1019,7 +1019,7 @@ function testChangeRefId() {
   document.getElementById('b').id = 'a';
 
   div.model.push(1, 2);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
 
   assertEquals(11, div.childNodes.length);
   assertEquals('a:1', div.childNodes[4].textContent);
@@ -1146,11 +1146,11 @@ function testAttributeBindingExpression() {
   assertEquals('3', input.value);
 
   div.model.a = 4;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('6', input.value);
 
   delete div.model.a;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('NaN', input.value);
 }
 

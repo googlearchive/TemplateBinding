@@ -648,7 +648,7 @@ Binding.prototype = {
     // This will cause element_bindings:testInputElementTextBinding() to fail.
     // Fix this when we implement "observation contexts" which can have a
     // a finalize step.
-    Model.notifyObservers_();
+    Model.dirtyCheck();
   },
 
   format: function() {

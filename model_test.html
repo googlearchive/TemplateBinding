@@ -60,12 +60,12 @@ function testObserveProperty() {
 
   // Event should fire.
   model.id = 2;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
   assertEquals(model.id, data.id);
 
   data.id = 3;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
 
   if (Model.observableObjects_)
     assertEquals(1, eventCount); // Change to raw object wasn't detected.
@@ -94,25 +94,25 @@ function testObjectPropertySet() {
 
   expect.mutation = 'add';
   model.id = 0;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
 
   expect.mutation = 'delete';
   delete model.id;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, eventCount);
 
   // Stop observing -- shouldn't see an event
   Model.stopObservingPropertySet(model, callback);
   model.id = 101;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, eventCount);
 
   // Re-observe -- should see an new event again.
   Model.observePropertySet(model, callback);
   expect.mutation = 'delete';
   delete model.id;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(3, eventCount);
 }
 
@@ -125,15 +125,15 @@ function testObjectDeleteAddDelete() {
 
   // If mutation occurs in seperate "runs", two events fire.
   delete model.id;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   model.id = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, eventCount);
 
   // If mutation occurs in the same "run", no events fire (nothing changed).
   delete model.id;
   model.id = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, eventCount);
 }
 
@@ -156,7 +156,7 @@ function testMutationWithinObserver() {
   });
 
   m.foo = 'bar';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, count);
 }
 
@@ -203,7 +203,7 @@ function testPathValueBreadthFirstNotification() {
     }
   }
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('add,0112222', notificationSequence);
 }
 
@@ -218,7 +218,7 @@ function testPathValueDescendantsCanBeRemovedDuringNotification() {
 
   // First test that the splice actually propagates down.
   m.unshift({a: 3});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
 
   // Now remove the observation above while a higher-level is receiving the
@@ -229,7 +229,7 @@ function testPathValueDescendantsCanBeRemovedDuringNotification() {
 
   // The observation above should not have fired.
   m.unshift({a: 4});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
 }
 
@@ -244,7 +244,7 @@ function testPathValueDescendantsCanBeResetDuringNotification() {
 
   // First test that the splice actually propagates down.
   m.unshift({a: 3});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
 
   // Now reset the observation above while a higher-level is receiving the
@@ -257,7 +257,7 @@ function testPathValueDescendantsCanBeResetDuringNotification() {
 
   // The observation above should not have fired.
   m.unshift({a: 4});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
 }
 
@@ -290,7 +290,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello, mom';
   m.a.b.c = 'hello, mom';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, eventCount);
   assertEquals(expect.model, Model.getValueAtPath(m, 'a.b.c'));
 
@@ -299,7 +299,7 @@ function testPathObservation() {
   m.a.b = {
     c: 'hello, dad'
   };
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, eventCount);
   assertEquals(expect.model, Model.getValueAtPath(m, 'a.b.c'));
 
@@ -310,7 +310,7 @@ function testPathObservation() {
       c: 'hello, you'
     }
   };
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(3, eventCount);
   assertEquals(expect.model, Model.getValueAtPath(m, 'a.b.c'));
 
@@ -318,7 +318,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = undefined;
   m.a.b = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(4, eventCount);
   assertEquals(expect.model, Model.getValueAtPath(m, 'a.b.c'));
 
@@ -327,7 +327,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello, back again -- but not observing';
   m.a.b = {c: 'hello, back again -- but not observing'};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(4, eventCount);
 
   // Resume observing
@@ -335,7 +335,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello. Back for reals';
   m.a.b.c = 'hello. Back for reals';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(5, eventCount);
 
   // Try to stop observing at different path. Scopes are different,
@@ -344,7 +344,7 @@ function testPathObservation() {
   expect.oldModel = expect.model;
   expect.model = 'hello. scopes are different';
   m.a.b.c = 'hello. scopes are different';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(6, eventCount);
 }
 
@@ -360,7 +360,7 @@ function testMultipleObservationsAreCollapsed() {
 
   assertEquals(pv1, pv2);
   m.id = 2;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -387,7 +387,7 @@ function testExceptionDoesntStopNotification() {
   m.id = 2;
   m.id2 = 2;
   assertThrows(function() {
-    Model.notifyObservers_();
+    Model.dirtyCheck();
   });
   assertEquals(4, count);
 }
@@ -399,7 +399,7 @@ function testSetSame() {
     fired = true;
   });
   m.id = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertFalse('Setting an own property to same value should not notify', fired);
 }
 
@@ -414,7 +414,7 @@ function testSetToSameAsPrototype() {
     fired = true;
   });
   m.id = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertFalse('Setting a property to same value should not notify', fired);
 }
 
@@ -432,7 +432,7 @@ function testSetReadOnly() {
     fired = true;
   });
   m.x = 2;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertFalse('Setting a read only property should not notify', fired);
 }
 
@@ -448,7 +448,7 @@ function testSetUndefined() {
     count++;
   });
   m.x = undefined;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -466,7 +466,7 @@ function testSetShadows() {
     count++;
   });
   m.x = 2;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -483,7 +483,7 @@ function testDeleteWithSameValueOnPrototype() {
     fired = true;
   });
   assertTrue(delete m.x);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertFalse('Deleting a property exposes the same value in this case', fired);
 }
 
@@ -502,7 +502,7 @@ function testDeleteWithDifferentValueOnPrototype() {
     assertEquals(2, oldValue);
   });
   assertTrue(delete m.x);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -519,7 +519,7 @@ function testDeleteOfNonConfigurable() {
     count++;
   });
   assertFalse(delete m.x);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(0, count);
 }
 
@@ -561,7 +561,7 @@ function testModelWithFunctions() {
     count++;
   });
   f.test = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 
   Model.observePropertySet(m, function(c) {
@@ -569,7 +569,7 @@ function testModelWithFunctions() {
     count++;
   });
   m.modifyField();
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 
   var innerObject = m.getInnerObject();
@@ -581,7 +581,7 @@ function testModelWithFunctions() {
                m.innerObject, innerObject);
 
   innerObject.x = 'y';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, count);
 }
 
@@ -616,24 +616,24 @@ function testModelFunctionConstruct() {
     count++;
   });
   object.test = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 
   // "this" is not wrapped
   object.change();
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, object.test);
   assertEquals(1, count);
 
   // Internal change not observable.
   object.change2();
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(3, object.test);
   assertEquals(1, count);
 
   // Arguments should be unwrapped.
   object.change3({});
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(4, object.test);
   assertEquals(1, count);
 }
@@ -655,7 +655,7 @@ function testModelFunctionConstructReturnObject() {
     count++;
   });
   object.test = 1;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -673,13 +673,13 @@ function testArrayModel() {
   var two = {two: 2};
   var three = {three: 3};
   m[0] = two;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
 
   assertArrayEquals([two, one], m);
   assertEquals(1, count);
 
   m[1] = three;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
 
   assertArrayEquals([two, three], m);
   assertEquals(2, count);
@@ -715,7 +715,7 @@ function testArrayModelSplice() {
 
   m.splice(1, 1, two, three);
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([zero, two, three], arr);
   assertArrayEquals([zeroModel, twoModel, threeModel], m);
   assertEquals(1, count);
@@ -727,21 +727,21 @@ function testArrayModelSplice() {
 
   m.splice(0, 1);
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([two, three], arr);
   assertArrayEquals([twoModel, threeModel], m);
   assertEquals(2, count);
 
   m.splice();
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, count);
 
   m.splice(0, 0);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, count);
 
   m.splice(0, -1);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(2, count);
 
   expected.mutation = 'splice';
@@ -750,7 +750,7 @@ function testArrayModelSplice() {
   expected.added = [1.5];
 
   m.splice(-1, 0, 1.5);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([two, 1.5, three], arr);
   assertArrayEquals([twoModel, 1.5, threeModel], m);
 
@@ -760,7 +760,7 @@ function testArrayModelSplice() {
   expected.added = [zeroModel];
 
   m.splice(3, 0, zeroModel);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([two, 1.5, three, zero], arr);
   assertArrayEquals([twoModel, 1.5, threeModel, zeroModel], m);
 
@@ -770,7 +770,7 @@ function testArrayModelSplice() {
   expected.added = [];
 
   m.splice(0);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(5, count);
   assertArrayEquals([], arr);
   assertArrayEquals([], m);
@@ -796,7 +796,7 @@ function testArrayModelSpliceDeleteTooMany() {
   expected.added = [];
 
   m.splice(2, 3);
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals(['a', 'b'], m);
 }
 
@@ -820,7 +820,7 @@ function testArrayModelLength() {
 
   m.length = 5;
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([0, 1, , , ,], m);
   assertEquals(1, count);
 
@@ -831,13 +831,13 @@ function testArrayModelLength() {
 
   m.length = 1;
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([0], m);
   assertEquals(2, count);
 
   m.length = 1;
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([0], m);
   assertEquals(2, count);
 }
@@ -866,13 +866,13 @@ function testArrayModelPush() {
 
   m.push(two, three);
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([zero, one, two, three], m);
   assertEquals(1, count);
 
   m.push();
 
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -897,7 +897,7 @@ function testArrayModelPop() {
   expected.added = [];
 
   assertEquals(one, m.pop());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([zero], m);
   assertEquals(1, count);
 
@@ -905,12 +905,12 @@ function testArrayModelPop() {
   expected.removed = [zero];
 
   assertEquals(zero, m.pop());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([], m);
   assertEquals(2, count);
 
   assertUndefined,(m.pop());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([], m);
   assertEquals(2, count);
 }
@@ -936,7 +936,7 @@ function testArrayModelShift() {
   expected.added = [];
 
   assertEquals(zero, m.shift());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([one], m);
   assertEquals(1, count);
 
@@ -944,12 +944,12 @@ function testArrayModelShift() {
   expected.removed = [one];
 
   assertEquals(one, m.shift());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([], m);
   assertEquals(2, count);
 
   assertUndefined,(m.shift());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([], m);
   assertEquals(2, count);
 }
@@ -976,7 +976,7 @@ function testArrayModelUnshift() {
   expected.added = [negOne];
 
   assertEquals(3, m.unshift(negOne));
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([negOne, zero, one], m);
   assertEquals(1, count);
 
@@ -985,12 +985,12 @@ function testArrayModelUnshift() {
   expected.added = [negThree, negTwo];
 
   assertEquals(5, m.unshift(negThree, negTwo));
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([negThree, negTwo, negOne, zero, one], m);
   assertEquals(2, count);
 
   assertUndefined,(m.unshift());
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertArrayEquals([negThree, negTwo, negOne, zero, one], m);
   assertEquals(2, count);
 }

@@ -90,7 +90,7 @@ function testObserveOnElement() {
   Model.observe(d, 'model', callback);
 
   d.model = {};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -107,7 +107,7 @@ function testObserveOnElement2() {
   Model.observe(divModel, 'model', callback);
 
   divModel.model = {};
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals(1, count);
 }
 
@@ -117,7 +117,7 @@ function testModelCleared() {
 
   parent.model = 'a';
   child.model = 'b';
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertEquals('b', child.model);
   assertEquals('b', child.computedModel);
 
@@ -130,7 +130,7 @@ function testModelCleared() {
   });
 
   child.model = undefined;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
   assertUndefined(child.model);
   assertEquals('a', child.computedModel);
 

@@ -57,7 +57,7 @@ document.body.model = {
 
 function clickHandler(e) {
   e.target.computedModel.selected = !e.target.computedModel.selected;
-  Model.notifyObservers_();
+  Model.dirtyCheck();
 }
 
 document.body.model.people.forEach(function(person) {

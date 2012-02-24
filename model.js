@@ -39,51 +39,16 @@ var Model = {};
     return obj === Object(obj);
   }
 
-  // Right now, there's only one global "observation context" which all
-  // observers share. This means that changes made by one observer may not be
-  // seen by others until the next cycle.
-  //
-  // Project Mutations is only called if proxies are supported. Here we
-  // operate over the set of mutation records and dirty check any objects
-  // whose "write barrier" has been broken.
-  function projectMutations(mutations) {
-    var trackers = [];
-    var dirtyObjectsSet = new WeakMap;
-
-    mutations.forEach(function(mutation) {
-      var target = mutation.target;
-      var tracker = modelTrackerMap.get(target);
-      if (tracker) {
-        tracker.addMutation(mutation);
-        if (!dirtyObjectsSet.has(target)) {
-          dirtyObjectsSet.set(target, true);
-          addNotification(tracker);
-        }
-      }
-    });
-
-    startNotifications();
-  }
-
-  // In the absence of proxies, we get no information about which objects
-  // have been operated on, so we dirty check all objects which are curently
-  // being observed.
-  function dirtyCheckAll() {
-    observedList.forEach(addNotification);
-    startNotifications();
-  }
-
-  Model.notifyObservers_ = function() {
+  Model.dirtyCheck = function() {
     do {
-      dirtyCheckAll();
+      observedList.forEach(addNotification);
+      startNotifications();
     } while (notificationsMade)
   }
 
-  // Within a "notification context", notifications happen in particular order:
+  // Notifications happen in this order:
   //   1) All propertySet add/deletes for all observed objects
   //   2) "Path" values for all observed paths, depth-first from mutated objects
-  //
-  // The notificationQueue manages this sequencing.
   var notificationQueue = [];
 
   function addNotification(tracker) {
@@ -524,11 +489,6 @@ var Model = {};
       this.lastPropertySet = undefined;
     },
 
-    // Called in projectMutations. Adds underlying objectObserve() log events.
-    // ObjectTracker does nothing with this because it treats any mutation
-    // as a signal to dirty check the object.
-    addMutation: function(mutation) {},
-
     get value() {
       return this.target;
     },
@@ -811,68 +771,6 @@ var Model = {};
 
   ArrayTracker.prototype = createObject({
     __proto__: ObjectTracker.prototype,
-
-    addMutation: function(mutation) {
-      if (this.target && mutation.target !== this.target)
-        return;
-      if (!this.splices)
-        this.splices = [];
-
-      var splice;
-      if (mutation.mutation == 'set' || mutation.mutation == 'delete') {
-        if (!isIndex(mutation.name))
-          return;
-
-        var index = +mutation.name;
-        if (mutation.mutation == 'delete' && index >= this.virtualLength)
-          return;
-
-        splice = newSpliceMutation(index, 1, 1);
-      } else {
-        splice = newSpliceMutation(mutation.index,
-                                   mutation.deleteCount,
-                                   mutation.addCount);
-      }
-
-      var range = splice.index + splice.deleteCount;
-      var delta = splice.addCount - splice.deleteCount;
-      var inserted = false;
-
-      for (var i = 0; i < this.splices.length; i++) {
-        var current = this.splices[i];
-        var currentRange = current.index + current.addCount;
-        var intersectCount = intersect(splice.index,
-                                       range,
-                                       current.index,
-                                       currentRange);
-
-        if (intersectCount >= 0) {
-          // Merge the two splices
-          splice.index = Math.min(splice.index, current.index);
-          splice.deleteCount = splice.deleteCount +
-                               current.deleteCount -
-                               intersectCount;
-          splice.addCount = splice.addCount +
-                            current.addCount -
-                            intersectCount;
-          this.splices.splice(i, 1);
-          i--;
-        } else if (splice.index <= current.index) {
-          current.index += delta;
-          if (!inserted) {
-            // Insert splice here.
-            this.splices.splice(i, 0, splice);
-            i++;
-            inserted = true;
-          }
-        }
-      }
-
-      if (!inserted)
-        this.splices.push(splice);
-
-      this.virtualLength += delta;
-    },
 
     notify: function() {
       this.generateSplices();
