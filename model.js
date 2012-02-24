@@ -74,8 +74,6 @@ var Model = {};
   }
 
   Model.notifyObservers_ = function() {
-    window.notifyObservers_();
-
     do {
       dirtyCheckAll();
     } while (notificationsMade)

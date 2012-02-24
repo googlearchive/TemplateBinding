@@ -15,9 +15,7 @@
 document.write('<link rel="stylesheet" href="../template_element.css">');
 [
   '../platform/compat.js',
-  '../platform/forwarding_handler.js',
   '../platform/weak_map.js',
-  '../platform/observers.js',
   '../path.js',
   '../model.js',
   '../transform.js',

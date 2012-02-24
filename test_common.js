@@ -13,4 +13,3 @@
 // limitations under the License.
 
 Model.throwFirstException_ = true;
-this.notifyObservers_.throwFirstException_ = true;

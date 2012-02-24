@@ -19,9 +19,7 @@ limitations under the License.
 <title>Model Tests</title>
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
-<script src="platform/forwarding_handler.js"></script>
 <script src="platform/weak_map.js"></script>
-<script src="platform/observers.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="test_common.js"></script>
@@ -1021,12 +1019,6 @@ var arrayTrackerObserver = function(mutations) {
 }
 
 function assertArrayTracker() {
-  // Note that we do window.notifyObservers_ here rather than
-  // Model.notifyObservers_() because the later will itself
-  // tricker dirtyChecking of the tested array, which is what
-  // we'd like to tricker with tracker.notify(), below, if proxies
-  // are not implemented.
-  window.notifyObservers_();
   tracker.notify();
   assertArrayEquals(tracker.target, tracker.copy);
 }
