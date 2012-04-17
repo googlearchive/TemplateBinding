@@ -26,12 +26,6 @@ var _allTests = [
   'util/view_controller_test.html',
 ];
 
-// Conditionally add tests that depend on Proxy support.
-if (window.Proxy) {
-  _allTests.push('platform/forwarding_handler_test.html',
-                 'platform/object_observe_test.html');
-}
-
 </script>
 <script>
 goog.require('goog.userAgent.product');
