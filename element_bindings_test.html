@@ -951,6 +951,17 @@ function testBindToChecked() {
   assertFalse(m.a.b);
 }
 
+function testBindToInlineEventListener() {
+  var div = document.createElement('div');
+
+  var m = {
+    func: function() {}
+  };
+  div.model = m;
+  div.addBinding('onclick', new Binding('func'));
+  assertEquals(m.func, div.onclick);
+}
+
 function testExpressionBinding() {
   var el = document.createElement('div');
   var m = el.model = {a: 1, b: 2};
