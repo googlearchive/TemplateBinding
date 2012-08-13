@@ -727,17 +727,12 @@ TemplateIterator.prototype = {
    * Handles a mutation to the model. This only handles splice mutations.
    * @param {Object} c An object describing the change.
    */
-  handleModelMutation: function(c) {
-    if (c.mutation != 'splice' || !isIterateTemplate(this))
-      return;
-
+  handleModelMutation: function(index, removed, addCount) {
     // TODO(arv): Detect when an item was removed and added in the same splice.
     // For example, arr.splice(0, 2, arr[1], arr[0]), moves two elements and
     // we should just move the DOM nodes.
 
-    var index = c.index;
-    var addCount = c.added.length;
-    var removeCount = c.removed.length;
+    var removeCount = removed.length;
 
     // iterate to index
     var instance = this.getInstanceAt(index);

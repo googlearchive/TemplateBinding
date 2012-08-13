@@ -22,6 +22,7 @@ limitations under the License.
 <script src="platform/compat.js"></script>
 <script src="platform/weak_map.js"></script>
 <script src="path.js"></script>
+<script src="change_summary.js"></script>
 <script src="model.js"></script>
 <script src="transform.js"></script>
 <script src="dependency_parser.js"></script>
@@ -779,7 +780,7 @@ function testBindToModelScopeInsideInstantiate() {
 
   var m = { foo: { bar: 'baz' }};
   div.model = m;
-  
+
   Model.dirtyCheck();
   assertEquals('baz', div.childNodes[1].childNodes[0].modelScope);
 }
@@ -999,7 +1000,7 @@ function testChangeFromInstantiateToIterate() {
   assertEquals('1', div.childNodes[3].textContent);
   assertEquals('2', div.childNodes[5].textContent);
 
-  template.instantiate = 'a[1].b';
+  template.instantiate = 'a.1.b';
   assertEquals(3, div.childNodes.length);
   assertEquals('4', div.childNodes[1].textContent);
 }

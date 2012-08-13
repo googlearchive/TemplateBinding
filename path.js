@@ -27,13 +27,13 @@ var Path = (function() {
   */
 
   // RegExp to validate a path. It is used with isPathValid and is not complete.
-  var identPart = '[\$a-z_]+[\$a-z_\\d]*';
+  // blarg
+  var identPart = '[\$a-z0-9_]+[\$a-z0-9_\\d]*';
   var indexPart = '\\d+';
   var re = new RegExp('^' +
                       '(?:#?' + identPart + ')?' +
                       '(?:' +
                         '(?:\\.' + identPart + ')|' +
-                        '(?:\\[' + indexPart + '\\])' +
                       ')*' +
                       '$', 'i');
 
@@ -159,10 +159,7 @@ var Path = (function() {
         }
 
         for (var i = 0; i < this.parts_.length; i++) {
-          if (isIndex(this.parts_[i][0]))
-            s += '[' + this.parts_[i] + ']';
-          else
-            s += (i == 0 ? '' : '.') + this.parts_[i];
+          s += (i == 0 ? '' : '.') + this.parts_[i];
         }
         return s;
       }
