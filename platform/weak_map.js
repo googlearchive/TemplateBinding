@@ -20,13 +20,15 @@
 
 var WeakMap;
 
-if (typeof WeakMap == 'undefined') {
+(function() {
+  if (typeof WeakMap !== 'undefined')
+    return;
 
-  var assertObject = function(value) {
+  function assertObject(value) {
     if (value !== Object(value)) {
       throw TypeError('value is not a non-null object');
     }
-  };
+  }
 
   WeakMap = function() {};
 
@@ -86,4 +88,5 @@ if (typeof WeakMap == 'undefined') {
       }
     }
   };
-}
+
+})();
