@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-(function() {
+(function(global) {
 
 var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
@@ -161,7 +161,7 @@ function buildBindingsRepresentation(node) {
  * @param {Object} desc The binding description.
  * @param {Object} parent The parent element or phantom element.
  * @param {string} templateScope The template scope.
- * @return {object} An object similar to the binding description except that it
+ * @return {Object} An object similar to the binding description except that it
  *     has bindings in it.
  */
 function createPhantomInstance(desc, parent, templateScope) {
@@ -375,21 +375,22 @@ function inDocument(node) {
       Node.DOCUMENT_POSITION_CONTAINED_BY;
 }
 
+var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
 
-/**
- * This represents a <template> element.
- * @constructor
- * @extends {HTMLElement}
- */
-HTMLTemplateElement = function() {
-  var el = document.createElement('template');
-  HTMLTemplateElement.decorate(el);
-  return el;
-};
+if (!hasTemplateElement) {
+  /**
+   * This represents a <template> element.
+   * @constructor
+   * @extends {HTMLElement}
+   */
+  global.HTMLTemplateElement = function() {
+    throw TypeError('Illegal constructor');
+  };
+}
 
 var hasProto = '__proto__' in {};
 
-function copyOwnProperties(from, to) {
+function mixin(to, from) {
   Object.getOwnPropertyNames(from).forEach(function(name) {
     Object.defineProperty(to, name,
                           Object.getOwnPropertyDescriptor(from, name));
@@ -402,20 +403,29 @@ HTMLTemplateElement.decorate = function(el) {
 
   // Note: because we need to treat some semantic elements as template elements
   // (like tr or td), but don't want to reassign their proto (gecko doesn't
-  // like that), we copyOwnProperties for those elements.
-  if (el.tagName == "TEMPLATE" && hasProto)
-    el.__proto__ = HTMLTemplateElement.prototype;
-  else
-    copyOwnProperties(HTMLTemplateElement.prototype, el);
+  // like that), we mixin the properties for those elements.
+  if (el.tagName === 'TEMPLATE') {
+    if (!hasTemplateElement) {
+      if (hasProto)
+        el.__proto__ = HTMLTemplateElement.prototype;
+      else
+        mixin(el, HTMLTemplateElement.prototype);
+    }
+  } else {
+    mixin(el, HTMLTemplateElement.prototype);
+  }
   el.decorate();
 };
 
-var htmlElement = this.HTMLUnknownElement || HTMLElement;
+var htmlElement = global.HTMLUnknownElement || HTMLElement;
 
-HTMLTemplateElement.prototype = createObject({
+if (!hasTemplateElement) {
   // Gecko is more picky with the prototype than WebKit. Make sure to use the
   // same prototype as created in the constructor.
-  __proto__: htmlElement.prototype,
+  HTMLTemplateElement.prototype = Object.create(htmlElement.prototype);
+}
+
+mixin(HTMLTemplateElement.prototype, {
 
   decorate: function() {
     this.templateIsDecorated_ = true;
@@ -978,8 +988,7 @@ TemplateInstance.prototype = createObject({
   }
 });
 
-this.HTMLTemplateElement = HTMLTemplateElement;
 // Expose for testing
-this.HTMLTemplateElement.allTemplatesSelectors = allTemplatesSelectors;
+HTMLTemplateElement.allTemplatesSelectors = allTemplatesSelectors;
 
-})();
+})(this);
