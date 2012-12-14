@@ -397,6 +397,35 @@ function mixin(to, from) {
   });
 }
 
+var templateContentsTable = new SideTable('templateContents');
+var templateContentsOwnerTable = new SideTable('templateContentsOwner');
+
+// http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
+function getTemplateContentsOwner(doc) {
+  if (!doc.defaultView)
+    return doc;
+  var d = templateContentsOwnerTable.get(doc);
+  if (!d) {
+    // This should either be a Document or HTMLDocument depending on doc.
+    d = doc.implementation.createHTMLDocument('');
+    while (d.lastChild) {
+      d.removeChild(d.lastChild);
+    }
+    templateContentsOwnerTable.set(doc, d);
+  }
+  return d;
+}
+
+function moveTemplateContentIntoContent(templateElement) {
+  var doc = getTemplateContentsOwner(templateElement.ownerDocument);
+  var df = doc.createDocumentFragment();
+  var child;
+  while (child = templateElement.firstChild) {
+    df.appendChild(child);
+  }
+  templateContentsTable.set(templateElement, df);
+}
+
 HTMLTemplateElement.decorate = function(el) {
   if (el.templateIsDecorated_)
     return;
@@ -410,6 +439,8 @@ HTMLTemplateElement.decorate = function(el) {
         el.__proto__ = HTMLTemplateElement.prototype;
       else
         mixin(el, HTMLTemplateElement.prototype);
+
+      moveTemplateContentIntoContent(el);
     }
   } else {
     mixin(el, HTMLTemplateElement.prototype);
@@ -423,6 +454,14 @@ if (!hasTemplateElement) {
   // Gecko is more picky with the prototype than WebKit. Make sure to use the
   // same prototype as created in the constructor.
   HTMLTemplateElement.prototype = Object.create(htmlElement.prototype);
+
+  Object.defineProperty(HTMLTemplateElement.prototype, 'content', {
+    get: function() {
+      return templateContentsTable.get(this);
+    },
+    enumerable: true,
+    configurable: true
+  });
 }
 
 mixin(HTMLTemplateElement.prototype, {

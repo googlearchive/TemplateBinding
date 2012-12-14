@@ -20,7 +20,7 @@ limitations under the License.
 <link rel="stylesheet" href="template_element.css">
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
-<script src="platform/weak_map.js"></script>
+<script src="side_table.js"></script>
 <script src="path.js"></script>
 <script src="model.js"></script>
 <script src="transform.js"></script>
@@ -1164,6 +1164,48 @@ function testDynamicallyDecoratedNestedTemplateScope() {
   container.innerHTML = '<template instantiate><b>{{foo}}</b></template>';
   HTMLTemplateElement.decorate(div.querySelectorAll('template')[1]);
   assertEquals('bar', div.querySelector('b').textContent);
+}
+
+function testContent() {
+  var div = createTestHtml(
+      '<template><a></a></template>' +
+      '<template><b></b></template>');
+  var templateA = div.firstChild;
+  var templateB = div.lastChild;
+  var contentA = templateA.content;
+  var contentB = templateB.content;
+  assertNotUndefined(contentA);
+
+  assertNotEquals(templateA.ownerDocument, contentA.ownerDocument);
+  assertNotEquals(templateB.ownerDocument, contentB.ownerDocument);
+
+  assertEquals(templateA.ownerDocument, templateB.ownerDocument);
+  assertEquals(contentA.ownerDocument, contentB.ownerDocument);
+
+  assertEquals(templateA.ownerDocument.defaultView, window);
+  assertEquals(templateB.ownerDocument.defaultView, window);
+
+  assertEquals(contentA.ownerDocument.defaultView, null);
+  assertEquals(contentB.ownerDocument.defaultView, null);
+
+  assertEquals(contentA.firstChild, contentA.lastChild);
+  assertEquals(contentA.firstChild.tagName, 'A');
+
+  assertEquals(contentB.firstChild, contentB.lastChild);
+  assertEquals(contentB.firstChild.tagName, 'B');
+}
+
+function testNestedContent() {
+  var div = createTestHtml(
+      '<template>' +
+      '<template></template>' +
+      '</template>');
+  var templateA = div.firstChild;
+  var templateB = templateA.content.firstChild;
+
+  assertEquals(templateA.content.ownerDocument, templateB.ownerDocument);
+  assertEquals(templateA.content.ownerDocument,
+               templateB.content.ownerDocument);
 }
 
 </script>

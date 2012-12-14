@@ -19,11 +19,11 @@ var Model = {};
   var observedList = [];
 
   function addToObservedList(model) {
-    observedList.push(modelTrackerMap.get(model));
+    observedList.push(modelTrackerTable.get(model));
   }
 
   function removeFromObservedList(model) {
-    var tracker = modelTrackerMap.get(model);
+    var tracker = modelTrackerTable.get(model);
     var index = observedList.indexOf(tracker);
     if (index < 0)
       throw Error('Unable to remove expected tracker');
@@ -91,7 +91,7 @@ var Model = {};
   };
 
   // Map: { model -> Tracker(model) };
-  var modelTrackerMap = new WeakMap;
+  var modelTrackerTable = new SideTable('modelTracker');
 
   function createTracker(model) {
     if (model instanceof Array)
@@ -101,10 +101,10 @@ var Model = {};
   }
 
   function getModelTracker(data) {
-    var tracker = modelTrackerMap.get(data);
+    var tracker = modelTrackerTable.get(data);
     if (!tracker) {
       var tracker = createTracker(data);
-      modelTrackerMap.set(data, tracker);
+      modelTrackerTable.set(data, tracker);
       addToObservedList(data);
     }
 
@@ -158,14 +158,14 @@ var Model = {};
     if (!isObject(data))
       return;
 
-    var tracker = modelTrackerMap.get(data);
+    var tracker = modelTrackerTable.get(data);
     if (!tracker)
       return;
 
     tracker.removeObserver(callback);
     if (!tracker.dependants) {
       removeFromObservedList(data);
-      modelTrackerMap['delete'](data);
+      modelTrackerTable['delete'](data);
     }
   };
 
@@ -209,7 +209,7 @@ var Model = {};
     if (path.length == 0)
       return;
 
-    var tracker = modelTrackerMap.get(data);
+    var tracker = modelTrackerTable.get(data);
     if (!tracker)
       return;
 
@@ -226,7 +226,7 @@ var Model = {};
 
     if (!tracker.dependants) {
       removeFromObservedList(data);
-      modelTrackerMap['delete'](data);
+      modelTrackerTable['delete'](data);
     }
   };
 
@@ -235,14 +235,14 @@ var Model = {};
   }
 
   function stopObservingPropertyValue(data, name, pathTracker) {
-    var tracker = modelTrackerMap.get(data);
+    var tracker = modelTrackerTable.get(data);
     if (!tracker)
       return;
 
     tracker.removeValueObserver(name, pathTracker);
     if (!tracker.dependants) {
       removeFromObservedList(data);
-      modelTrackerMap['delete'](data);
+      modelTrackerTable['delete'](data);
     }
   }
 

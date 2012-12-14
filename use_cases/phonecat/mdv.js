@@ -1,7 +1,7 @@
 document.write('<link rel="stylesheet" href="../template_element.css">');
 [
   '../../platform/compat.js',
-  '../../platform/weak_map.js',
+  '../../side_table.js',
   '../../path.js',
   '../../model.js',
   '../../transform.js',
