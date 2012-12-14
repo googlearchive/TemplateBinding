@@ -1,0 +1,5 @@
+# This file is used by gcl to get repository specific information.
+CODE_REVIEW_SERVER: https://codereview.appspot.com
+VIEW_VC: http://code.google.com/p/mdv/source/detail?r=
+CC_LIST: mdv-reviews@googlegroups.com
+
