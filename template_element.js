@@ -83,12 +83,7 @@ function buildBindingsRepresentation(node) {
   var anyAttributeBindings = false;
   var anyTemplates = false;
   var modelScope = '';
-  // Bindings may exist *on* "attribute-Template" elements
-  // (e.g. <tr template iterate class="{{ foo }}"). Avoid building the
-  // binding representation for those bindings on the template element.
-  // Once the "semantic template" is separated from its prototype
-  // (cloneAndSeperateAttributeTemplate), the bindings representation can be
-  // built.
+
   if (node.nodeType == Node.ELEMENT_NODE &&
       !isTemplateElement(node)) {
     for (var i = 0; i < node.attributes.length; i++) {
@@ -258,21 +253,6 @@ function transferBindingsToNode(node, phantom, templateScope) {
   }
 }
 
-function cloneAndSeperateAttributeTemplate(templateElement) {
-  var clone = templateElement.cloneNode(false);
-  var attribs = templateElement.attributes;
-  var count = attribs.length;
-  while (count-- > 0) {
-    var attrib = attribs[count];
-    if (templateAttributeDirectives[attrib.name])
-      clone.removeAttribute(attrib.name);
-    else
-      templateElement.removeAttribute(attrib.name);
-  }
-
-  return clone;
-}
-
 /**
  * Creates a snapshot of the DOM and binding descriptions for a template and
  * puts it on the iterator for that template.
@@ -280,22 +260,9 @@ function cloneAndSeperateAttributeTemplate(templateElement) {
  */
 function createSnapshot(iterator) {
   var templateElement = iterator.templateElement;
-
   var templateDomRoot = iterator.templateDom_ =
-      templateElement.ownerDocument.createDocumentFragment();
+      getTemplateContent(templateElement);
   var bindings = iterator.bindingDescriptions_ = {};
-
-  if (isAttributeTemplate(templateElement)) {
-    // The template element is also a semantic element (e.g. <td>, <option>).
-    // In the case, the "separated" semantic element (the element minus its
-    // template-related directives) must be cloned and used as the root of
-    // the templateDom.
-    var newRoot = cloneAndSeperateAttributeTemplate(templateElement);
-    templateDomRoot.appendChild(newRoot);
-    templateDomRoot = newRoot;
-    bindings[0] = buildBindingsRepresentation(newRoot) || {};
-    bindings = bindings[0];
-  }
 
   function recursiveExtract(template) {
     HTMLTemplateElement.decorate(template);
@@ -304,9 +271,9 @@ function createSnapshot(iterator) {
   }
 
   var i = 0;
-  while (templateElement.hasChildNodes()) {
-    // Move original element to the snapshot document fragment.
-    var child = templateDomRoot.appendChild(templateElement.firstChild);
+  var childNodes = getTemplateContent(templateElement).childNodes;
+  for (var j = 0; j < childNodes.length; j++) {
+    var child = childNodes[j];
     var b = buildBindingsRepresentation(child);
     if (b)
       bindings[i] = b
@@ -399,6 +366,8 @@ function mixin(to, from) {
 
 var templateContentsTable = new SideTable('templateContents');
 var templateContentsOwnerTable = new SideTable('templateContentsOwner');
+var reverseTemplateContentsOwnerTable =
+    new SideTable('reverseTemplateContentsOwner');
 
 // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
 function getTemplateContentsOwner(doc) {
@@ -416,14 +385,59 @@ function getTemplateContentsOwner(doc) {
   return d;
 }
 
+function cloneAndSeperateAttributeTemplate(templateElement) {
+  var clone = templateElement.cloneNode(false);
+  var attribs = templateElement.attributes;
+  var count = attribs.length;
+  while (count-- > 0) {
+    var attrib = attribs[count];
+    if (templateAttributeDirectives[attrib.name])
+      clone.removeAttribute(attrib.name);
+    else
+      templateElement.removeAttribute(attrib.name);
+  }
+
+  return clone;
+}
+
 function moveTemplateContentIntoContent(templateElement) {
   var doc = getTemplateContentsOwner(templateElement.ownerDocument);
   var df = doc.createDocumentFragment();
-  var child;
-  while (child = templateElement.firstChild) {
-    df.appendChild(child);
+  if (isAttributeTemplate(templateElement)) {
+    // For attribute templates we copy the whole thing into the content and
+    // we move the non template attributes into the content.
+    //
+    //   <tr foo template>
+    //
+    // becomes
+    //
+    //   <tr template>
+    //   + #document-fragment
+    //     + <tr foo>
+    //
+    var newRoot = cloneAndSeperateAttributeTemplate(templateElement);
+    var child;
+    while (child = templateElement.firstChild) {
+      newRoot.appendChild(child);
+    }
+    df.appendChild(newRoot);
+  } else {
+    var child;
+    while (child = templateElement.firstChild) {
+      df.appendChild(child);
+    }
   }
   templateContentsTable.set(templateElement, df);
+}
+
+/**
+ * Similar to |templateElement.content| but it also works on attribute
+ * templates.
+ */
+function getTemplateContent(templateElement) {
+  if (!hasTemplateElement || isAttributeTemplate(templateElement))
+    return templateContentsTable.get(templateElement);
+  return templateElement.content;
 }
 
 HTMLTemplateElement.decorate = function(el) {
@@ -439,12 +453,11 @@ HTMLTemplateElement.decorate = function(el) {
         el.__proto__ = HTMLTemplateElement.prototype;
       else
         mixin(el, HTMLTemplateElement.prototype);
-
-      moveTemplateContentIntoContent(el);
     }
   } else {
     mixin(el, HTMLTemplateElement.prototype);
   }
+
   el.decorate();
 };
 
@@ -468,6 +481,18 @@ mixin(HTMLTemplateElement.prototype, {
 
   decorate: function() {
     this.templateIsDecorated_ = true;
+
+    if (!hasTemplateElement || isAttributeTemplate(this))
+      moveTemplateContentIntoContent(this);
+
+    // Associate the inner document with the outer.
+    // This is needed to be able to find ref templates from the inner document
+    // to the outer document.
+    var outerDocument = this.ownerDocument;
+    var innerDocument = getTemplateContent(this).ownerDocument;
+    if (innerDocument !== outerDocument)
+      reverseTemplateContentsOwnerTable.set(innerDocument, outerDocument);
+
     this.maybeApplyTemplate_();
   },
 
@@ -505,7 +530,21 @@ mixin(HTMLTemplateElement.prototype, {
 
   get ref() {
     var ref = this.getAttribute('ref');
-    return ref ? this.ownerDocument.getElementById(ref) : null;
+    if (!ref)
+      return null;
+
+    // If this template element is inside another template element we need to
+    // also check the owner document of the outer template.
+    var doc = this.ownerDocument;
+    var refTemplate = doc.getElementById(ref);
+    if (refTemplate)
+      return refTemplate;
+
+    doc = reverseTemplateContentsOwnerTable.get(doc);
+    if (!doc)
+      return null;
+
+    return doc.getElementById(ref) || null;
   },
 
   templateIterator_: null,
