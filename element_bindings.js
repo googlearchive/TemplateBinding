@@ -134,17 +134,25 @@ function removeBinding(property, aboutToRebind) {
   }
 }
 
+function addTextBinding(binding) {
+  addBinding.call(this, 'textContent', binding);
+}
+
+function removeTextBinding(binding, aboutToRebind) {
+  removeBinding.call(this, 'textContent', binding, aboutToRebind);
+}
+
 HTMLElement.prototype.addBinding = addBinding;
 HTMLElement.prototype.removeBinding = removeBinding;
-Text.prototype.addBinding = addBinding;
-Text.prototype.removeBinding = removeBinding;
+Text.prototype.addBinding = addTextBinding;
+Text.prototype.removeBinding = removeTextBinding;
 
 Object.defineProperty(Text.prototype, 'binding', {
   get: function() {
     return this.bindings_['textContent'];
   },
   set: function(binding) {
-    this.addBinding('textContent', binding);
+    this.addBinding(binding);
   },
   configurable: true,
   enumerable: true

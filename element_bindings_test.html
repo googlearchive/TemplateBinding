@@ -391,7 +391,7 @@ function testPlaceHolderBindingText() {
 
   var el = document.createElement('div');
   el.textContent = 'dummy';
-  el.firstChild.addBinding('textContent', phb);
+  el.firstChild.addBinding(phb);
   el.model = m;
 
   Model.dirtyCheck();
@@ -444,7 +444,7 @@ function testPlaceHolderBindingTextInline() {
 
   var el = document.createElement('div');
   el.textContent = 'dummy';
-  el.firstChild.addBinding('textContent', 'Hello {{ adj }} {{noun}}!');
+  el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
   el.model = m;
 
   Model.dirtyCheck();
