@@ -39,12 +39,6 @@ function testBoolean() {
   assertNotEquals(AttributeKind.BOOLEAN, getAttributeKind('span', 'disabled'));
 }
 
-function testKnown() {
-  assertEquals(AttributeKind.KNOWN, getAttributeKind('', 'class'));
-  assertEquals(AttributeKind.KNOWN, getAttributeKind('input', 'value'));
-  assertNotEquals(AttributeKind.KNOWN, getAttributeKind('input', 'foo'));
-}
-
 function testUnknown() {
   assertEquals(AttributeKind.UNKNOWN, getAttributeKind('', 'foo'));
   assertEquals(AttributeKind.UNKNOWN, getAttributeKind('a', 'value'));

@@ -432,18 +432,15 @@ function getPropertyKind(object, name) {
 
       case (AttributeKind.EVENT_HANDLER):
         return JS_PROP;
-
-      case AttributeKind.KNOWN:
-        if (lcName == 'value')
-          return JS_PROP;
-
-      case AttributeKind.UNKNOWN:
-        switch (lcName) {
-          case 'selectedindex':
-          case 'modelscope':
-            return JS_PROP;
-        }
     }
+
+    switch (lcName) {
+      case 'value':
+      case 'selectedindex':
+      case 'modelscope':
+        return JS_PROP;
+    }
+
     return ATTR;
   }
 
