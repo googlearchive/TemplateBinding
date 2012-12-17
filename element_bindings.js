@@ -417,20 +417,26 @@ function getPropertyKind(object, name) {
     var lcName = name.toLowerCase();
     var kind = getAttributeKind(object.tagName, name);
     switch (kind) {
-      case (AttributeKind.BOOLEAN):
+      case AttributeKind.BOOLEAN:
         if (lcName == 'checked')
           return JS_PROP;
         return BOOL_ATTR;
 
-      case (AttributeKind.KNOWN):
+      case (AttributeKind.EVENT_HANDLER):
+        return JS_PROP;
+
+      case AttributeKind.KNOWN:
         if (lcName == 'value')
           return JS_PROP;
-        return ATTR;
 
-      case (AttributeKind.EVENT_HANDLER):
-      case (AttributeKind.UNKNOWN):
-        return JS_PROP;
+      case AttributeKind.UNKNOWN:
+        switch (lcName) {
+          case 'selectedindex':
+          case 'modelscope':
+            return JS_PROP;
+        }
     }
+    return ATTR;
   }
 
   return JS_PROP;
@@ -461,7 +467,7 @@ function setProperty(object, name, value) {
           object.removeAttribute(name);
         break;
       case ATTR:
-        if (value === undefined)
+        if (value == null)  // includes undefined
           object.removeAttribute(name);
         else
           object.setAttribute(name, value);

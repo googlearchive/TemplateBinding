@@ -432,7 +432,8 @@ var getAttributeKind = (function() {
       multiple: true,
       name: true,
       required: true,
-      size: true
+      size: true,
+      value: true
     },
     small: {},
     source: {
