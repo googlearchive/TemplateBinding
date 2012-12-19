@@ -26,9 +26,9 @@ limitations under the License.
     <legend>Binding To Hidden</legend>
     <h5>Shipping Address</h5>
 
-    <div modelScope="shipping">
-      <label>Name: <input type="text" value="{{name}}"></label>
-      <label>Address: <input type="text" value="{{address}}"></label>
+    <div>
+      <label>Name: <input type="text" value="{{shipping.name}}"></label>
+      <label>Address: <input type="text" value="{{shipping.address}}"></label>
     </div>
 
     <h5>Billing Address</h5>
@@ -40,9 +40,9 @@ limitations under the License.
       </label>
     </div>
 
-    <div modelScope="billing" hidden="{{useShipping}}">
-      <label>Name: <input type="text" value="{{name}}"></label>
-      <label>Address: <input type="text" value="{{address}}"></label>
+    <div hidden="{{billing.useShipping}}">
+      <label>Name: <input type="text" value="{{billing.name}}"></label>
+      <label>Address: <input type="text" value="{{billing.address}}"></label>
     </div>
   </fieldset>
 </template>

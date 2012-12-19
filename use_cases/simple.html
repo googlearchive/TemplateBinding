@@ -49,55 +49,33 @@ window.onload = function() {
 m.sample1 = {text: ''};
 </script>
 
-
 <template instantiate="sample2">
-  <fieldset><legend>Scoped:</legend>
-    <label> Who:
-      <select value="{{scope}}">
-        <option>Bender</option>
-        <option>Professor</option>
-      </select>
-    </label>
-    <span modelScope="{{scope}}">
-      <label>What: <input type="text" value="{{what}}"></label>
-    </span>
-  </fieldset>
-</template>
-<script>
-m.sample2 = {
-  scope: 'Bender',
-  Bender: {what: 'See ya later, meatbags'},
-  Professor: {what: 'Good news, everyone!'}
-};
-</script>
-
-<template instantiate="sample3">
   <fieldset>
     <legend>Binding To Disabled, Changing Bindings</legend>
     <h5>Shipping Address</h5>
 
-    <div modelScope="shipping">
-      <label>Name: <input type="text" value="{{name}}"></label>
-      <label>Address: <input type="text" value="{{address}}"></label>
+    <div>
+      <label>Name: <input type="text" value="{{shipping.name}}"></label>
+      <label>Address: <input type="text" value="{{shipping.address}}"></label>
     </div>
 
     <h5>Billing Address</h5>
 
-    <div id="billingDiv" modelScope="billing">
-      <div>
-        <label>
-          <input id="useShipping"
-                 type="checkbox"
-                 checked="{{ ../useShipping }}">Same as Shipping Address
-        </label>
-      </div>
+    <div>
+      <label>
+        <input id="useShipping"
+               type="checkbox"
+               checked="{{useShipping}}">Same as Shipping Address
+      </label>
+    </div>
+    <div id="billingDiv">
       <label>Name: <input id="billingName" type="text" value="{{name}}"></label>
       <label>Address: <input id="billingAddress" type="text" value="{{address}}"></label>
     </div>
   </fieldset>
 </template>
 <script>
-m.sample3 = {
+m.sample2 = {
   useShipping: false,
   shipping: {
     name: '',
@@ -115,10 +93,13 @@ function disabledExamplePostLoad() {
   var billingName = document.getElementById('billingName');
   var billingAddress = document.getElementById('billingAddress');
 
-  Model.observe(m.sample3, 'useShipping', function(useShipping) {
-    billingDiv.modelScope = useShipping ? 'shipping' : 'billing';
+  function update(useShipping) {
+    billingDiv.model = useShipping ? m.sample2.shipping : m.sample2.billing;
     billingName.disabled = billingAddress.disabled = useShipping;
-  });
+  }
+  update(checkBox.checked);
+
+  Model.observe(m.sample2, 'useShipping', update);
 }
 </script>
 </body>

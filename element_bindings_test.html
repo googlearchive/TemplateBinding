@@ -135,11 +135,8 @@ function testSimpleBinding() {
 
 function testSimpleBindingAbsoluteRelativeAndCurrent() {
   var parent = document.createElement('div');
-  parent.modelScope = 'abs';
   var child = parent.appendChild(document.createElement('div'))
-  child.modelScope = 'ans';
   var el = child.appendChild(document.createElement('div'))
-  el.modelScope = 'cur';
 
   parent.model = {
     val: 'root',
@@ -159,14 +156,6 @@ function testSimpleBindingAbsoluteRelativeAndCurrent() {
   el.addBinding('abs', '{{ /abs.val }}');
   Model.dirtyCheck();
   assertEquals('abs', el.getAttribute('abs'));
-
-  el.addBinding('ans', '{{ ../val }}');
-  Model.dirtyCheck();
-  assertEquals('ans', el.getAttribute('ans'));
-
-  el.addBinding('cur', '{{ ./ }}');
-  Model.dirtyCheck();
-  assertEquals('cur', el.getAttribute('cur'));
 }
 
 function testSimpleBindingWithDashes() {
@@ -231,54 +220,6 @@ function testSimpleBindingChangeModel() {
   assertEquals('1', el.getAttribute('foo'));
 }
 
-function testSimpleBindingChangeModelScope() {
-  var el = document.createElement('div');
-  el.addBinding('foo', new Binding('a'));
-  el.model = {a: {a: '1', toString: function() { return 'inner'; }}};
-  Model.dirtyCheck();
-  assertEquals('inner', el.getAttribute('foo'));
-
-  el.modelScope = 'a';
-  Model.dirtyCheck();
-  assertEquals('1', el.getAttribute('foo'));
-}
-
-function testBindingChangeAtModelScopeChild() {
-  var parent = document.createElement('div');
-  var child = parent.appendChild(document.createElement('div'));
-
-  parent.model = {
-    a: {b: 1}
-  };
-
-  child.addBinding('b', new Binding('b'));
-  child.modelScope = 'a';
-  Model.dirtyCheck();
-  assertEquals('1', child.getAttribute('b'));
-
-  parent.model.a = {b: 2};
-  Model.dirtyCheck();
-  assertEquals('2', child.getAttribute('b'));
-}
-
-function testBindingChangeAtModelScopeParent() {
-  var parent = document.createElement('div');
-  var child = parent.appendChild(document.createElement('div'));
-
-  parent.model = {
-    a: {b: 1}
-  };
-
-  child.addBinding('b', new Binding('b'));
-  parent.modelScope = 'a';
-  Model.dirtyCheck();
-  assertEquals('1', child.getAttribute('b'));
-
-  parent.model.a = {b: 2};
-  Model.dirtyCheck();
-  assertEquals('2', child.getAttribute('b'));
-}
-
 function testSimpleBindingChangeAncestorModel() {
   var d1 = document.createElement('div');
   var d2 = d1.appendChild(document.createElement('div'));
@@ -312,74 +253,6 @@ function testSimpleBindingChangeAncestorModel() {
   d2.model = undefined;
   Model.dirtyCheck();
   assertEquals('2', d3.getAttribute('foo'));
-}
-
-function testSimpleBindingChangeAncestorModelScope() {
-  var d1 = document.createElement('div');
-  var d2 = d1.appendChild(document.createElement('div'));
-  var d3 = d2.appendChild(document.createElement('div'));
-  d3.addBinding('foo', new Binding('c'));
-  d3.addBinding('bar', new Binding('d'));
-  d3.addBinding('baz', new Binding('c.d'));
-
-  function stringify() {
-    return JSON.stringify(this);
-  }
-
-  d1.model = {
-    a: {c: {d: 1, toString: stringify}},
-    b: {c: {d: 2, toString: stringify}},
-    c: {c: {d: 3}, toString: stringify},
-  };
-  Model.dirtyCheck();
-  assertEquals('{"c":{"d":3}}', d3.getAttribute('foo'));
-  assertNull(d3.getAttribute('bar'));
-  assertNull(d3.getAttribute('baz'));
-
-  d1.modelScope = 'a';
-  Model.dirtyCheck();
-  assertEquals('{"d":1}', d3.getAttribute('foo'));
-  assertNull(d3.getAttribute('bar'));
-  assertEquals('1', d3.getAttribute('baz'));
-
-  d1.modelScope = 'b';
-  Model.dirtyCheck();
-  assertEquals('{"d":2}', d3.getAttribute('foo'));
-  assertNull(d3.getAttribute('bar'));
-  assertEquals('2', d3.getAttribute('baz'));
-
-  d2.modelScope = 'c';
-  Model.dirtyCheck();
-  assertNull(d3.getAttribute('foo'));
-  assertEquals('2', d3.getAttribute('bar'));
-  assertNull(d3.getAttribute('baz'));
-
-  d1.modelScope = 'c';
-  Model.dirtyCheck();
-  assertNull(d3.getAttribute('foo'));
-  assertEquals('3', d3.getAttribute('bar'));
-  assertNull(d3.getAttribute('baz'));
-}
-
-function testBindToModelScope() {
-  var m = {
-    scope: 'foo',
-    foo: {x: 'abc'},
-    bar: {x: 'def'}
-  };
-
-  var d1 = document.createElement('div');
-  d1.model = m;
-  d1.modelScope = 'foo';
-  d1.addBinding('attr', '{{x}}');
-  Model.dirtyCheck();
-  assertEquals('abc', d1.getAttribute('attr'));
-
-  d1.addBinding('modelScope', '{{scope}}');
-  m.scope = 'bar';
-  Model.dirtyCheck();
-  assertEquals('def', d1.getAttribute('attr'));
-  assertEquals('bar', d1.modelScope);
 }
 
 function testPlaceHolderBindingText() {
@@ -911,24 +784,6 @@ function testSelectElementSelectedIndex() {
   assertEquals(0, m.index);
 }
 
-function testInputElementTextBindingWithModelScope() {
-  var div = document.createElement('div');
-  var child = div.appendChild(document.createElement('div'));
-  var input = child.appendChild(document.createElement('input'));
-
-  var m = {
-    a: {}
-  };
-  div.model = m;
-
-  child.modelScope = 'a';
-  input.addBinding('value', '{{b}}');
-
-  input.value = 'changed';
-  dispatchEvent('input', input);
-  assertEquals('changed', m.a.b);
-}
-
 function testBindToChecked() {
   var div = document.createElement('div');
   var child = div.appendChild(document.createElement('div'));
@@ -942,8 +797,7 @@ function testBindToChecked() {
   };
   div.model = m;
 
-  child.modelScope = 'a';
-  input.addBinding('checked', '{{b}}');
+  input.addBinding('checked', '{{a.b}}');
 
   input.checked = true;
   dispatchEvent('click', input);
@@ -1010,7 +864,6 @@ function testMultipleReferences() {
   var m = el.model = {foo: 'bar'};
   el.addBinding('foo', '{{foo}} {{ expr(foo) foo }}');
   assertEquals('bar bar', el.getAttribute('foo'));
-  el.modelScope = 'foo';
 }
 
 function testExpressionBindingThis() {
@@ -1156,17 +1009,14 @@ function testAsyncBinding() {
 function testBindingToPhantomNode() {
   var root = document.createElement('div');
   var liveChild = root.appendChild(document.createElement('div'));
-  liveChild.modelScope = 'foo';
-  liveChild.addBinding('a', new Binding('bar'));
-
-  var b = new Binding('bat');
+  liveChild.addBinding('a', new Binding('foo.bar'));
+  var b = new Binding('foo.bat');
   b.sync_ = false;
 
   var valueBinding = new Binding('text');
   valueBinding.sync_ = false;
 
   var phantomChild = {
-    modelScope: 'baz',
     parentElement: root,
     bindings_: {
       'b': b,
@@ -1180,20 +1030,32 @@ function testBindingToPhantomNode() {
   assertEquals(root, phantomChild.modelOwner_);
 
   root.model = {
-    foo: {bar: 1},
-    baz: {bat: 2, text: 'test'}
+    foo: {
+      bar: 1,
+      bat: 2
+    },
+    text: 'test'
   };
   Model.dirtyCheck();
   assertEquals('1', liveChild.getAttribute('a'));
 
   root.model = {
-    foo: {bar: 3},
-    baz: {bat: 4, text: 'test2'}
+    foo: {
+      bar: 3,
+      bat: 4
+    },
+    text: 'test2'
   };
   Model.dirtyCheck();
   assertEquals('3', liveChild.getAttribute('a'));
 
-  root.model.baz = {bat: 5, text: 'test3'};
+  root.model = {
+    foo: {
+      bar: 5,
+      bat: 6
+    },
+    text: 'test3'
+  };
 
   // Move the modelOwner
   var newRoot = document.createElement('div');
@@ -1207,7 +1069,6 @@ function testBindingToPhantomNode() {
 
   // Simulate turning phantomChild into a real child and re-assign.
   var newChild = root.appendChild(document.createElement('input'));
-  newChild.modelScope = phantomChild.modelScope;
   newChild.bindings_ = newChild.bindings_ || {};
 
   newChild.bindings_['b'] = b;
@@ -1218,13 +1079,13 @@ function testBindingToPhantomNode() {
   valueBinding.sync_ = true;
 
   Model.dirtyCheck();
-  assertEquals('5', newChild.getAttribute('b'));
+  assertEquals('6', newChild.getAttribute('b'));
   assertEquals('test3', newChild.value);
 
   // Verify that the two-way binding got setup correctly.
   newChild.value = 'test4';
   dispatchEvent('input', newChild);
-  assertEquals('test4', newRoot.model.baz.text);
+  assertEquals('test4', newRoot.model.text);
 }
 
 </script>

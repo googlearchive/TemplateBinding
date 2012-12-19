@@ -34,8 +34,7 @@ function handleDomNodeRemoved(e) {
     return;
   e.target.isBeingRemoved_ = true;
   var ownerAndPath = getModelOwnerAndPath(e.currentTarget);
-  var path = Path.join(ownerAndPath[1], e.target.templateScope_,
-                       e.target.modelScope);
+  var path = Path.join(ownerAndPath[1], e.target.templateScope_);
 
   clearModelOwnerAndPathCache(e.target);
   resetBindingSources(ownerAndPath[0], path);
@@ -122,7 +121,7 @@ function getComputedModel() {
   if (!model)
     return undefined;
 
-  return Model.getValueAtPath(model, Path.join(this.templateScope_, this.modelScope));
+  return Model.getValueAtPath(model, this.templateScope_);
 }
 
 var computedModelDescriptor = {
@@ -147,51 +146,6 @@ var modelDescriptor = {
 
 Object.defineProperty(HTMLElement.prototype, 'model', modelDescriptor);
 Object.defineProperty(Text.prototype, 'model',  modelDescriptor);
-
-Object.defineProperty(HTMLElement.prototype, 'modelScope', {
-  configurable: true,
-  enumerable: true,
-  set: function(modelScope) {
-    var oldModelScope = this.modelScope;
-    modelScope = String(modelScope);
-    if (modelScope !== oldModelScope) {
-      var ownerAndPath = getModelOwnerAndPath(this,
-                                              false,  // excludeLocalScope
-                                              true);  // excludeModelScope
-      var owner = ownerAndPath[0];
-      var path = Path.join(ownerAndPath[1], oldModelScope);
-
-      this.setAttribute('modelscope', modelScope);
-      resetBindingSources(owner, path);
-    }
-  },
-  get: function() {
-    // getAttribute returns null for missing attribute.
-    return this.getAttribute('modelscope') || '';
-  }
-});
-
-Object.defineProperty(Text.prototype, 'modelScope', {
-  configurable: true,
-  enumerable: true,
-  set: function(modelScope) {
-    var oldModelScope = this.modelScope;
-    modelScope = String(modelScope);
-    if (modelScope !== oldModelScope) {
-      var ownerAndPath = getModelOwnerAndPath(this,
-                                              false,  // excludeLocalScope
-                                              true);  // excludeModelScope
-      var owner = ownerAndPath[0];
-      var path = Path.join(ownerAndPath[1], oldModelScope);
-
-      this.modelscope_ = modelScope;
-      resetBindingSources(owner, path);
-    }
-  },
-  get: function() {
-    return this.modelscope_ || '';
-  }
-});
 
 function setTemplateScope(templateScope) {
   var oldTemplateScope = this.templateScope__;
@@ -261,9 +215,7 @@ function isModelOwner(element) {
  * Returns the first ancestor that owns a model and the transitive path to it.
  * @param {Node} element The node that we start from.
  * @param {boolean} excludeLocalScope Do not include any path scoping on the
- *     passed element (templateScope_ or modelScope)
- * @param {boolean} excludeModelScope Do not include the modelScope set on the
- *     passed element.
+ *     passed element (templateScope_)
  * @param {Object} ownerCacheToken If present, is the object which must be
  *     identical to a stored ownerCacheToken_ on the element for its modelOwner_
  *     cache to be considered valid.
@@ -272,15 +224,12 @@ function isModelOwner(element) {
  */
 getModelOwnerAndPath = function(element,
                                 excludeLocalScope,
-                                excludeModelScope,
                                 ownerCacheToken) {
   var localPath;
   if (excludeLocalScope) {
     localPath = '';
-  } else if (excludeModelScope) {
-    localPath = element.templateScope_;
   } else {
-    localPath = Path.join(element.templateScope_, element.modelScope);
+    localPath = element.templateScope_;
   }
 
   if (isModelOwner(element))
@@ -290,7 +239,6 @@ getModelOwnerAndPath = function(element,
       (ownerCacheToken && this.ownerCacheToken_ !== ownerCacheToken)) {
     var ownerAndPath = getModelOwnerAndPath(element.parentElement,
                                             false,  // excludeLocalScope
-                                            false,  // excludeModelScope
                                             ownerCacheToken);
     element.modelOwner_ = ownerAndPath[0];
     element.pathToOwner_ = ownerAndPath[1];

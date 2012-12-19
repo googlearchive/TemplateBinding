@@ -190,26 +190,6 @@ function testInstantiateChanged() {
   assertEquals('Hi Zoidberg', t.nextSibling.textContent);
 }
 
-function testModelScopeAttributeBinding() {
-  var div = createTestHtml(
-      '<template instantiate="">' +
-        '<div modelScope="{{ scope }}">Hi {{name}}</div>' +
-      '</template>');
-
-  div.model = {
-    scope: 'XX',
-    XX: {name: 'Leela', title: 'Captain'},
-    XY: {name: 'Fry', title: 'Delivery boy'},
-    XZ: {name: 'Zoidberg', title: 'Doctor'}
-  };
-
-  assertEquals('Hi Leela',
-      div.firstElementChild.nextElementSibling.textContent);
-  div.model.scope = 'XY';
-  Model.dirtyCheck();
-  assertEquals('Hi Fry', div.firstElementChild.nextElementSibling.textContent);
-}
-
 function testBindToClassName() {
   var div = createTestHtml(
       '<template>' +
@@ -283,37 +263,6 @@ function testIterate() {
   m.contacts.length = 0;
   Model.dirtyCheck();
   assertNodesAre();
-}
-
-function testIterateBelowModelScopeChange() {
-  var div = createTestHtml('<div modelScope="contacts">' +
-                           '<template iterate>Hi {{ name }}</template></div>');
-
-  var m = div.model = {
-    contacts: [
-      {name: 'Raf'}
-    ],
-    schmontacts: [
-      {name: 'Adam'}
-    ]
-  };
-
-  assertEquals('Hi Raf', div.firstChild.childNodes[1].textContent);
-
-  div.firstChild.modelScope = 'schmontacts';
-  assertEquals('Hi Adam', div.firstChild.childNodes[1].textContent);
-}
-
-function testInstatiateWithModelScope() {
-  // This tests that the presense of a modelScope attribute above a binding
-  // doesn't cause an error to be thrown.
-  div = createTestHtml('<template instantiate>' +
-      '<div modelScope="foo" hidden="">{{ bar }}</div></template>');
-  var m = div.model = {
-    foo: {bar: 'baz'}
-  };
-
-  assertEquals('baz', div.childNodes[1].childNodes[0].textContent);
 }
 
 function testIterateModelSet() {
@@ -768,22 +717,6 @@ function testNestedIterateTable() {
   assertEquals('3', tbody.childNodes[3].childNodes[3].getAttribute("class"));
 }
 
-function testBindToModelScopeInsideInstantiate() {
-  var div = createTestHtml(
-    '<template instantiate="foo">' +
-      '<div>' +
-        '<span modelScope="{{bar}}">' +
-        '</span>' +
-      '</div>' +
-    '</template>');
-
-  var m = { foo: { bar: 'baz' }};
-  div.model = m;
-  
-  Model.dirtyCheck();
-  assertEquals('baz', div.childNodes[1].childNodes[0].modelScope);
-}
-
 function testNestedIterateDeletionOfMultipleSubTemplates() {
   var div = createTestHtml(
       '<ul>' +
@@ -828,31 +761,6 @@ function testDeepNested() {
     a: {
       b: {
         c: 42
-      }
-    }
-  };
-
-  assertEquals('P', div.childNodes[1].tagName);
-  assertEquals('TEMPLATE', div.childNodes[1].firstChild.tagName);
-  assertEquals('42', div.childNodes[1].childNodes[1].textContent);
-}
-
-function testDeepNestedWithModelScope() {
-  var div = createTestHtml(
-    '<template instantiate="a">' +
-      '<p modelScope="b">' +
-        '<template instantiate="c">' +
-          '{{ d }}' +
-        '</template>' +
-      '</p>' +
-    '</template>');
-
-  var m = div.model = {
-    a: {
-      b: {
-        c: {
-          d: 42
-        }
       }
     }
   };
@@ -1031,7 +939,7 @@ function testBindingRepresentation() {
       '<template instantiate="a">' +
         '<div a="{{a}}" b="{{b}}">' +
           'text-c {{c}}' +
-          '<div modelScope=ms>' +
+          '<div>' +
             '<span d="{{d}}"></span>' +
             'text-e {{e}}' +
           '</div>' +
@@ -1063,8 +971,7 @@ function testBindingRepresentation() {
           placeHolderBindings_: {
             'textContent': 'text-e {{e}}'
           }
-        },
-        modelScope: 'ms'
+        }
       }
     },
     '2': {

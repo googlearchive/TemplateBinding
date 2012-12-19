@@ -119,7 +119,7 @@ h1, h2, h3 {
     <div id="details-pane">
       <h2>Details</h2>
 
-      <div id="details" modelscope="results[0]">
+      <div id="details">
         <template instantiate>
           <img src="{{profile_image_url}}">
           <h3><a href="http://twitter.com/{{from_user}}">{{from_user}}</a></h3>
@@ -175,6 +175,8 @@ Controller.prototype = {
     jsonp('http://search.twitter.com/search.json?q=' + encodeURIComponent(term),
       function(value) {
         self.results = value.results;
+        if (self.results)
+          self.updateDetails(self.results[0]);
       }
     );
   },
@@ -192,7 +194,7 @@ Controller.prototype = {
   updateDetails: function(item) {
     var index = this.indexOfUser(item.from_user);
     if (index >= 0)
-      details.modelScope = 'results[' + index + ']';
+      details.model = this.results[index];
   }
 };
 

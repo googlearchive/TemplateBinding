@@ -60,7 +60,7 @@ document.getElementById('example').model = Model.get({ person: { name: 'Alice', 
 
 <h4 id="instancePath">Scoping</h4>
 
-<p>HTMLElement and TextNode implement a hidden scoping mechanism, <code>instancePath</code>, which is not visible as API but has visible side-effects. It is required for proper semantics of <a href="template.html#usage">template usage</a> and its effect is identical to <code>modelScope</code>, except that if a node has both <code>instancePath</code> and <code>modelScope</code>, the full scoped path is the concatenation of both paths, with <code>instancePath</code> preceding <code>modelScope</code>.</p>
+<p>HTMLElement and TextNode implement a hidden scoping mechanism, <code>instancePath</code>, which is not visible as API but has visible side-effects. It is required for proper semantics of <a href="template.html#usage">template usage</a>.</p>
 
 <h4>Creation</h4>
 
@@ -242,7 +242,6 @@ document.getElementById('example').model = Model.get([
 
 <li>Imperative API</li>
 <li>Lifecycle events for instances. e.g. create, delete, maybe move?</li>
-<li>Does modelScope on template have any meaning?</li>
 <li>Detecting and handling array moves</li>
 <li>Should iterate create instances for items that are undefined? Is this inconsistent with instantiate not creating an instance when the operative value is undefined.</li>
 <li>Pre(server)-render support (serialized instances)</li>

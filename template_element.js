@@ -64,12 +64,6 @@ function hasPlaceHolder(text) {
   return /\{\{((.|\n)+?)\}\}/.test(text);
 }
 
-function getPropertyNameForBinding(nodeName) {
-  if (nodeName == 'modelscope')
-    return 'modelScope';
-  return nodeName;
-}
-
 /**
  * Builds a structure that represents the position of the bindings in this DOM
  * tree.
@@ -82,14 +76,13 @@ function buildBindingsRepresentation(node) {
   var anyPlaceHolderBindings = false;
   var anyAttributeBindings = false;
   var anyTemplates = false;
-  var modelScope = '';
 
   if (node.nodeType == Node.ELEMENT_NODE &&
       !isTemplateElement(node)) {
     for (var i = 0; i < node.attributes.length; i++) {
       var attr = node.attributes[i];
       if (hasPlaceHolder(attr.nodeValue)) {
-        var propertyName = getPropertyNameForBinding(attr.nodeName);
+        var propertyName = attr.nodeName;
         placeHolderBindings[propertyName] = attr.nodeValue;
         anyPlaceHolderBindings = true;
 
@@ -100,8 +93,6 @@ function buildBindingsRepresentation(node) {
         // binding text out preemptively, "the right thing happens". Sadly,
         // the "right" thing won't happen in IE. <sigh>
         node.setAttribute(attr.name, '');
-      } else if (attr.nodeName == 'modelscope') {
-        modelScope = attr.nodeValue;
       } else if (attr.nodeName == 'bind') {
         var tokens = bindAttributeParser.parse(attr.nodeValue);
         tokens.forEach(function(token) {
@@ -142,17 +133,14 @@ function buildBindingsRepresentation(node) {
     descr.placeHolderBindings_ = placeHolderBindings;
   if (anyAttributeBindings)
     descr.attributeBindings_ = attributeBindings;
-  if (modelScope)
-    descr.modelScope = modelScope;
   return descr;
 }
 
 /**
  * This creates a data structure containting the phantom bindings from a binding
  * description. This data structure looks enough like a DOM tree as needed by
- * the bindings (parentElement, templateScope_ and modelScope). Once the DOM is
- * ready this data structure is traversed and the bindings are transferred to
- * the DOM.
+ * the bindings (parentElement and templateScope). Once the DOM is ready this
+ * data structure is traversed and the bindings are transferred to the DOM.
  * @param {Object} desc The binding description.
  * @param {Object} parent The parent element or phantom element.
  * @param {string} templateScope The template scope.
@@ -174,12 +162,6 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
 
   if (opt_templateScope)
     phantom.templateScope_ = opt_templateScope;
-
-  // This needs to happen first because the b.bindTo() below in
-  // case: 'bindings_' depends on it being set properly.
-  if ('modelScope' in desc) {
-    phantom.modelScope = desc.modelScope;
-  }
 
   for (var key in desc) {
     switch (key) {
@@ -204,9 +186,6 @@ function createPhantomInstanceInner(desc, parent, opt_templateScope) {
           b.bindTo(phantom, name);
         }
         break;
-
-      case 'modelScope':
-        break; // Already done above. Ignore.
 
       default:
         phantom[key] = createPhantomInstanceInner(desc[key], phantom);

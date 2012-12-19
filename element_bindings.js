@@ -265,7 +265,7 @@ BindingSource.prototype = {
     return JSON.stringify({ source: this.source, path: this.path });
   },
 
-  bindTo: function(target, property, callback, ignoreModelScope) {
+  bindTo: function(target, property, callback) {
     this.target = target;
     this.property = property;
     // We need a locally bound function in case our binding has multiple
@@ -277,7 +277,6 @@ BindingSource.prototype = {
       self.observation.value = value;
       callback(value, oldValue);
     };
-    this.ignoreModelScope = ignoreModelScope;
     this.resetPaths();
   },
 
@@ -320,7 +319,6 @@ BindingSource.prototype = {
       // DOM-bound model.
       var ownerAndPath = getModelOwnerAndPath(source,
                                               false,  // ignoreLocalScope
-                                              this.ignoreModelScope,
                                               ownerCacheToken);
       source = ownerAndPath[0];
 
@@ -437,7 +435,6 @@ function getPropertyKind(object, name) {
     switch (lcName) {
       case 'value':
       case 'selectedindex':
-      case 'modelscope':
         return JS_PROP;
     }
 
@@ -541,10 +538,8 @@ Binding.prototype = {
     if (!this.boundDependencyChanged)
       this.boundDependencyChanged = this.dependencyChanged.bind(this);
 
-    var ignoreModelScope = this.property_ == 'modelScope';
     this.sources.forEach(function(source) {
-      source.bindTo(this.target_, this.property_, this.boundDependencyChanged,
-                    ignoreModelScope);
+      source.bindTo(this.target_, this.property_, this.boundDependencyChanged);
     }, this);
 
     // Execute the transform now.

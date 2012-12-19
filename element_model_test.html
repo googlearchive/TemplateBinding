@@ -31,10 +31,6 @@ goog.require('goog.testing.jsunit');
 </head>
 <body>
 
-<div id="t">
-  <span id="t2" modelscope="a.b"></span>
-</div>
-
 <script>
 
 function testModel() {
@@ -46,37 +42,6 @@ function testModel() {
   var d2 = d.appendChild(document.createElement('div'));
   assertUndefined(d2.model);
   assertEquals('hello world', d2.computedModel);
-}
-
-function testModelScope() {
-  var d = document.createElement('div');
-  d.model = {a: {b: 'hello world'}};
-  assertObjectEquals({a: {b: 'hello world'}}, d.model);
-  assertObjectEquals({a: {b: 'hello world'}}, d.computedModel);
-
-  d.modelScope = 'a';
-  assertObjectEquals({a: {b: 'hello world'}}, d.model);
-  assertObjectEquals({b: 'hello world'}, d.computedModel);
-
-  var d2 = d.appendChild(document.createElement('div'));
-  assertEquals('', d2.modelScope);
-  d2.modelScope = 'b';
-  assertEquals('b', d2.modelScope);
-
-  assertUndefined(d2.model);
-  assertEquals('hello world', d2.computedModel);
-}
-
-function testModelScope2() {
-  var d = document.createElement('div');
-  d.model = {a: {b: 'hello world'}};
-  assertObjectEquals({a: {b: 'hello world'}}, d.model);
-  assertObjectEquals({a: {b: 'hello world'}}, d.computedModel);
-
-  var d2 = d.appendChild(document.createElement('div'));
-  assertEquals('', d2.modelScope);
-  d2.modelScope = 'a';
-  assertEquals('a', d2.modelScope);
 }
 
 function testObserveOnElement() {
@@ -135,11 +100,6 @@ function testModelCleared() {
   assertEquals('a', child.computedModel);
 
   assertEquals(1, count);
-}
-
-function testMissingModelScope() {
-  var div = document.createElement('div');
-  assertEquals('', div.modelScope);
 }
 
 </script>
