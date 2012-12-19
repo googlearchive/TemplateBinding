@@ -37,11 +37,9 @@ function testModel() {
   var d = document.createElement('div');
   d.model = 'hello world';
   assertEquals('hello world', d.model);
-  assertEquals('hello world', d.computedModel);
 
   var d2 = d.appendChild(document.createElement('div'));
-  assertUndefined(d2.model);
-  assertEquals('hello world', d2.computedModel);
+  assertEquals('hello world', d2.model);
 }
 
 function testObserveOnElement() {
@@ -84,20 +82,17 @@ function testModelCleared() {
   child.model = 'b';
   Model.dirtyCheck();
   assertEquals('b', child.model);
-  assertEquals('b', child.computedModel);
 
   var count = 0;
 
   Model.observe(child, 'model', function(val, oldVal) {
     count++;
-    assertUndefined(val);
     assertEquals('b', oldVal);
   });
 
   child.model = undefined;
   Model.dirtyCheck();
-  assertUndefined(child.model);
-  assertEquals('a', child.computedModel);
+  assertEquals('a', child.model);
 
   assertEquals(1, count);
 }

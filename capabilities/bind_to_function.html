@@ -56,7 +56,7 @@ document.body.model = {
 };
 
 function clickHandler(e) {
-  e.target.computedModel.selected = !e.target.computedModel.selected;
+  e.target.model.selected = !e.target.model.selected;
   Model.dirtyCheck();
 }
 

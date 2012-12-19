@@ -108,34 +108,17 @@ function setModel(model) {
 }
 
 function getModel() {
-  return this.model_;
-}
-
-function getComputedModel() {
   var model;
   if (this.model_ !== undefined)
     model = this.model_;
   else if (this.parentElement)
-    model = this.parentElement.computedModel;
+    model = this.parentElement.model;
 
   if (!model)
     return undefined;
 
   return Model.getValueAtPath(model, this.templateScope_);
 }
-
-var computedModelDescriptor = {
-  configurable: true,
-  enumerable: true,
-  get: getComputedModel,
-  set: function(v) {
-    throw Error('Cannot set computedModel');
-  },
-};
-
-Object.defineProperty(HTMLElement.prototype, 'computedModel',
-                      computedModelDescriptor);
-Object.defineProperty(Text.prototype, 'computedModel', computedModelDescriptor);
 
 var modelDescriptor = {
   configurable: true,

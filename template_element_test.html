@@ -212,13 +212,13 @@ function assertNodesAre() {
   var nodesPerInstance = 2;
   assertEquals(arguments.length * nodesPerInstance + startIndex,
                div.childNodes.length);
-  var model = Model.getValueAtPath(div.computedModel, t.iterate);
+  var model = Model.getValueAtPath(div.model, t.iterate);
 
   for (var i = 0; i < arguments.length; i++) {
     var targetNode = div.childNodes[i * nodesPerInstance + startIndex];
     assertEquals(arguments[i], targetNode.textContent);
     assertEquals(JSON.stringify(model[i]),
-                 JSON.stringify(targetNode.computedModel));
+                 JSON.stringify(targetNode.model));
   }
 }
 

@@ -99,7 +99,7 @@
       }
 
       var func = currentTarget.controller[action.name];
-      func.call(currentTarget.controller, e.target.computedModel, e);
+      func.call(currentTarget.controller, e.target.model, e);
       handled = true;
     }
 
