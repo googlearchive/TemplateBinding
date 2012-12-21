@@ -111,8 +111,8 @@ function getModel() {
   var model;
   if (this.model_ !== undefined)
     model = this.model_;
-  else if (this.parentElement)
-    model = this.parentElement.model;
+  else if (this.parentNode)
+    model = this.parentNode.model;
 
   if (!model)
     return undefined;
@@ -190,7 +190,7 @@ function isModelOwner(element) {
   // Because the DOMNodeRemoved event is fired synchronously we need to
   // treat that node as not having a parent (because it shortly will not).
   return element.model_ !== undefined ||
-         !element.parentElement ||
+         !element.parentNode ||
          element.isBeingRemoved_;
 }
 
@@ -220,7 +220,7 @@ getModelOwnerAndPath = function(element,
 
   if (!element.modelOwner_ ||
       (ownerCacheToken && this.ownerCacheToken_ !== ownerCacheToken)) {
-    var ownerAndPath = getModelOwnerAndPath(element.parentElement,
+    var ownerAndPath = getModelOwnerAndPath(element.parentNode,
                                             false,  // excludeLocalScope
                                             ownerCacheToken);
     element.modelOwner_ = ownerAndPath[0];
@@ -238,7 +238,7 @@ clearModelOwnerAndPathCache = function(element) {
   element.modelOwner_ = null;
   element.pathToOwner_ = null;
   element.ownerCacheToken_ = null;
-  clearModelOwnerAndPathCache(element.parentElement);
+  clearModelOwnerAndPathCache(element.parentNode);
 };
 
 })();

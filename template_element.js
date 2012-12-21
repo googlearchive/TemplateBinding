@@ -139,7 +139,7 @@ function buildBindingsRepresentation(node) {
 /**
  * This creates a data structure containting the phantom bindings from a binding
  * description. This data structure looks enough like a DOM tree as needed by
- * the bindings (parentElement and templateScope). Once the DOM is ready this
+ * the bindings (parentNode and templateScope). Once the DOM is ready this
  * data structure is traversed and the bindings are transferred to the DOM.
  * @param {Object} desc The binding description.
  * @param {Object} parent The parent element or phantom element.
@@ -157,7 +157,7 @@ function createPhantomInstance(desc, parent, templateScope) {
 
 function createPhantomInstanceInner(desc, parent, opt_templateScope) {
   var phantom = {
-    parentElement: parent
+    parentNode: parent
   };
 
   if (opt_templateScope)

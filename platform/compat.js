@@ -31,20 +31,6 @@ if (!Function.prototype.bind) {
   });
 }
 
-// Firefox does not have parentElement
-if (!('parentElement' in document.createElement('div'))) {
-  Object.defineProperty(Node.prototype, 'parentElement', {
-    configurable: true,
-    enumerable: true,
-    get: function() {
-      var p = this.parentNode;
-      if (p && p.nodeType == Node.ELEMENT_NODE)
-        return p;
-      return null;
-    }
-  });
-}
-
 // JScript does not have __proto__. We wrap all object literals with
 // createObject which uses Object.create, Object.defineProperty and
 // Object.getOwnPropertyDescriptor to create a new object that does the exact

@@ -191,7 +191,7 @@ function bindsTwoWay(element) {
 }
 
 function sourceIsDOMNode(source) {
-  return source && 'parentElement' in source;
+  return source && 'parentNode' in source;
 }
 
 function isNodeInDocument(node) {
