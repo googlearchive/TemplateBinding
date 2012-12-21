@@ -35,15 +35,15 @@ limitations under the License.
 <body>
 <div id="listContainer">
   <div class="itemRow">
-    <div><em onclick="getView('name')">Name</em></div>
-    <div><em onclick="getView('price')">Price</em></div>
+    <div><em>Name</em></div>
+    <div><em>Price</em></div>
   </div>
   <template iterate>
-  <div class="itemRow {{ selected | toggle }}"
-       onclick="focusExistingProduct(this.computedModel);">
-    <div>{{ name }}</div>
-    <div>{{ price | currency }}</div>
-  </div>
+    <div class="itemRow {{ selected | toggle }}"
+         onclick="focusExistingProduct(this.model);">
+      <div>{{ name }}</div>
+      <div>{{ price | currency }}</div>
+    </div>
   </template>
 <button onclick="addNewItem();">Create New</button>
 </div>
@@ -54,7 +54,7 @@ limitations under the License.
   <template instantiate>
     <label>Product Name <input value="{{ name }}"></label>
     <label>Price <input value="{{ price }}"></label>
-    <button onclick="deleteItem(this.computedModel);">Delete</button>
+    <button onclick="deleteItem(this.model);">Delete</button>
   </template>
 </div>
 
@@ -82,11 +82,13 @@ function focusExistingProduct(item) {
     selectedItem.selected = false;
   }
 
-  var index = listContainer.model.indexOf(item);
-  item.selected = !item.selected;
+  if (item)
+    item.selected = !item.selected;
+
   selectedItem = item;
 
   detailContainer.model = item;
+  Model.dirtyCheck();
 }
 
 var listContainer = document.getElementById('listContainer');
@@ -107,27 +109,10 @@ var items = [
   }
 ];
 
-var sortProp = '';
-function sortFunc(a, b) {
-  switch (sortProp) {
-    case 'name':
-      return a.name.localeCompare(b.name);
-    case 'price':
-      return a.price - b.price;
-  }
-}
-
-function getView(prop) {
-  if (sortProp != prop) {
-    sortProp = prop;
-    listContainer.model = Model.getView(items, sortFunc, null, ['name', 'price']);
-  }
-}
-
 window.onload = function() {
-  getView('name');
+  listContainer.model = items;
   focusExistingProduct(listContainer.model[0]);
-}
+};
 
 </script>
 

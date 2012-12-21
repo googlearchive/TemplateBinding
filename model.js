@@ -44,7 +44,7 @@ var Model = {};
       observedList.forEach(addNotification);
       startNotifications();
     } while (notificationsMade)
-  }
+  };
 
   // Notifications happen in this order:
   //   1) All propertySet add/deletes for all observed objects
@@ -113,7 +113,7 @@ var Model = {};
 
   /**
    * Returns the observable "model" at |path| from |data|.
-   * @param {object} data The reference object.
+   * @param {Object} data The reference object.
    * @param {Path} path The path from the reference object to retrieve a value.
    * @return {*} The current value at |path| from |data| -- If the value is
    *     an object, then an "observable" (proxy) is returned.
@@ -137,8 +137,8 @@ var Model = {};
 
   /**
    * Observes adds/deletes of properties on |data|.
-   * @param {object} data The reference object.
-   * @param {function} callback Function to be called when a property is added
+   * @param {Object} data The reference object.
+   * @param {Function} callback Function to be called when a property is added
    *     or deleted from |data|.
    */
   Model.observePropertySet = function(data, callback) {
@@ -150,8 +150,8 @@ var Model = {};
 
   /**
    * Stops observation of adds/deletes on |data|.
-   * @param {object} data The reference object.
-   * @param {function} callback Function previously registered with |data| via
+   * @param {Object} data The reference object.
+   * @param {Function} callback Function previously registered with |data| via
    *     Model.observePropertySet().
    */
   Model.stopObservingPropertySet = function(data, callback) {
@@ -172,9 +172,9 @@ var Model = {};
   /**
    * Observes the value at a path from an object. |callback| is invoked
    * IFF the value changes.
-   * @param {object} data The reference object.
+   * @param {Object} data The reference object.
    * @param {Path} path The path from the reference object to monitor a value.
-   * @param {function} callback Function to be called when the value changes.
+   * @param {Function} callback Function to be called when the value changes.
    * @return {*} The current value of the observed path from the object.
    */
   Model.observe = function(data, path, callback) {
@@ -196,9 +196,9 @@ var Model = {};
 
   /**
    * Stops observation of changes to the value at a path from an object.
-   * @param {object} data The reference object.
+   * @param {Object} data The reference object.
    * @param {Path} path The path from the reference object to monitor a value.
-   * @param {function} callback Function previously registered with |data|  and
+   * @param {Function} callback Function previously registered with |data|  and
    *     |path| via Model.observe().
    */
   Model.stopObserving = function(data, path, callback) {
@@ -364,7 +364,7 @@ var Model = {};
 
   // PathTracker represents a value at a path from an observable object.
   // Multiple observations along similar paths will create a graph of
-  // PathTrackers with nodes being propertyNames. Node that this graph will
+  // PathTrackers with nodes being propertyNames. Note that this graph will
   // "overlay" the underlying objects in different ways as the object property
   // values change.
   function PathTracker(root, propertyName) {
