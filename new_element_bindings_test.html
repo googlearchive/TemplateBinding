@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2013 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Element Bindings Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="platform/compat.js"></script>
+<script src="side_table.js"></script>
+<script src="path.js"></script>
+<script src="model.js"></script>
+<script src="script_value_binding.js"></script>
+<script src="expression_parser.js"></script>
+<script src="dependency_parser.js"></script>
+<script src="place_holder_parser.js"></script>
+<script src="text_replacements_binding.js"></script>
+<script src="element_attribute_bindings.js"></script>
+<script src="new_element_bindings.js"></script>
+<script src="test_common.js"></script>
+
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+<script>
+
+function testModel() {
+  var d = document.createElement('div');
+  d.model = 'hello world';
+  assertEquals('hello world', d.model);
+
+  var d2 = d.appendChild(document.createElement('div'));
+  assertEquals('hello world', d2.model);
+}
+
+function testModelCleared() {
+  var parent = document.createElement('div');
+  var child = parent.appendChild(document.createElement('div'));
+
+  parent.model = 'a';
+  child.model = 'b';
+  Model.dirtyCheck();
+  assertEquals('b', child.model);
+
+  var count = 0;
+
+  Model.observe(child, 'model', function(val, oldVal) {
+    count++;
+    assertEquals('b', oldVal);
+  });
+
+  child.model = undefined;
+  Model.dirtyCheck();
+  assertEquals('a', child.model);
+
+  assertEquals(1, count);
+}
+
+function testModelDelegateInheritance() {
+  var a = {}, b = {};
+  var div = document.createElement('div');
+  assertUndefined(div.modelDelegate);
+  var child = div.appendChild(document.createTextNode('Hello MDV'));
+  assertUndefined(child.modelDelegate);
+  div.modelDelegate = a;
+  assertEquals(a, div.modelDelegate);
+  assertEquals(a, child.modelDelegate);
+  child.modelDelegate = b;
+  assertEquals(b, child.modelDelegate);
+  child.modelDelegate = null;
+  assertNull(child.modelDelegate);
+  child.modelDelegate = undefined;
+  assertEquals(a, child.modelDelegate);
+}
+
+function testText() {
+  var text = document.createTextNode('hi');
+  var model = text.model = {a: 1, b: 2};
+  text.addBinding('{{a}} and {{b}}');
+  assertEquals('1 and 2', text.data);
+
+  model.a = 3;
+  Model.dirtyCheck();
+  assertEquals('3 and 2', text.data);
+
+  text.model = {a: 4, b: 5};
+  Model.dirtyCheck();
+  assertEquals('4 and 5', text.data);
+}
+
+function testTextInherited() {
+  var element = document.createElement('div');
+  var text = element.appendChild(document.createTextNode('hi'));
+  var model = element.model = {a: 1, b: 2};
+  text.addBinding('{{a}} and {{b}}');
+  assertEquals('1 and 2', text.data);
+
+  model.a = 3;
+  Model.dirtyCheck();
+  assertEquals('3 and 2', text.data);
+
+  element.model = {a: 4, b: 5};
+  Model.dirtyCheck();
+  assertEquals('4 and 5', text.data);
+
+  text.model = {a: 6, b: 7};
+  Model.dirtyCheck();
+  assertEquals('6 and 7', text.data);
+
+  text.model = undefined;
+  Model.dirtyCheck();
+  assertEquals('4 and 5', text.data);
+}
+
+function testTextBindingText() {
+  var text = document.createTextNode('hi');
+  var model = text.model = {a: 1, b: 2};
+  assertNull(text.bindingText);
+  var bindingText = '{{a}} and {{b}}';
+  text.addBinding(bindingText);
+  assertEquals(bindingText, text.bindingText);
+  assertEquals('1 and 2', text.data);
+  assertEquals(bindingText, text.bindingText);
+  text.removeBinding();
+  assertNull(text.bindingText);
+}
+
+function testAttributes() {
+  var element = document.createElement('div');
+  var model = element.model = {a: 1, b: 2};
+  element.addBinding('hidden', '{{a}}');
+  element.addBinding('id', '{{b}}');
+
+  assertEquals('1', element.getAttribute('hidden'));
+  assertEquals('2', element.id);
+
+  model.a = null;
+  Model.dirtyCheck();
+  assertFalse(element.hasAttribute('hidden'));
+
+  element.model = {a: false, b: 'x'};
+  Model.dirtyCheck();
+  assertEquals('false', element.getAttribute('hidden'));
+  assertEquals('x', element.id);
+
+  function delegate(text) {
+    function toTarget(value) {
+      return value ? value : null;
+    }
+    return [[text], toTarget];
+  }
+  element.modelDelegate = delegate;
+  Model.dirtyCheck();
+  assertFalse(element.hasAttribute('hidden'));
+  assertEquals('x', element.id);
+}
+
+function testAttributesInherited() {
+  var parent = document.createElement('div');
+  var element = parent.appendChild(document.createElement('div'));
+  var model = parent.model = {a: 1, b: 2};
+  element.addBinding('hidden', '{{a}}');
+  element.addBinding('id', '{{b}}');
+
+  assertEquals('1', element.getAttribute('hidden'));
+  assertEquals('2', element.id);
+
+  model.a = null;
+  Model.dirtyCheck();
+  assertFalse(element.hasAttribute('hidden'));
+
+  parent.model = {a: false, b: 'x'};
+  Model.dirtyCheck();
+  assertEquals('false', element.getAttribute('hidden'));
+  assertEquals('x', element.id);
+
+  function delegate(text) {
+    function toTarget(value) {
+      return value ? value : null;
+    }
+    return [[text], toTarget];
+  }
+  parent.modelDelegate = delegate;
+  Model.dirtyCheck();
+  assertFalse(element.hasAttribute('hidden'));
+  assertEquals('x', element.id);
+}
+
+function testAttributesBindingText() {
+  var element = document.createElement('div');
+  var model = element.model = {a: 1};
+  var bindingText = '{{a}}';
+  element.addBinding('hidden', bindingText);
+
+  assertEquals('1', element.getAttribute('hidden'));
+
+  var attr = element.getAttributeNode('hidden');
+  assertEquals(bindingText, attr.bindingText);
+
+  model.a = null;
+  Model.dirtyCheck();
+  assertFalse(element.hasAttribute('hidden'));
+  assertNull(attr.bindingText);
+}
+
+</script>
+</body>
+</html>

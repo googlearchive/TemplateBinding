@@ -58,6 +58,8 @@ var ElementAttributeBindings;
 
   ElementAttributeBindings.prototype = {
     addBinding: function(element, attributeName, path) {
+      this.removeBinding(attributeName);
+
       var binding = new Binding(element, attributeName, path);
       this.attributeBindings_[attributeName] = binding;
       binding.fire();
@@ -84,7 +86,7 @@ var ElementAttributeBindings;
 
     bindingText: function(attributeName) {
       var binding = this.attributeBindings_[attributeName];
-      return binding ? binding.bindingText : '';
+      return binding ? binding.bindingText : null;
     }
   };
 

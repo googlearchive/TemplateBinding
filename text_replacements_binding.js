@@ -77,6 +77,12 @@ var TextReplacementsBinding;
   };
 
   TextReplacementsBinding.prototype = {
+    unbind: function() {
+      this.bindings_.forEach(function(binding) {
+        binding.unbind();
+      });
+    },
+
     get value() {
       return this.value_;
     },

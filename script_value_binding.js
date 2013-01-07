@@ -45,8 +45,7 @@ var DelegatedValueBinding;
   };
 
   ScriptValueBinding.prototype = {
-
-    dispose: function() {
+    unbind: function() {
       Model.stopObserving(this.model_, this.path_, this.boundCallback_);
     },
 
@@ -98,6 +97,12 @@ var DelegatedValueBinding;
   };
 
   DelegatedValueBinding.prototype = {
+    unbind: function() {
+      this.bindings_.forEach(function(binding) {
+        binding.unbind();
+      });
+    },
+
     valueChanged: function(binding) {
       if (this.computeValue())
         this.observer_.valueChanged(this);
