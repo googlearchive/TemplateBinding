@@ -17,13 +17,53 @@ var TextReplacementsBinding;
 (function() {
   'use strict';
 
-  var placeHolderParser = new PlaceHolderParser;
-
-  var OneWay = DelegatedValueBinding.Type.OneWay;
+  var ONE_WAY = DelegatedValueBinding.Type.ONE_WAY;
 
   function assert(v) {
     if (!v)
       throw new Error('Assertion failed');
+  }
+
+  var TEXT = 0;
+  var BINDING = 1;
+
+  function Token(type, value) {
+    this.type = type;
+    this.value = value;
+  }
+
+  function parse(s) {
+    var result = [];
+    var length = s.length;
+    var index = 0, lastIndex = 0;
+    while (lastIndex < length) {
+      index = s.indexOf('{{', lastIndex);
+      if (index < 0) {
+        result.push(new Token(TEXT, s.slice(lastIndex)));
+        break;
+      } else {
+        // There is a non-empty text run before the next path token.
+        if (index > 0 && lastIndex < index) {
+          result.push(new Token(TEXT, s.slice(lastIndex, index)));
+        }
+        lastIndex = index + 2;
+        index = s.indexOf('}}', lastIndex);
+        if (index < 0) {
+          var text = s.slice(lastIndex - 2);
+          var lastToken = result[result.length - 1];
+          if (lastToken && lastToken.type == TEXT)
+            lastToken.value += text;
+          else
+            result.push(new Token(TEXT, text));
+          break;
+        }
+
+        var value = s.slice(lastIndex, index).trim();
+        result.push(new Token(BINDING, value));
+        lastIndex = index + 2;
+      }
+    }
+    return result;
   }
 
   TextReplacementsBinding = function(model, delegate, bindingText, observer) {
@@ -31,7 +71,7 @@ var TextReplacementsBinding;
     this.value_ = '';
     this.bindingText_ = bindingText;
     this.bindings_ = [];
-    this.tokens_ = this.parsePlaceHolders(bindingText);
+    this.tokens_ = parse(bindingText);
     this.bindPlaceHolders(model, delegate);
     this.computeValue();
   };
@@ -88,11 +128,9 @@ var TextReplacementsBinding;
       var bindingIndex = 0;
       for (var i = 0; i < this.tokens_.length; i++) {
         var token = tokens[i];
-        if (token.type === 'text') {
+        if (token.type === TEXT) {
           newValue += token.value;
         } else {
-          // We do not support 'expr' any more.
-          assert(token.type === 'dep');
           assert(bindingIndex < this.bindings_.length);
           value = bindings[bindingIndex++].value;
           if (value !== undefined)
@@ -108,33 +146,12 @@ var TextReplacementsBinding;
       return false;
     },
 
-    parsePlaceHolders: function(input) {
-      // TODO(arv): The old place holder parser represents the placeholders as
-      //
-      // {
-      //   path: string,
-      //   transformName: string,
-      //   transformArgs: Array
-      // }
-      //
-      // We only need the path since transformers are being removed in favor of
-      // model delegates.
-      var tokens = placeHolderParser.parse(input);
-      return tokens.map(function(token) {
-        if (token.type === 'dep')
-          token.value = token.value.path;
-        else
-          assert(token.type === 'text');
-        return token;
-      });
-    },
-
     bindPlaceHolders: function(model, delegate) {
       for (var i = 0; i < this.tokens_.length; i++) {
-        if (this.tokens_[i].type === 'dep') {
+        if (this.tokens_[i].type === BINDING) {
           this.bindings_.push(
               new DelegatedValueBinding(model, delegate, this.tokens_[i].value,
-                                        OneWay, this));
+                                        ONE_WAY, this));
         }
       }
     }

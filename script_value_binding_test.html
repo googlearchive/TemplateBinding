@@ -109,10 +109,10 @@ function testDelegatedValueBinding() {
 
   var model = {a: 'a', b: 'b'};
   var bindingText = 'binding text';
-  var OneWay = DelegatedValueBinding.Type.OneWay;
+  var ONE_WAY = DelegatedValueBinding.Type.ONE_WAY;
 
   var binding = new DelegatedValueBinding(model, delegate, bindingText,
-                                          OneWay, observer);
+                                          ONE_WAY, observer);
 
   assertEquals('ab', binding.value);
 
@@ -152,10 +152,10 @@ function testDelegatedValueBindingDeep() {
     c: {d: 'cd'}
   };
   var bindingText = 'binding text';
-  var OneWay = DelegatedValueBinding.Type.OneWay;
+  var ONE_WAY = DelegatedValueBinding.Type.ONE_WAY;
 
   var binding = new DelegatedValueBinding(model, delegate, bindingText,
-                                          OneWay, observer);
+                                          ONE_WAY, observer);
 
   assertEquals('abcd', binding.value);
 
@@ -208,10 +208,10 @@ function testDelegatedValueBindingTwoWay() {
 
   var model = {a: 'a', b: 'b'};
   var bindingText = 'binding text';
-  var TwoWay = DelegatedValueBinding.Type.TwoWay;
+  var TWO_WAY = DelegatedValueBinding.Type.TWO_WAY;
 
   var binding = new DelegatedValueBinding(model, delegate, bindingText,
-                                          TwoWay, observer);
+                                          TWO_WAY, observer);
 
   assertEquals('ab', binding.value);
 
@@ -261,10 +261,10 @@ function testDelegatedValueBindingTwoWayDeep() {
     c: {d: 'cd'}
   };
   var bindingText = 'binding text';
-  var TwoWay = DelegatedValueBinding.Type.TwoWay;
+  var TWO_WAY = DelegatedValueBinding.Type.TWO_WAY;
 
   var binding = new DelegatedValueBinding(model, delegate, bindingText,
-                                          TwoWay, observer);
+                                          TWO_WAY, observer);
 
   assertEquals('abcd', binding.value);
 

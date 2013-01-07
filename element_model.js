@@ -255,7 +255,6 @@ var modelDelegateDescriptor = {
       if (hasOwnModelDelegate(node))
         return node.modelDelegate_;
     }
-
     return undefined;
   },
   set: function(modelDelegate) {
@@ -267,7 +266,6 @@ var modelDelegateDescriptor = {
       var path = ownerAndPath[1];
       resetBindingSources(owner, path);
     }
-
   },
   configurable: true,
   enumerable: true

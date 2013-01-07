@@ -89,12 +89,12 @@ var DelegatedValueBinding;
     this.setDelegate(model, delegate);
   };
 
-  var OneWay = 1;
-  var TwoWay = 2;
+  var ONE_WAY = 1;
+  var TWO_WAY = 2;
 
   DelegatedValueBinding.Type = {
-    OneWay: OneWay,
-    TwoWay: TwoWay
+    ONE_WAY: ONE_WAY,
+    TWO_WAY: TWO_WAY
   };
 
   DelegatedValueBinding.prototype = {
@@ -131,7 +131,7 @@ var DelegatedValueBinding;
     },
 
     set value(value) {
-      assert(this.type_ === TwoWay);
+      assert(this.type_ === TWO_WAY);
 
       // FIXME: Is it weird that a delegated binding can have multiple paths, but only push to one?
       this.bindings_[0].value = this.invokeToSource(value);
@@ -171,7 +171,7 @@ var DelegatedValueBinding;
         this.toTargetFunction_ = toTargetFunction;
 
       var toSourceFunction = result[2];
-      if (this.type_ === TwoWay && isFunction(toSourceFunction))
+      if (this.type_ === TWO_WAY && isFunction(toSourceFunction))
         this.toSourceFunction_ = toSourceFunction;
 
       return true;
