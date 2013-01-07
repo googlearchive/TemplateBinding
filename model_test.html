@@ -1246,6 +1246,28 @@ function testArrayTrackerNoProxiesEdits() {
   assertEditDistance(tracker, 7);
 }
 
+function testSetValueAtPath() {
+  var m = {a: 1};
+  Model.setValueAtPath(m, 'a', 2);
+  assertEquals(2, m.a);
+
+  var o = {b: 3};
+  Model.setValueAtPath(m, 'a', o);
+  assertEquals(o, m.a);
+  assertEquals(3, m.a.b);
+
+  Model.setValueAtPath(m, 'a.b', 4);
+  assertEquals(4, m.a.b);
+
+  // Ignored because m.a.b is not an object.
+  Model.setValueAtPath(m, 'a.b.c', 5);
+  assertUndefined(m.a.b.c);
+  assertEquals(4, m.a.b);
+
+  Model.setValueAtPath(m, 'a.d', 6);
+  assertEquals(6, m.a.d);
+}
+
 </script>
 </body>
 </html>

@@ -136,6 +136,26 @@ var Model = {};
   };
 
   /**
+   * Sets the value at |path| from |data| of the observable "model".
+   * @param {Object} data The reference object.
+   * @param {Path} path The path from the reference object to set the value.
+   * @param {*} value The value to set at the given path.
+   */
+  Model.setValueAtPath = function(data, path, value) {
+    if (path) {
+      path = new Path(path);
+      if (path.length > 0) {
+        path.walk(data, function(m, i) {
+          if (i == path.length - 1) {
+            m[path.get(i)] = value;
+            return true;
+          }
+        });
+      }
+    }
+  };
+
+  /**
    * Observes adds/deletes of properties on |data|.
    * @param {Object} data The reference object.
    * @param {Function} callback Function to be called when a property is added

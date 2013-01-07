@@ -167,11 +167,15 @@ Object.defineProperty(Text.prototype, 'templateScope_', {
   get: getTemplateScope
 });
 
+function hasOwnModel(node) {
+  return node.model_ !== undefined;
+}
+
 function forEachBinding(node, f) {
   function filter(n) {
     // If the node has an own model then we do not need to update it unless it
     // is the root of the tree we are resetting.
-    return n != node && n.model_ !== undefined ?
+    return n != node && hasOwnModel(n) ?
         NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
   }
   var iterator = node.ownerDocument.createTreeWalker(
@@ -189,7 +193,7 @@ function isModelOwner(element) {
   // Note: isBeingRemoved_ is set (and later unset) in handleDomNodeRemoved.
   // Because the DOMNodeRemoved event is fired synchronously we need to
   // treat that node as not having a parent (because it shortly will not).
-  return element.model_ !== undefined ||
+  return hasOwnModel(element) ||
          !element.parentNode ||
          element.isBeingRemoved_;
 }
@@ -240,5 +244,38 @@ clearModelOwnerAndPathCache = function(element) {
   element.ownerCacheToken_ = null;
   clearModelOwnerAndPathCache(element.parentNode);
 };
+
+function hasOwnModelDelegate(node) {
+  return node.modelDelegate_ !== undefined;
+}
+
+var modelDelegateDescriptor = {
+  get: function() {
+    for (var node = this; node; node = node.parentNode) {
+      if (hasOwnModelDelegate(node))
+        return node.modelDelegate_;
+    }
+
+    return undefined;
+  },
+  set: function(modelDelegate) {
+    if (this.modelDelegate_ !== modelDelegate) {
+      this.modelDelegate_ = modelDelegate;
+      var ownerAndPath = getModelOwnerAndPath(this,
+                                              false);  // excludeLocalScope
+      var owner = ownerAndPath[0];
+      var path = ownerAndPath[1];
+      resetBindingSources(owner, path);
+    }
+
+  },
+  configurable: true,
+  enumerable: true
+};
+
+Object.defineProperty(Element.prototype, 'modelDelegate',
+                      modelDelegateDescriptor);
+Object.defineProperty(Text.prototype, 'modelDelegate',
+                      modelDelegateDescriptor);
 
 })();

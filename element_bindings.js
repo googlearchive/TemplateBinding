@@ -268,6 +268,7 @@ BindingSource.prototype = {
   bindTo: function(target, property, callback) {
     this.target = target;
     this.property = property;
+
     // We need a locally bound function in case our binding has multiple
     // sources observing at the same path.
     var self = this;
@@ -412,7 +413,7 @@ BindingSource.prototype = {
 
     source[property.toString()] = value;
   }
-}
+};
 
 var JS_PROP = 1;
 var ATTR = 2;

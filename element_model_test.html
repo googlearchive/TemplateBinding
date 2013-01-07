@@ -97,6 +97,23 @@ function testModelCleared() {
   assertEquals(1, count);
 }
 
+function testModelDelegateInheritance() {
+  var a = {}, b = {};
+  var div = document.createElement('div');
+  assertUndefined(div.modelDelegate);
+  var child = div.appendChild(document.createTextNode('Hello MDV'));
+  assertUndefined(child.modelDelegate);
+  div.modelDelegate = a;
+  assertEquals(a, div.modelDelegate);
+  assertEquals(a, child.modelDelegate);
+  child.modelDelegate = b;
+  assertEquals(b, child.modelDelegate);
+  child.modelDelegate = null;
+  assertNull(child.modelDelegate);
+  child.modelDelegate = undefined;
+  assertEquals(a, child.modelDelegate);
+}
+
 </script>
 </body>
 </html>
