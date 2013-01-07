@@ -98,8 +98,7 @@ var DelegatedValueBinding;
   };
 
   DelegatedValueBinding.prototype = {
-
-    valueChanged: function(value) {
+    valueChanged: function(binding) {
       if (this.computeValue())
         this.observer_.valueChanged(this);
     },
