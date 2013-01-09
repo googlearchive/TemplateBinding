@@ -40,16 +40,10 @@
   function addTextBinding(path) {
     this.removeBinding();
 
-    // Create an "observer" since we don't want to expose valueChanged on
-    // text nodes.
-    var observer = {
-      valueChanged: textNodeValueChanged.bind(null, this)
-    };
-
     var binding = new TextReplacementsBinding(this.model, this.modelDelegate,
-                                              path, observer);
+                                              path, this);
     textContentBindingTable.set(this, binding);
-    textNodeValueChanged(this, binding);
+    this.valueChanged(binding);
   }
 
   function removeTextBinding() {
@@ -96,70 +90,56 @@
     return modelDelegateTable.get(node) !== undefined;
   }
 
-  var queue = [];
-
-  function enqueue(func) {
-    queue.push(func);
-  }
-
-  var dirtyCheck = Model.dirtyCheck;
-  Model.dirtyCheck = function() {
-    // This might need some tweaking.
-    dirtyCheck();
-    while (queue.length > 0) {
-      var f = queue.shift();
-      f();
-    }
-  };
-
   function hasBindings(node) {
     return attributeBindingsTable.get(node) !== undefined ||
         textContentBindingTable.get(node) !== undefined;
   }
 
-  function modelChanged(node) {
-    // TODO(arv): Integrate with shadow dom.
-    if (hasBindings(node))
-      enqueue(lazyModelChanged.bind(null, node));
+  Element.prototype.modelChanged =
+  Text.prototype.modelChanged = function() {
+    if (hasBindings(this))
+      Model.enqueue(this.lazyModelChanged.bind(this));
 
-    for (var child = node.firstChild; child; child = child.nextSibling) {
+    for (var child = this.firstChild; child; child = child.nextSibling) {
       if (!hasOwnModel(child))
-        modelChanged(child);
+        child.modelChanged();
     }
-  }
+  };
 
-  function modelDelegateChanged(node) {
-    // TODO(arv): Integrate with shadow dom.
-    if (hasBindings(node))
-      enqueue(lazyModelDelegateChanged.bind(null, node));
+  Element.prototype.modelDelegateChanged =
+  Text.prototype.modelDelegateChanged = function() {
+    if (hasBindings(this))
+      Model.enqueue(this.lazyModelDelegateChanged.bind(this));
 
-    for (var child = node.firstChild; child; child = child.nextSibling) {
-      if (!hasOwnModelDelegate(child))
-        modelDelegateChanged(child);
+    for (var child = this.firstChild; child; child = child.nextSibling) {
+      if (!hasOwnModel(child))
+        child.modelDelegateChanged();
     }
-  }
+  };
 
-  function lazyModelChanged(node) {
-    var bindings = attributeBindingsTable.get(node);
-    if (bindings) {
-      bindings.modelChanged(node.model);
-    } else {
-      var binding = textContentBindingTable.get(node);
-      if (binding && binding.setModel(node.model))
-        textNodeValueChanged(node, binding);
-    }
-  }
+  Element.prototype.lazyModelChanged = function() {
+    var bindings = attributeBindingsTable.get(this);
+    if (bindings)
+      bindings.modelChanged(this.model);
+  };
 
-  function lazyModelDelegateChanged(node) {
-    var bindings = attributeBindingsTable.get(node);
-    if (bindings) {
-      bindings.modelDelegateChanged(node.modelDelegate);
-    } else {
-      var binding = textContentBindingTable.get(node);
-      if (binding && binding.setModelDelegate(node.model, node.modelDelegate))
-        textNodeValueChanged(node, binding);
-    }
-  }
+  Text.prototype.lazyModelChanged = function() {
+    var binding = textContentBindingTable.get(this);
+    if (binding && binding.setModel(this.model))
+      this.valueChanged(binding);
+  };
+
+  Element.prototype.lazyModelDelegateChanged = function() {
+    var bindings = attributeBindingsTable.get(this);
+    if (bindings)
+      bindings.modelDelegateChanged(this.modelDelegate);
+  };
+
+  Text.prototype.lazyModelDelegateChanged = function() {
+    var binding = textContentBindingTable.get(this);
+    if (binding && binding.setModelDelegate(this.model, this.modelDelegate))
+      this.valueChanged(binding);
+  };
 
   function inheritedGetter(table) {
     return function() {
@@ -172,33 +152,34 @@
     };
   }
 
-  function inheritedSetter(table, onChange) {
+  function inheritedSetter(table, changeMethodName) {
     return function(value) {
       var oldValue = table.get(this);
       if (oldValue === value)
         return;
 
       table.set(this, value);
-      onChange(this);
+      this[changeMethodName](this);
     };
   }
 
   defineProperty(Element, 'model',
                  inheritedGetter(modelTable),
-                 inheritedSetter(modelTable, modelChanged));
+                 inheritedSetter(modelTable, 'modelChanged'));
   defineProperty(Element, 'modelDelegate',
                  inheritedGetter(modelDelegateTable),
-                 inheritedSetter(modelDelegateTable, modelDelegateChanged));
+                 inheritedSetter(modelDelegateTable, 'modelDelegateChanged'));
 
   defineProperty(Text, 'model',
                  inheritedGetter(modelTable),
-                 inheritedSetter(modelTable, modelChanged));
+                 inheritedSetter(modelTable, 'modelChanged'));
   defineProperty(Text, 'modelDelegate',
                  inheritedGetter(modelDelegateTable),
-                 inheritedSetter(modelDelegateTable, modelDelegateChanged));
+                 inheritedSetter(modelDelegateTable, 'modelDelegateChanged'));
 
-  function textNodeValueChanged(node, binding) {
-    node.data = binding.value;
-  }
+  // TODO(arv): This should not be public.
+  Text.prototype.valueChanged = function(binding) {
+    this.data = binding.value;
+  };
 
 })();

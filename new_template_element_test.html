@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<!--
+Copyright 2013 Google Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<head>
+<title>Element Bindings Tests</title>
+<script src="third_party/closure/closure/goog/base.js"></script>
+<script src="platform/compat.js"></script>
+<script src="side_table.js"></script>
+<script src="path.js"></script>
+<script src="model.js"></script>
+<script src="script_value_binding.js"></script>
+<script src="expression_parser.js"></script>
+<script src="dependency_parser.js"></script>
+<script src="place_holder_parser.js"></script>
+<script src="text_replacements_binding.js"></script>
+<script src="element_attribute_bindings.js"></script>
+<script src="new_element_bindings.js"></script>
+<script src="new_template_element.js"></script>
+<script src="test_common.js"></script>
+
+<script>
+goog.require('goog.testing.jsunit');
+</script>
+</head>
+<body>
+
+<div id="test-div"></div>
+
+<script>
+
+var testDiv;
+
+function setUp() {
+  testDiv = document.getElementById('test-div');
+}
+
+function tearDown() {
+  testDiv.textContent = '';
+}
+
+function createTestHtml(s) {
+  var div = document.createElement('div');
+  div.innerHTML = s;
+  testDiv.appendChild(div);
+
+  Array.prototype.forEach.call(div.querySelectorAll(
+      HTMLTemplateElement.allTemplatesSelectors),
+    function(t) {
+      HTMLTemplateElement.decorate(t);
+    }
+  );
+
+  return div;
+}
+
+function testTemplate() {
+  var div = createTestHtml(
+      '<template instantiate>text</template>');
+  div.model = 42;
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('text', div.lastChild.textContent);
+}
+
+function testTeTextmplateWithBinding() {
+  var div = createTestHtml(
+      '<template instantiate>a{{b}}c</template>');
+  div.model = {b: 'B'};
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('aBc', div.lastChild.textContent);
+
+  div.model.b = 'b';
+  assertEquals('aBc', div.lastChild.textContent);
+  Model.dirtyCheck();
+  assertEquals('abc', div.lastChild.textContent);
+
+  div.model = {b: 'X'};
+  assertEquals('abc', div.lastChild.textContent);
+  Model.dirtyCheck();
+  assertEquals('aXc', div.lastChild.textContent);
+
+  div.model = undefined;
+  assertEquals('aXc', div.lastChild.textContent);
+  Model.dirtyCheck();
+  assertEquals(1, div.childNodes.length);
+}
+
+function testTemplateWithTextBinding2() {
+  var div = createTestHtml(
+      '<template instantiate="b">a{{value}}c</template>');
+  assertEquals(1, div.childNodes.length);
+  div.model = {b: {value: 'B'}};
+  assertEquals(1, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('aBc', div.lastChild.textContent);
+
+  div.model.b = {value: 'b'};
+  assertEquals('aBc', div.lastChild.textContent);
+  Model.dirtyCheck();
+  assertEquals('abc', div.lastChild.textContent);
+}
+
+function testTemplateWithAttributeBinding() {
+  var div = createTestHtml(
+      '<template instantiate>text</template>');
+  div.model = 42;
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('text', div.lastChild.textContent);
+}
+
+function testTemplateWithAttributeBinding() {
+  var div = createTestHtml(
+      '<template instantiate>' +
+      '<div foo="a{{b}}c"></div>' +
+      '</template>');
+  div.model = {b: 'B'};
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('aBc', div.lastChild.getAttribute('foo'));
+
+  div.model.b = 'b';
+  assertEquals('aBc', div.lastChild.getAttribute('foo'));
+  Model.dirtyCheck();
+  assertEquals('abc', div.lastChild.getAttribute('foo'));
+
+  div.model = {b: 'X'};
+  assertEquals('abc', div.lastChild.getAttribute('foo'));
+  Model.dirtyCheck();
+  assertEquals('aXc', div.lastChild.getAttribute('foo'));
+
+  div.model = undefined;
+  assertEquals('aXc', div.lastChild.getAttribute('foo'));
+  Model.dirtyCheck();
+  assertEquals(1, div.childNodes.length);
+}
+
+function testTemplateWithAttributeBinding2() {
+  var div = createTestHtml(
+      '<template instantiate>' +
+      '<div foo="{{b}}"></div>' +
+      '</template>');
+  div.model = {b: 'b'};
+  assertEquals(1, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('b', div.lastChild.getAttribute('foo'));
+
+  div.model = {b: null};
+  assertEquals('b', div.lastChild.getAttribute('foo'));
+  Model.dirtyCheck();
+  assertFalse(div.lastChild.hasAttribute('foo'));
+}
+
+function testIterate() {
+  var div = createTestHtml(
+      '<template iterate>text</template>');
+  assertEquals(1, div.childNodes.length);
+  div.model = [0, 1, 2];
+  assertEquals(1, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(4, div.childNodes.length);
+
+  div.model.length = 1;
+  assertEquals(4, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+
+  div.model.push(3, 4);
+  assertEquals(2, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(4, div.childNodes.length);
+
+  div.model.splice(1, 1);
+  assertEquals(4, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(3, div.childNodes.length);
+}
+
+function testIterate2() {
+  var div = createTestHtml(
+      '<template iterate>{{value}}</template>');
+  assertEquals(1, div.childNodes.length);
+  div.model = [
+    {value: 0},
+    {value: 1},
+    {value: 2}
+  ];
+  assertEquals(1, div.childNodes.length);
+  Model.dirtyCheck();
+  assertEquals(4, div.childNodes.length);
+  assertEquals('0', div.childNodes[1].textContent);
+  assertEquals('1', div.childNodes[2].textContent);
+  assertEquals('2', div.childNodes[3].textContent);
+
+  div.model[1].value = 'One';
+  Model.dirtyCheck();
+  assertEquals(4, div.childNodes.length);
+  assertEquals('0', div.childNodes[1].textContent);
+  assertEquals('One', div.childNodes[2].textContent);
+  assertEquals('2', div.childNodes[3].textContent);
+
+  div.model.splice(0, 1, {value: 'Zero'});
+  Model.dirtyCheck();
+  assertEquals(4, div.childNodes.length);
+  assertEquals('Zero', div.childNodes[1].textContent);
+  assertEquals('One', div.childNodes[2].textContent);
+  assertEquals('2', div.childNodes[3].textContent);
+}
+
+</script>
+</body>
+</html>

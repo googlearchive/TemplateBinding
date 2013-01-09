@@ -39,11 +39,25 @@ var Model = {};
     return obj === Object(obj);
   }
 
+
+  var queue = [];
+
+  Model.enqueue = function enqueue(func) {
+    queue.push(func);
+  };
+
   Model.dirtyCheck = function() {
+    // This might need some tweaking.
+
     do {
       observedList.forEach(addNotification);
       startNotifications();
     } while (notificationsMade)
+
+    while (queue.length > 0) {
+      var f = queue.shift();
+      f();
+    }
   };
 
   // Notifications happen in this order:

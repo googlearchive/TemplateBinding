@@ -39,9 +39,13 @@ var DelegatedValueBinding;
     this.model_ = model;
     this.path_ = path;
     this.observer_ = observer;
-    this.value_ = Model.getValueAtPath(model, path);
     this.boundCallback_ = this.scriptPropertyChanged.bind(this);
-    Model.observe(model, path, this.boundCallback_);
+    if (isObject(model)) {
+      this.value_ = Model.getValueAtPath(model, path);
+      Model.observe(model, path, this.boundCallback_);
+    } else {
+      this.value_ = model;
+    }
   };
 
   ScriptValueBinding.prototype = {
@@ -50,6 +54,12 @@ var DelegatedValueBinding;
     },
 
     scriptPropertyChanged: function(newValue) {
+      if (isObject(newValue) && newValue.mutation === 'splice') {
+        // TODO(arv): This happens becaues Model.observe checks if the model
+        // is an array and we get here.
+        return;
+      }
+
       // FIXME: This check may not be neccessary. Consider refactoring ScriptValue & ScriptValueTrackers.
       if (this.value_ !== newValue) {
         this.value_ = newValue;
@@ -62,7 +72,8 @@ var DelegatedValueBinding;
       this.model_ = model;
       var oldValue = this.value_;
       this.value_ = Model.getValueAtPath(this.model_, this.path_);
-      Model.observe(this.model_, this.path_, this.boundCallback_);
+      if (isObject(this.model_))
+        Model.observe(this.model_, this.path_, this.boundCallback_);
       return this.value_ !== oldValue;
     },
 
