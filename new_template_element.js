@@ -35,7 +35,7 @@
     'iterate': true,
     'instantiate': true,
     'ref': true
-  }
+  };
 
   var semanticTemplateElements = {
     'THEAD': true,
@@ -44,17 +44,17 @@
     'TH': true,
     'TR': true,
     'TD': true,
-      'COLGROUP': true,
-      'COL': true,
-      'OPTION': true
-    }
+    'COLGROUP': true,
+    'COL': true,
+    'OPTION': true
+  };
 
   var allTemplatesSelectors = 'template, ' +
       Object.keys(semanticTemplateElements).map(function(tagName) {
         return tagName.toLowerCase() + '[template]';
       }).join(', ');
 
-  function allTemplatesFromNode(node) {
+  function getTemplateDescendentsOf(node) {
     return node.querySelectorAll(allTemplatesSelectors);
   }
 
@@ -67,11 +67,13 @@
     return el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
   }
 
+  // FIXME: Observe templates being added/removed from documents
+  // FIXME: Expose imperative API to decorate and observe templates in
+  // "disconnected tress" (e.g. ShadowRoot)
   document.addEventListener('DOMContentLoaded', function(e) {
-    var templates = allTemplatesFromNode(document);
+    var templates = getTemplateDescendentsOf(document);
     forEach(templates, HTMLTemplateElement.decorate);
   }, false);
-
 
   var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
 
@@ -284,11 +286,11 @@
     assert(input.indexOf("}}") >= 0);
     var indexAfterBraces = startIndex + 2;
     var endIndex = input.indexOf("}}", indexAfterBraces);
-    return input.slice(indexAfterBraces, endIndex - indexAfterBraces).trim();
+    return input.slice(indexAfterBraces, endIndex).trim();
   }
 
-  function isCheckBoxOrRadioButton(type) {
-    return type === 'radio' || type === 'checkbox';
+  function isCheckBoxOrRadioButton(element) {
+    return element.type === 'radio' || element.type === 'checkbox';
   }
 
   function addElementBindings(element) {
@@ -307,7 +309,7 @@
             element.addValueBinding(
                 parseSinglePathFromPlaceholder(value, index));
           } else if (attr.name == 'checked' &&
-                     isCheckBoxOrRadioButton(element.type)) {
+                     isCheckBoxOrRadioButton(element)) {
             var value = attr.value;
             element.removeAttribute('checked');
             element.addCheckedBinding(
@@ -347,7 +349,7 @@
     assert(child && protoChild || !child && !protoChild);
   }
 
-  function setChildModelAndDelegate(node, model, modelDelegate) {
+  function setModelAndDelegateOnChildren(node, model, modelDelegate) {
     for (var child = node.firstChild; child; child = child.nextSibling) {
       child.model = model;
       child.modelDelegate = modelDelegate;
@@ -422,7 +424,7 @@
         content = this.template_.content;
       var instance = content.cloneNode(true);
 
-      setChildModelAndDelegate(instance, model,
+      setModelAndDelegateOnChildren(instance, model,
                                this.template_.parentNode.modelDelegate);
       addBindings(instance, content);
 

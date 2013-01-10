@@ -29,6 +29,7 @@ limitations under the License.
 <script src="text_replacements_binding.js"></script>
 <script src="element_attribute_bindings.js"></script>
 <script src="new_element_bindings.js"></script>
+<script src="input_bindings.js"></script>
 <script src="new_template_element.js"></script>
 <script src="test_common.js"></script>
 
@@ -65,6 +66,12 @@ function createTestHtml(s) {
   );
 
   return div;
+}
+
+function dispatchEvent(type, target) {
+  var event = document.createEvent('HTMLEvents');
+  event.initEvent(type, true, false);
+  target.dispatchEvent(event);
 }
 
 function testTemplate() {
@@ -222,6 +229,28 @@ function testIterate2() {
   assertEquals('Zero', div.childNodes[1].textContent);
   assertEquals('One', div.childNodes[2].textContent);
   assertEquals('2', div.childNodes[3].textContent);
+}
+
+function testTemplateWithInputValue() {
+  var div = createTestHtml(
+      '<template instantiate>' +
+      '<input value="{{x}}">' +
+      '</template>');
+  div.model = {x: 'hi', toString: function() { 'xxx'; }};
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('hi', div.lastChild.value);
+
+  div.model.x = 'bye';
+  assertEquals('hi', div.lastChild.value);
+  Model.dirtyCheck();
+  assertEquals('bye', div.lastChild.value);
+
+  div.lastChild.value = 'hello';
+  dispatchEvent('input', div.lastChild);
+  assertEquals('hello', div.model.x);
+  Model.dirtyCheck();
+  assertEquals('hello', div.lastChild.value);
 }
 
 </script>

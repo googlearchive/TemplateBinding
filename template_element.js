@@ -42,7 +42,7 @@ var allTemplatesSelectors = 'template, ' +
       return tagName.toLowerCase() + '[template]';
     }).join(', ');
 
-function allTemplatesFromNode(node) {
+function getTemplateDescendentsOf(node) {
   return node.querySelectorAll(allTemplatesSelectors);
 }
 
@@ -56,7 +56,7 @@ function isTemplateElement(el) {
 }
 
 document.addEventListener('DOMContentLoaded', function(e) {
-  var templates = allTemplatesFromNode(document);
+  var templates = getTemplateDescendentsOf(document);
   forEach(templates, HTMLTemplateElement.decorate);
 }, false);
 
@@ -267,7 +267,7 @@ function createSnapshot(iterator) {
         // templates multiple times. This is currently ok because
         // HTMLTemplateElement.templateIterator exists early if it has already
         // snapshotted its templateDom & bindings.
-        var templates = allTemplatesFromNode(child);
+        var templates = getTemplateDescendentsOf(child);
         forEach(templates, recursiveExtract);
       }
     }
@@ -307,7 +307,7 @@ function destructTemplates(node) {
   // TODO(rafaelw): This is somewhat inefficient. Consider speeding up.
   // If there are nested templates, this will cause inner templates
   // to be visited multiple times.
-  var templates = allTemplatesFromNode(node);
+  var templates = getTemplateDescendentsOf(node);
   for (var i = templates.length - 1; i >= 0; i--) {
     destructTemplate(templates[i]);
   }
@@ -923,8 +923,8 @@ TemplateInstance.prototype = createObject({
     var clone = templateDom.cloneNode(true);
 
     // Cloning does not forward the template iterator so we do it manually.
-    var orgTemplates = allTemplatesFromNode(templateDom);
-    var cloneTemplates = allTemplatesFromNode(clone);
+    var orgTemplates = getTemplateDescendentsOf(templateDom);
+    var cloneTemplates = getTemplateDescendentsOf(clone);
 
     for (var i = 0; i < orgTemplates.length; i++) {
       HTMLTemplateElement.decorate(cloneTemplates[i]);
@@ -950,7 +950,7 @@ TemplateInstance.prototype = createObject({
         // since this instance is in the DOM and all templates in the DOM
         // will have had there prototype DOM lifted into their templateDom
         // property.
-        var templates = allTemplatesFromNode(node);
+        var templates = getTemplateDescendentsOf(node);
         forEach(templates, buildNestedTemplate);
       }
     }
