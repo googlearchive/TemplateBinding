@@ -26,6 +26,10 @@ var ElementAttributeBindings;
   }
 
   Binding.prototype = {
+    unbind: function() {
+      this.binding_.unbind();
+    },
+
     modelChanged: function(newModel) {
       if (this.binding_.setModel(newModel))
         this.valueChanged(this.binding_);
@@ -66,7 +70,11 @@ var ElementAttributeBindings;
     },
 
     removeBinding: function(attributeName) {
-      delete this.attributeBindings_[attributeName];
+      var binding = this.attributeBindings_[attributeName];
+      if (binding) {
+        binding.unbind();
+        delete this.attributeBindings_[attributeName];
+      }
     },
 
     modelChanged: function(newModel) {

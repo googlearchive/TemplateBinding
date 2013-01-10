@@ -26,6 +26,8 @@ limitations under the License.
 <script src="text_replacements_binding.js"></script>
 <script src="element_attribute_bindings.js"></script>
 <script src="new_element_bindings.js"></script>
+<script src="input_bindings.js"></script>
+<script src="delegates.js"></script>
 <script src="test_common.js"></script>
 
 <script>
@@ -33,6 +35,15 @@ goog.require('goog.testing.jsunit');
 </script>
 </head>
 <body>
+<div id="testContainer">
+</div>
+<script>
+// Note: DOMNodeInserted/Removed only fire in webkit if the node is rooted in
+// document. This is just an attachment point so that tests will pass in
+// webkit.
+var testContainerDiv = document.getElementById('testContainer');
+</script>
+
 <script>
 
 function testModel() {
@@ -212,6 +223,668 @@ function testAttributesBindingText() {
   Model.dirtyCheck();
   assertFalse(element.hasAttribute('hidden'));
   assertNull(attr.bindingText);
+}
+
+function testSimpleBinding() {
+  var el = document.createElement('div');
+  el.model = {a: '1'};
+  el.addBinding('foo', '{{a}}');
+  Model.dirtyCheck();
+  assertEquals('1', el.getAttribute('foo'));
+
+  el.model.a = '2';
+  Model.dirtyCheck();
+  assertEquals('2', el.getAttribute('foo'));
+
+  el.model.a = 232.2;
+  Model.dirtyCheck();
+  assertEquals('232.2', el.getAttribute('foo'));
+
+  el.model.a = 232;
+  Model.dirtyCheck();
+  assertEquals('232', el.getAttribute('foo'));
+
+  el.model.a = null;
+  Model.dirtyCheck();
+  assertEquals(null, el.getAttribute('foo'));
+
+  el.model.a = undefined;
+  Model.dirtyCheck();
+  assertEquals('', el.getAttribute('foo'));
+}
+
+function testSimpleBindingAbsoluteRelativeAndCurrent() {
+  var parent = document.createElement('div');
+  var child = parent.appendChild(document.createElement('div'))
+  var el = child.appendChild(document.createElement('div'))
+
+  parent.model = {
+    val: 'root',
+    abs: {
+      val: 'abs',
+      ans: {
+        val: 'ans',
+        cur: 'cur'
+      }
+    }
+  };
+
+  el.addBinding('root', '{{ /val }}');
+  Model.dirtyCheck();
+  assertEquals('root', el.getAttribute('root'));
+
+  el.addBinding('abs', '{{ /abs.val }}');
+  Model.dirtyCheck();
+  assertEquals('abs', el.getAttribute('abs'));
+}
+
+function testSimpleBindingWithDashes() {
+  var el = document.createElement('div');
+  el.model = {a: '1'};
+  el.addBinding('foo-bar', '{{a}}');
+  Model.dirtyCheck();
+  assertEquals('1', el.getAttribute('foo-bar'));
+
+  el.model.a = '2';
+  Model.dirtyCheck();
+  assertEquals('2', el.getAttribute('foo-bar'));
+}
+
+function testSimpleBindingChangeModel() {
+  var el = document.createElement('div');
+  el.addBinding('foo', '{{a}}');
+  el.model = {a: '1'};
+  Model.dirtyCheck();
+  assertEquals('1', el.getAttribute('foo'));
+}
+
+function testSimpleBindingChangeAncestorModel() {
+  var d1 = document.createElement('div');
+  var d2 = d1.appendChild(document.createElement('div'));
+  var d3 = d2.appendChild(document.createElement('div'));
+  d3.addBinding('foo', '{{a}}');
+
+  d1.model = {a: 1};
+  Model.dirtyCheck();
+  assertEquals('1', d3.getAttribute('foo'));
+
+  d1.model = {a: 2};
+  Model.dirtyCheck();
+  assertEquals('2', d3.getAttribute('foo'));
+
+  d2.model = {a: 3};
+  Model.dirtyCheck();
+  assertEquals('3', d3.getAttribute('foo'));
+
+  d3.model = {a: 4};
+  Model.dirtyCheck();
+  assertEquals('4', d3.getAttribute('foo'));
+
+  d2.model = {a: 5};
+  Model.dirtyCheck();
+  assertEquals('4', d3.getAttribute('foo'));
+
+  d3.model = undefined;
+  Model.dirtyCheck();
+  assertEquals('5', d3.getAttribute('foo'));
+
+  d2.model = undefined;
+  Model.dirtyCheck();
+  assertEquals('2', d3.getAttribute('foo'));
+}
+
+function testPlaceHolderBindingText() {
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.textContent = 'dummy';
+  el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
+  el.model = m;
+
+  Model.dirtyCheck();
+  assertEquals('Hello cruel world!', el.textContent);
+
+  el.model.adj = 'happy';
+  Model.dirtyCheck();
+  assertEquals('Hello happy world!', el.textContent);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  Model.dirtyCheck();
+  assertEquals('Hello sunny day!', el.textContent);
+}
+
+function testPlaceHolderBindingText2() {
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.textContent = 'dummy';
+  el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
+  el.model = m;
+
+  Model.dirtyCheck();
+  assertEquals('Hello cruel world!', el.textContent);
+
+  el.model.adj = 'happy';
+  Model.dirtyCheck();
+  assertEquals('Hello happy world!', el.textContent);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  Model.dirtyCheck();
+  assertEquals('Hello sunny day!', el.textContent);
+}
+
+function testPlaceHolderBindingTextInline() {
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.textContent = 'dummy';
+  el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
+  el.model = m;
+
+  Model.dirtyCheck();
+  assertEquals('Hello cruel world!', el.textContent);
+
+  el.model.adj = 'happy';
+  Model.dirtyCheck();
+  assertEquals('Hello happy world!', el.textContent);
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  Model.dirtyCheck();
+  assertEquals('Hello sunny day!', el.textContent);
+}
+
+function testPlaceHolderBindingElementProperty() {
+  var m = {
+    adj: 'cruel',
+    noun: 'world'
+  };
+
+  var el = document.createElement('div');
+  el.addBinding('foo', 'Hello {{adj}} {{noun}}!');
+  el.model = m;
+
+  Model.dirtyCheck();
+  assertEquals('Hello cruel world!', el.getAttribute('foo'));
+
+  el.model.adj = 'happy';
+  Model.dirtyCheck();
+  assertEquals('Hello happy world!', el.getAttribute('foo'));
+
+  el.model = {
+    adj: 'sunny',
+    noun: 'day'
+  };
+  Model.dirtyCheck();
+  assertEquals('Hello sunny day!', el.getAttribute('foo'));
+
+  // Change the binding.
+  el.addBinding('foo', 'Goodbye {{ adj }} {{noun}}!');
+  Model.dirtyCheck();
+  assertEquals('Goodbye sunny day!', el.getAttribute('foo'));
+
+  // Remove the binding. Should stop following the model.
+  el.removeBinding('foo');
+  el.model.adj = 'cloudy';
+  Model.dirtyCheck();
+  assertEquals('Goodbye sunny day!', el.getAttribute('foo'));
+}
+
+function testDomTreeChanges() {
+  var d1 = document.createElement('div');
+  d1.id = 'd1';
+  var d2 = document.createElement('div');
+  d2.id = 'd2';
+  var d3 = document.createElement('div');
+  d3.id = 'd3';
+  d3.addBinding('foo', '{{a}}');
+
+  testContainerDiv.appendChild(d1);
+  testContainerDiv.appendChild(d2);
+
+  Model.dirtyCheck();
+  assertEquals('', d3.getAttribute('foo'));
+
+  d1.model = {a: 1};
+  d2.model = {a: 2};
+
+  d1.appendChild(d3);
+  Model.dirtyCheck();
+  assertEquals('1', d3.getAttribute('foo'));
+
+  d2.appendChild(d3);
+  Model.dirtyCheck();
+  assertEquals('2', d3.getAttribute('foo'));
+
+  testContainerDiv.innerHTML = '';
+}
+
+function dispatchEvent(type, target) {
+  var event = document.createEvent('HTMLEvents');
+  event.initEvent(type, true, false);
+  target.dispatchEvent(event);
+  Model.dirtyCheck();
+}
+
+function testInputElementTextBinding() {
+  var m = {val: 'ping'};
+
+  var el = document.createElement('input');
+  el.addValueBinding('val');
+  el.model = m;
+  Model.dirtyCheck();
+  assertEquals('ping', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals('pong', m.val);
+
+  // Try a deep path.
+  m = {
+    a: {
+      b: {
+        c: 'ping'
+      }
+    }
+  };
+
+  el.addValueBinding('a.b.c');
+  el.model = m;
+  Model.dirtyCheck();
+  assertEquals('ping', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals('pong', Model.getValueAtPath(m, 'a.b.c'));
+
+  // Start with the model property being absent.
+  delete m.a.b.c;
+  Model.dirtyCheck();
+  assertEquals('', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals('pong', Model.getValueAtPath(m, 'a.b.c'));
+  Model.dirtyCheck();
+
+  // Model property unreachable (and unsettable).
+  delete m.a.b;
+  Model.dirtyCheck();
+  assertEquals('', el.value);
+
+  el.value = 'pong';
+  dispatchEvent('input', el);
+  assertEquals(undefined, Model.getValueAtPath(m, 'a.b.c'));
+}
+
+function testSimpleTransform() {
+  function delegate(path) {
+    function toTarget(source) {
+      return source + 1;
+    }
+
+    function toSource(target) {
+      return (+target) - 1;
+    }
+
+    return [[path], toTarget, toSource];
+  }
+
+  var m = {val: 1};
+  var el = document.createElement('input');
+  el.addValueBinding('val');
+  el.model = m;
+  el.modelDelegate = delegate;
+  Model.dirtyCheck();
+  assertEquals('2', el.value);
+
+  el.value = '3';
+  dispatchEvent('input', el);
+  assertEquals(2, m.val);
+}
+
+function testDeclarativeTransform() {
+  var transformArgs;
+  var toTargetArgs;
+
+  function MyTrans(var_arg) {
+    transformArgs = Array.prototype.slice.call(arguments);
+  }
+  MyTrans.prototype = {
+    toTarget: function(source, path) {
+      toTargetArgs = Array.prototype.slice.call(arguments);
+      return source + 1;
+    },
+
+    toSource: function(target) {
+      return +target - 1;
+    }
+  };
+
+  Transform.registry.myTrans = MyTrans;
+
+  var m = {val: 1};
+  var el = document.createElement('input');
+  el.addValueBinding('val | myTrans("a", \'b\', 1)');
+  el.model = m;
+  el.modelDelegate = MDVDelegate;
+  Model.dirtyCheck();
+  assertEquals('2', el.value);
+  assertArrayEquals([m.val, 'val'], toTargetArgs);
+
+  el.value = '3';
+  dispatchEvent('input', el);
+  assertEquals(2, m.val);
+
+  assertArrayEquals(['a', 'b', 1],
+                    transformArgs);
+
+  delete Transform.registry.myTrans;
+}
+
+function testClassListTransform() {
+  var el = document.createElement('div');
+  el.modelDelegate = MDVDelegate;
+  el.addBinding('class', '{{ val | toggle("selected") }}');
+  el.model = { val: false };
+  Model.dirtyCheck();
+  assertEquals('', el.className);
+
+  el.model.val = true;
+  Model.dirtyCheck();
+  assertEquals('selected', el.className);
+
+  // Test impicit naming
+  el = document.createElement('div');
+  el.modelDelegate = MDVDelegate;
+  el.addBinding('class', '{{ selected | toggle }}');
+  el.model = { selected: false };
+  Model.dirtyCheck();
+  assertEquals('', el.className);
+
+  el.model.selected = true;
+  Model.dirtyCheck();
+  assertEquals('selected', el.className);
+
+  // Test impicit naming
+  el = document.createElement('div');
+  el.modelDelegate = MDVDelegate;
+  el.addBinding('class', 'classA {{ selected | toggle }} classB');
+  el.model = { selected: false };
+  Model.dirtyCheck();
+  assertEquals('classA  classB', el.className);
+
+  el.model.selected = true;
+  Model.dirtyCheck();
+  assertEquals('classA selected classB', el.className);
+}
+
+function testInputElementCheckbox() {
+  var m = {val: true};
+
+  var el = document.createElement('input');
+  el.type = 'checkbox';
+  el.addCheckedBinding('val');
+  el.model = m;
+  Model.dirtyCheck();
+  assertEquals(true, el.checked);
+
+  m.val = false;
+  Model.dirtyCheck();
+  assertEquals(false, el.checked);
+
+  el.checked = true;
+  dispatchEvent('click', el);
+  assertEquals(true, m.val);
+
+  el.checked = false;
+  dispatchEvent('click', el);
+  assertEquals(false, m.val);
+}
+
+function testInputElementRadio() {
+  var m = {val1: true, val2: false, val3: false, val4: true};
+  var RADIO_GROUP_NAME = 'test';
+
+  var container = document.body.appendChild(document.createElement('div'));
+  container.model = m;
+
+  var el1 = container.appendChild(document.createElement('input'));
+  el1.type = 'radio';
+  el1.name = RADIO_GROUP_NAME;
+  el1.addCheckedBinding('val1');
+
+  var el2 = container.appendChild(document.createElement('input'));
+  el2.type = 'radio';
+  el2.name = RADIO_GROUP_NAME;
+  el2.addCheckedBinding('val2');
+
+  var el3 = container.appendChild(document.createElement('input'));
+  el3.type = 'radio';
+  el3.name = RADIO_GROUP_NAME;
+  el3.addCheckedBinding('val3');
+
+  var el4 = container.appendChild(document.createElement('input'));
+  el4.type = 'radio';
+  el4.name = 'othergroup';
+  el4.addCheckedBinding('val4');
+
+  Model.dirtyCheck();
+  assertEquals(true, el1.checked);
+  assertEquals(false, el2.checked);
+  assertEquals(false, el3.checked);
+  assertEquals(true, el4.checked);
+
+  m.val1 = false;
+  m.val2 = true;
+  Model.dirtyCheck();
+  assertEquals(false, el1.checked);
+  assertEquals(true, el2.checked);
+  assertEquals(false, el3.checked);
+  assertEquals(true, el4.checked);
+
+  el1.checked = true;
+  dispatchEvent('change', el1);
+  assertEquals(true, m.val1);
+  assertEquals(false, m.val2);
+  assertEquals(false, m.val3);
+  assertEquals(true, m.val4);
+
+  el3.checked = true;
+  dispatchEvent('change', el3);
+  assertEquals(false, m.val1);
+  assertEquals(false, m.val2);
+  assertEquals(true, m.val3);
+  assertEquals(true, m.val4);
+
+  document.body.removeChild(container);
+}
+
+function testInputElementRadioMultipleForms() {
+  var m = {val1: true, val2: false, val3: false, val4: true};
+  var RADIO_GROUP_NAME = 'test';
+
+  var container = document.body.appendChild(document.createElement('div'));
+  container.model = m;
+  var form1 = container.appendChild(document.createElement('form'));
+  var form2 = container.appendChild(document.createElement('form'));
+
+  var el1 = form1.appendChild(document.createElement('input'));
+  el1.type = 'radio';
+  el1.name = RADIO_GROUP_NAME;
+  el1.addCheckedBinding('val1');
+
+  var el2 = form1.appendChild(document.createElement('input'));
+  el2.type = 'radio';
+  el2.name = RADIO_GROUP_NAME;
+  el2.addCheckedBinding('val2');
+
+  var el3 = form2.appendChild(document.createElement('input'));
+  el3.type = 'radio';
+  el3.name = RADIO_GROUP_NAME;
+  el3.addCheckedBinding('val3');
+
+  var el4 = form2.appendChild(document.createElement('input'));
+  el4.type = 'radio';
+  el4.name = RADIO_GROUP_NAME;
+  el4.addCheckedBinding('val4');
+
+  Model.dirtyCheck();
+  assertEquals(true, el1.checked);
+  assertEquals(false, el2.checked);
+  assertEquals(false, el3.checked);
+  assertEquals(true, el4.checked);
+
+  el2.checked = true;
+  dispatchEvent('change', el2);
+  assertEquals(false, m.val1);
+  assertEquals(true, m.val2);
+
+  // Radio buttons in form2 should be unaffected
+  assertEquals(false, m.val3);
+  assertEquals(true, m.val4);
+
+  el3.checked = true;
+  dispatchEvent('change', el3);
+  assertEquals(true, m.val3);
+  assertEquals(false, m.val4);
+
+  // Radio buttons in form1 should be unaffected
+  assertEquals(false, m.val1);
+  assertEquals(true, m.val2);
+
+  document.body.removeChild(container);
+}
+
+function testBindToChecked() {
+  var div = document.createElement('div');
+  var child = div.appendChild(document.createElement('div'));
+  var input = child.appendChild(document.createElement('input'));
+  input.type = 'checkbox';
+
+  var m = {
+    a: {
+      b: false
+    }
+  };
+  div.model = m;
+
+  input.addCheckedBinding('a.b');
+
+  input.checked = true;
+  dispatchEvent('click', input);
+  assertTrue(m.a.b);
+
+  input.checked = false;
+  assertTrue(m.a.b);
+  dispatchEvent('click', input);
+  assertFalse(m.a.b);
+}
+
+function testExpressionBinding() {
+  var el = document.createElement('div');
+  var m = el.model = {a: 1, b: 2};
+  el.modelDelegate = MDVDelegate;
+  el.addBinding('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
+  Model.dirtyCheck();
+  assertEquals('1 + 2 = 3', el.getAttribute('foo'));
+
+  m.a = 4;
+  Model.dirtyCheck();
+  assertEquals('4 + 2 = 6', el.getAttribute('foo'));
+
+  m.b = 8;
+  Model.dirtyCheck();
+  assertEquals('4 + 8 = 12', el.getAttribute('foo'));
+
+  el.model = null;
+  Model.dirtyCheck();
+  assertEquals(' +  = NaN', el.getAttribute('foo'));
+}
+
+function testMultipleReferences() {
+  var el = document.createElement('div');
+  var m = el.model = {foo: 'bar'};
+  el.addBinding('foo', '{{foo}} {{foo}}');
+  assertEquals('bar bar', el.getAttribute('foo'));
+}
+
+function testExpressionBindingNoCoerce() {
+  var el = document.createElement('div');
+  var m = el.model = {
+    a: {
+      b: 1
+    },
+    c: {
+      d: 2
+    }
+  };
+  el.modelDelegate = MDVDelegate;
+  el.addBinding('foo', '{{ expr(a.b, c.d) b + d }}');
+  assertEquals('3', el.getAttribute('foo'));
+}
+
+function testMinimalReads() {
+  var accessesPerNotifyObservers = Model.observableObjects_ ? 1 : 2;
+  var el = document.createElement('div');
+  function Data(a, b) {
+    this.a_ = a;
+    this.b_ = b;
+  }
+  var aAccess = 0;
+  var bAccess = 0;
+  Data.prototype = {
+    get a() {
+      aAccess++;
+      return this.a_;
+    },
+    set a(a) {
+      this.a_ = a;
+    },
+    get b() {
+      bAccess++;
+      return this.b_;
+    },
+    set b(b) {
+      this.b_ = b;
+    }
+  }
+
+  el.model = new Data('a', 'b');
+  el.addBinding('foo', '{{a}} {{b}}');
+
+  assertEquals('a b', el.getAttribute('foo'));
+  assertEquals(1 * accessesPerNotifyObservers, aAccess);
+  assertEquals(1 * accessesPerNotifyObservers, bAccess);
+
+  el.model.a = 'c';
+  Model.dirtyCheck();
+  assertEquals('c b', el.getAttribute('foo'));
+  assertEquals(2 * accessesPerNotifyObservers, aAccess);
+  assertEquals(2 * accessesPerNotifyObservers, bAccess);
+
+  el.model.b = 'd';
+  Model.dirtyCheck();
+  assertEquals('c d', el.getAttribute('foo'));
+  assertEquals(3 * accessesPerNotifyObservers, aAccess);
+  assertEquals(3 * accessesPerNotifyObservers, bAccess);
 }
 
 </script>

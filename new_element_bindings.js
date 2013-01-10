@@ -152,30 +152,67 @@
     };
   }
 
-  function inheritedSetter(table, changeMethodName) {
-    return function(value) {
-      var oldValue = table.get(this);
-      if (oldValue === value)
-        return;
+  function handleDomNodeInserted(e) {
+    if (!hasOwnModel(e.target))
+      e.target.modelChanged();
+  }
 
-      table.set(this, value);
-      this[changeMethodName](this);
-    };
+  function handleDomNodeRemoved(e) {
+    if (!hasOwnModel(e.target))
+      e.target.modelChanged();
+  }
+
+  function setupMutationListeners(node) {
+    // If model and modelScope are set to undefined we can stop listening at
+    // this level.
+
+    // TODO(arv): Use MutationObserver instead.
+
+    if (hasOwnModel(node) || hasOwnModelDelegate(node)) {
+      // Since we are reusing the function here duplicate add will be ignored.
+      node.addEventListener('DOMNodeInserted', handleDomNodeInserted, true);
+      node.addEventListener('DOMNodeRemoved', handleDomNodeRemoved, true);
+    } else {
+      node.removeEventListener('DOMNodeInserted', handleDomNodeInserted, true);
+      node.removeEventListener('DOMNodeRemoved', handleDomNodeRemoved, true);
+    }
+  }
+
+  function setModel(model) {
+    var oldModel = modelTable.get(this);
+
+    if (oldModel === model)
+      return;
+
+    modelTable.set(this, model);
+    setupMutationListeners(this);
+    this.modelChanged(this);
+  }
+
+  function setModelDelegate(modelDelegate) {
+    var oldModelDelegate = modelDelegateTable.get(this);
+
+    if (oldModelDelegate === modelDelegate)
+      return;
+
+    modelDelegateTable.set(this, modelDelegate);
+    setupMutationListeners(this);
+    this.modelDelegateChanged(this);
   }
 
   defineProperty(Element, 'model',
                  inheritedGetter(modelTable),
-                 inheritedSetter(modelTable, 'modelChanged'));
+                 setModel);
   defineProperty(Element, 'modelDelegate',
                  inheritedGetter(modelDelegateTable),
-                 inheritedSetter(modelDelegateTable, 'modelDelegateChanged'));
+                 setModelDelegate);
 
   defineProperty(Text, 'model',
                  inheritedGetter(modelTable),
-                 inheritedSetter(modelTable, 'modelChanged'));
+                 setModel);
   defineProperty(Text, 'modelDelegate',
                  inheritedGetter(modelDelegateTable),
-                 inheritedSetter(modelDelegateTable, 'modelDelegateChanged'));
+                 setModelDelegate);
 
   // TODO(arv): This should not be public.
   Text.prototype.valueChanged = function(binding) {

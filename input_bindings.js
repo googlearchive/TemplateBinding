@@ -70,7 +70,7 @@
 
     valueChanged: function(binding) {
       var newValue = binding.value;
-      var stringValue;
+      var stringValue = '';
       if (newValue != null)
         stringValue = String(newValue);
 
@@ -87,6 +87,40 @@
         this.binding_.value = value;
     }
   });
+
+  function isNodeInDocument(node) {
+    return node.ownerDocument.contains(node);
+  }
+
+  var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
+
+  // |element| is assumed to be an HTMLInputElement with |type| == 'radio'.
+  // Returns an array containing all radio buttons other than |element| that
+  // have the same |name|, either in the form that |element| belongs to or,
+  // if no form, in the document tree to which |element| belongs.
+  //
+  // This implementation is based upon the HTML spec definition of a
+  // "radio button group":
+  //   http://www.whatwg.org/specs/web-apps/current-work/multipage/number-state.html#radio-button-group
+  //
+  function getAssociatedRadioButtons(element) {
+    if (!isNodeInDocument(element))
+      return [];
+    if (element.form) {
+      return filter(element.form.elements, function(el) {
+        return el != element &&
+            el.tagName == 'INPUT' &&
+            el.type == 'radio' &&
+            el.name == element.name;
+      });
+    } else {
+      var radios = element.ownerDocument.querySelectorAll(
+          'input[type="radio"][name="' + element.name + '"]');
+      return filter(radios, function(el) {
+        return el != element && !el.form;
+      });
+    }
+  }
 
   function CheckedBinding(element, path) {
     InputBinding.call(this, element, path);
@@ -108,8 +142,22 @@
 
     updateBinding: function() {
       var value = this.element_.checked;
-      if (value !== this.lastValue_)
+      if (value !== this.lastValue_) {
         this.binding_.value = value;
+
+        // Only the radio button that is getting checked gets an event. We
+        // therefore find all the associated radio buttons and update their
+        // CheckedBinding manually.
+        if (this.element_.tagName === 'INPUT' &&
+            this.element_.type === 'radio') {
+          getAssociatedRadioButtons(this.element_).forEach(function(r) {
+            if (r.checkedBinding_) {
+              // Set the value directly to avoid an infinite call stack.
+              r.checkedBinding_.binding_.value = false;
+            }
+          });
+        }
+      }
     }
   });
 

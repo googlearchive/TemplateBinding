@@ -162,7 +162,7 @@ var Model = {};
         path.walk(data, function(m, i) {
           if (i == path.length - 1) {
             m[path.get(i)] = value;
-            return true;
+            return;
           }
         });
       }
