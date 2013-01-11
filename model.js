@@ -47,6 +47,10 @@ var Model = {};
   };
 
   Model.dirtyCheck = function() {
+    // Prevent reentrancy.
+    if (notificationQueueIsRunning)
+      return;
+
     // This might need some tweaking.
 
     do {

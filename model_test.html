@@ -1268,6 +1268,20 @@ function testSetValueAtPath() {
   assertEquals(6, m.a.d);
 }
 
+function testReentrancy() {
+  var m = {};
+  var count = 0;
+  Model.observe(m, 'foo', function() {
+    if (count++ > 1) {
+      fail('Should not reenter since no changes were made');
+    } else {
+      Model.dirtyCheck();
+    }
+  });
+  m.foo = 'bar';
+  Model.dirtyCheck();
+}
+
 </script>
 </body>
 </html>
