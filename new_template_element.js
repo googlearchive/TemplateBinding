@@ -162,6 +162,8 @@
       }
     }
     templateContentsTable.set(templateElement, df);
+
+    forEach(getTemplateDescendentsOf(df), HTMLTemplateElement.decorate);
   }
 
   /**
@@ -177,22 +179,8 @@
   HTMLTemplateElement.decorate = function(el) {
     if (el.templateIsDecorated_)
       return;
-
-    // Note: because we need to treat some semantic elements as template
-    // elements (like tr or td), but don't want to reassign their proto (gecko
-    // doesn't like that), we mixin the properties for those elements.
-    if (el.tagName === 'TEMPLATE') {
-      if (!hasTemplateElement) {
-        if (hasProto)
-          el.__proto__ = HTMLTemplateElement.prototype;
-        else
-          mixin(el, HTMLTemplateElement.prototype);
-      }
-    } else {
-      mixin(el, HTMLTemplateElement.prototype);
-    }
-
-    el.decorate();
+    fixTemplateElementPrototype(el);
+    decorateTemplateElement(el, true);
   };
 
   var htmlElement = global.HTMLUnknownElement || HTMLElement;
@@ -211,23 +199,40 @@
     });
   }
 
-  mixin(HTMLTemplateElement.prototype, {
-    decorate: function() {
-      this.templateIsDecorated_ = true;
+  function fixTemplateElementPrototype(el) {
+    // Note: because we need to treat some semantic elements as template
+    // elements (like tr or td), but don't want to reassign their proto (gecko
+    // doesn't like that), we mixin the properties for those elements.
+    if (el.tagName === 'TEMPLATE') {
+      if (!hasTemplateElement) {
+        if (hasProto)
+          el.__proto__ = HTMLTemplateElement.prototype;
+        else
+          mixin(el, HTMLTemplateElement.prototype);
+      }
+    } else {
+      mixin(el, HTMLTemplateElement.prototype);
+    }
+  }
 
-      if (!hasTemplateElement || isAttributeTemplate(this))
-        moveTemplateContentIntoContent(this);
+  function decorateTemplateElement(el, shouldMoveContent) {
+      el.templateIsDecorated_ = true;
+
+      if (shouldMoveContent && (!hasTemplateElement || isAttributeTemplate(el)))
+        moveTemplateContentIntoContent(el);
 
       // Associate the inner document with the outer.
       // This is needed to be able to find ref templates from the inner document
       // to the outer document.
-      var outerDocument = this.ownerDocument;
-      var innerDocument = getTemplateContent(this).ownerDocument;
+      var outerDocument = el.ownerDocument;
+      var innerDocument = getTemplateContent(el).ownerDocument;
       if (innerDocument !== outerDocument)
         reverseTemplateContentsOwnerTable.set(innerDocument, outerDocument);
 
-      Model.enqueue(this.checkIteration.bind(this));
-    },
+      Model.enqueue(el.checkIteration.bind(el));
+  }
+
+  mixin(HTMLTemplateElement.prototype, {
 
     get instantiate() {
       return this.getAttribute('instantiate');
@@ -378,6 +383,48 @@
     }
   };
 
+  function cloneNodeAndContent(node) {
+    var clone = node.cloneNode(false);  // Shallow clone.
+    if (isTemplateElement(clone)) {
+      var df = cloneNodeAndContent(node.content);
+      templateContentsTable.set(clone, df);
+      fixTemplateElementPrototype(clone);
+      decorateTemplateElement(clone, false);
+    }
+    for (var child = node.firstChild; child; child = child.nextSibling) {
+      clone.appendChild(cloneNodeAndContent(child))
+    }
+    return clone;
+  }
+
+  function cloneTemplateContent(df) {
+    if (!hasTemplateElement)
+      return cloneNodeAndContent(df);
+
+    function initializeTemplates(node) {
+      forEach(getTemplateDescendentsOf(node), function(node) {
+        HTMLTemplateElement.decorate(node);
+        initializeTemplates(node.content);
+      });
+    }
+
+    var clone = df.cloneNode(true);
+    initializeTemplates(clone);
+    return clone;
+  }
+
+  function removeChild(parent, child) {
+    if (isTemplateElement(child)) {
+      // Make sure we stop observing when we remove an element.
+      var templateIterator = templateIteratorTable.get(child);
+      if (templateIterator) {
+        templateIterator.unbind();
+        templateIteratorTable.delete(child);
+      }
+    }
+    parent.removeChild(child);
+  }
+
   function InstanceCursor(templateElement) {
     this.template_ = templateElement;
     this.previousTerminator_ = null;
@@ -422,10 +469,10 @@
         content = ref.content;
       if (!content)
         content = this.template_.content;
-      var instance = content.cloneNode(true);
+      var instance = cloneTemplateContent(content);
 
       setModelAndDelegateOnChildren(instance, model,
-                               this.template_.parentNode.modelDelegate);
+                                    this.template_.parentNode.modelDelegate);
       addBindings(instance, content);
 
       this.terminator_ = instance.lastChild || this.previousTerminator_;
@@ -464,9 +511,9 @@
 
       var parent = this.template_.parentNode;
       while (this.previousTerminator_.nextSibling !== this.terminator_) {
-        parent.removeChild(this.previousTerminator_.nextSibling);
+        removeChild(parent, this.previousTerminator_.nextSibling);
       }
-      parent.removeChild(this.terminator_);
+      removeChild(parent, this.terminator_);
 
       this.terminator_ = this.previousTerminator_;
       this.index_ = this.previousIndex_;
@@ -540,6 +587,12 @@
       return this.isIterate_;
     },
 
+    unbind: function() {
+      this.instances_.forEach(function(instance) {
+        instance.unbind();
+      });
+    },
+
     valueChanged: function(binding) {
       this.clear();
 
@@ -586,6 +639,7 @@
         cursor.next();
         cursor.remove();
       }
+      this.unbind();
       this.instances_ = [];
       this.arrayTracker_ = null;
     },
@@ -613,13 +667,14 @@
     // FIXME: Consider merging this code with clear(), e.g. clear(bool abandonInstances = false)
     abandonInstances: function() {
       assert(!this.instances_.length || this.instances_.length == 1);
-      var curson = new InstanceCursor(this.templateElement_);
+      var cursor = new InstanceCursor(this.templateElement_);
       for (var i = 0; i < this.instances_.length; i++) {
         if (this.instances_[i].isActive) {
           cursor.next();
           cursor.abandon();
         }
       }
+      this.unbind();
       this.instances_ = [];
       this.arrayTracker_ = null;
     },
@@ -668,7 +723,7 @@
         return;
 
       templateIterator.abandonInstances();
-      templateIterator.clear();
+      templateIteratorTable.delete(this);
     },
 
     checkIteration: function() {
@@ -694,7 +749,7 @@
         templateIteratorTable.delete(this);
       }
 
-      if (bindingText === null)
+      if (bindingText == null)
         return;
 
       templateIterator = new TemplateIterator(this, bindingText, isIterate);

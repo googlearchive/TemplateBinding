@@ -54,7 +54,7 @@ var DelegatedValueBinding;
     },
 
     scriptPropertyChanged: function(newValue) {
-      if (isObject(newValue) && newValue.mutation === 'splice') {
+      if (isObject(newValue) && newValue.mutation) {
         // TODO(arv): This happens becaues Model.observe checks if the model
         // is an array and we get here.
         return;

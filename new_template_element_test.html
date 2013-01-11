@@ -17,6 +17,7 @@ limitations under the License.
 -->
 <head>
 <title>Element Bindings Tests</title>
+<link rel="stylesheet" href="template_element.css">
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
 <script src="side_table.js"></script>
@@ -31,6 +32,7 @@ limitations under the License.
 <script src="new_element_bindings.js"></script>
 <script src="input_bindings.js"></script>
 <script src="new_template_element.js"></script>
+<script src="delegates.js"></script>
 <script src="test_common.js"></script>
 
 <script>
@@ -83,7 +85,7 @@ function testTemplate() {
   assertEquals('text', div.lastChild.textContent);
 }
 
-function testTeTextmplateWithBinding() {
+function testTextTemplateWithBinding() {
   var div = createTestHtml(
       '<template instantiate>a{{b}}c</template>');
   div.model = {b: 'B'};
@@ -121,15 +123,6 @@ function testTemplateWithTextBinding2() {
   assertEquals('aBc', div.lastChild.textContent);
   Model.dirtyCheck();
   assertEquals('abc', div.lastChild.textContent);
-}
-
-function testTemplateWithAttributeBinding() {
-  var div = createTestHtml(
-      '<template instantiate>text</template>');
-  div.model = 42;
-  Model.dirtyCheck();
-  assertEquals(2, div.childNodes.length);
-  assertEquals('text', div.lastChild.textContent);
 }
 
 function testTemplateWithAttributeBinding() {
@@ -236,7 +229,7 @@ function testTemplateWithInputValue() {
       '<template instantiate>' +
       '<input value="{{x}}">' +
       '</template>');
-  div.model = {x: 'hi', toString: function() { 'xxx'; }};
+  div.model = {x: 'hi'};
   Model.dirtyCheck();
   assertEquals(2, div.childNodes.length);
   assertEquals('hi', div.lastChild.value);
@@ -252,6 +245,903 @@ function testTemplateWithInputValue() {
   Model.dirtyCheck();
   assertEquals('hello', div.lastChild.value);
 }
+
+//////////////////////////////////////////////////////////////////////////////
+
+
+function testDecorated() {
+  var div = createTestHtml(
+      '<template instantiate="XX" id="t1">' +
+        '<p>Crew member: {{name}}, Job title: {{title}}</p>' +
+      '</template>' +
+      '<template instantiate="XY" id="t2" ref="t1"></template>');
+
+  div.model = {
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  };
+  Model.dirtyCheck();
+
+  var t1 = document.getElementById('t1');
+  var instance = t1.nextElementSibling;
+  assertEquals('Crew member: Leela, Job title: Captain', instance.textContent);
+
+  var t2 = document.getElementById('t2');
+  instance = t2.nextElementSibling;
+  assertEquals('Crew member: Fry, Job title: Delivery boy',
+               instance.textContent);
+
+  assertEquals(4, div.children.length);
+  assertEquals(4, div.childNodes.length);
+
+  assertEquals('P', div.childNodes[1].tagName);
+  assertEquals('P', div.childNodes[3].tagName);
+}
+
+function testDefaultStyles() {
+  var t = document.createElement('template');
+  HTMLTemplateElement.decorate(t);
+
+  document.body.appendChild(t);
+  assertEquals('none', getComputedStyle(t, null).display);
+
+  document.body.removeChild(t);
+}
+
+function testInstantiate() {
+  var div = createTestHtml('<template instantiate>Hi {{ name }}</template>');
+  div.model = {name: 'Leela'};
+  Model.dirtyCheck();
+  assertEquals('Hi Leela', div.childNodes[1].textContent);
+}
+
+function testInstantiateImperative() {
+  var div = createTestHtml(
+      '<template>' +
+        'Hi {{ name }}' +
+      '</template>');
+  var t = div.firstChild;
+
+  div.model = {name: 'Leela'};
+  t.instantiate = '';
+  Model.dirtyCheck();
+  assertEquals('Hi Leela', div.childNodes[1].textContent);
+}
+
+function testInstantiatePlaceHolderHasNewLine() {
+  var div = createTestHtml('<template instantiate>Hi {{\nname\n}}</template>');
+  div.model = {name: 'Leela'};
+  Model.dirtyCheck();
+  assertEquals('Hi Leela', div.childNodes[1].textContent);
+}
+
+function testInstantiateWithRef() {
+  var id = 't' + Math.random();
+  var div = createTestHtml(
+      '<template id="' + id +'">' +
+        'Hi {{ name }}' +
+      '</template>' +
+      '<template ref="' + id + '" instantiate></template>');
+
+  var t1 = div.firstChild;
+  var t2 = div.childNodes[1];
+
+  assertEquals(t1, t2.ref);
+
+  div.model = {name: 'Fry'};
+  Model.dirtyCheck();
+  assertEquals('Hi Fry', t2.nextSibling.textContent);
+}
+
+function testInstantiateWithScope() {
+  var data = {
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  };
+
+  var div = createTestHtml(
+      '<template instantiate="XX">Hi {{ name }}</template>');
+
+  div.model = data;
+  Model.dirtyCheck();
+  assertEquals('Hi Leela', div.childNodes[1].textContent);
+}
+
+function testInstantiateChanged() {
+  var data = {
+    scope: 'XX',
+    XX: {name: 'Leela', title: 'Captain'},
+    XY: {name: 'Fry', title: 'Delivery boy'},
+    XZ: {name: 'Zoidberg', title: 'Doctor'}
+  };
+
+  var div = createTestHtml(
+      '<template instantiate="XX">Hi {{ name }}</template>');
+
+  var t = div.firstChild;
+  div.model = data;
+  Model.dirtyCheck();
+
+  assertEquals(2, div.childNodes.length);
+  assertEquals('Hi Leela', t.nextSibling.textContent);
+
+  t.instantiate = 'XZ';
+  Model.dirtyCheck();
+
+  assertEquals(2, div.childNodes.length);
+  assertEquals('Hi Zoidberg', t.nextSibling.textContent);
+}
+
+function testBindToClassName() {
+  var div = createTestHtml(
+      '<template>' +
+        '<div class="foo {{ val | toggle(\'bar\') }}"></div>' +
+      '</template>');
+  var t = div.firstChild;
+
+  div.model = { val: false};
+  div.modelDelegate = MDVDelegate;
+  t.instantiate = '';
+  Model.dirtyCheck();
+  assertEquals('foo ', div.childNodes[1].className);
+
+  div.model.val = true;
+  Model.dirtyCheck();
+  assertEquals('foo bar', div.childNodes[1].className);
+}
+
+function assertNodesAre() {
+  // <template> is at index 0 and instances starts at 1 and use 2 nodes each.
+  var startIndex = 1;
+  var nodesPerInstance = 1;
+  assertEquals(arguments.length * nodesPerInstance + startIndex,
+               div.childNodes.length);
+  var model = Model.getValueAtPath(div.model, t.iterate);
+
+  for (var i = 0; i < arguments.length; i++) {
+    var targetNode = div.childNodes[i * nodesPerInstance + startIndex];
+    assertEquals(arguments[i], targetNode.textContent);
+    assertEquals(JSON.stringify(model[i]),
+                 JSON.stringify(targetNode.model));
+  }
+}
+
+function testIterate() {
+  div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
+  t = div.firstChild;
+
+  var m = div.model = {
+    contacts: [
+      {name: 'Raf'},
+      {name: 'Arv'},
+      {name: 'Neal'}
+    ]
+  };
+  Model.dirtyCheck();
+
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
+
+  m.contacts.push({name: 'Alex'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
+
+  m.contacts.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
+
+  m.contacts.splice(1, 2);
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Alex');
+
+  m.contacts.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
+
+  m.contacts.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
+
+  m.contacts = [{name: 'Alex'}];
+  Model.dirtyCheck();
+  assertNodesAre('Hi Alex');
+
+  m.contacts.length = 0;
+  Model.dirtyCheck();
+  assertNodesAre();
+}
+
+function testIterateModelSet() {
+  div = createTestHtml(
+      '<template iterate="contacts">' +
+        'Hi {{ name }}' +
+      '</template>');
+  var m = div.model = {
+    contacts: [
+      {name: 'Raf'},
+      {name: 'Arv'},
+      {name: 'Neal'}
+    ]
+  };
+  Model.dirtyCheck();
+  t = div.firstChild;
+
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
+}
+
+function testIterateEmptyIteratePath() {
+  div = createTestHtml('<template iterate>Hi {{ name }}</template>');
+  t = div.firstChild;
+
+  var m = div.model = [
+    {name: 'Raf'},
+    {name: 'Arv'},
+    {name: 'Neal'}
+  ];
+  Model.dirtyCheck();
+
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
+
+  m.push({name: 'Alex'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
+
+  m.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
+
+  m.splice(1, 2);
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Alex');
+
+  m.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
+
+  m.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
+
+  m = div.model = [{name: 'Alex'}];
+  Model.dirtyCheck();
+  assertNodesAre('Hi Alex');
+}
+
+function testIterateNullModel() {
+  div = createTestHtml('<template iterate>Hi {{ name }}</template>');
+  t = div.firstChild;
+
+  var m = div.model = null;
+  assertEquals(1, div.childNodes.length);
+
+  t.iterate = '';
+  m = div.model = {};
+  assertEquals(1, div.childNodes.length);
+}
+
+function testIterateReuse() {
+  div = createTestHtml('<template iterate>Hi {{ name }}</template>');
+  t = div.firstChild;
+
+  var m = div.model = [
+    {name: 'Raf'},
+    {name: 'Arv'},
+    {name: 'Neal'}
+  ];
+  Model.dirtyCheck();
+
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
+  var node1 = div.childNodes[1];
+  var node2 = div.childNodes[2];
+  var node3 = div.childNodes[3];
+
+  m.splice(1, 1, {name: 'Erik'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Raf', 'Hi Erik', 'Hi Neal');
+  assertEquals('model[0] did not change so the node should not have changed',
+               node1, div.childNodes[1]);
+  assertNotEquals('Should not reuse when replacing', node2, div.childNodes[2]);
+  assertEquals('model[2] did not change so the node should not have changed',
+               node3, div.childNodes[3]);
+
+  node2 = div.childNodes[2];
+  m.splice(0, 0, {name: 'Alex'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Erik', 'Hi Neal');
+}
+
+function testTwoLevelsDeepBug() {
+  div = createTestHtml(
+    '<template instantiate><span><span>{{ foo }}</span></span></template>');
+
+  div.model = {foo: 'bar'};
+  Model.dirtyCheck();
+
+  assertEquals('bar',
+               div.childNodes[1].childNodes[0].childNodes[0].textContent);
+}
+
+function dispatchEvent(type, target) {
+  var event = document.createEvent('HTMLEvents');
+  event.initEvent(type, true, false);
+  target.dispatchEvent(event);
+}
+
+function testChecked() {
+  var div = createTestHtml(
+      '<template>' +
+        '<input type="checkbox" checked="{{a}}">' +
+      '</template>');
+  var t = div.firstChild;
+  var m = div.model = {
+    a: true
+  };
+  t.instantiate = '';
+  Model.dirtyCheck();
+
+  var instanceInput = t.nextSibling;
+  assertTrue(instanceInput.checked);
+
+  instanceInput.checked = false;
+  dispatchEvent('click', instanceInput);
+  assertFalse(instanceInput.checked);
+
+  instanceInput.checked = true;
+  dispatchEvent('click', instanceInput);
+  assertTrue(instanceInput.checked);
+}
+
+function nestedHelper(s, start) {
+  var div = createTestHtml(s);
+
+  var m = {
+    a: {
+      b: 1,
+      c: {d: 2}
+    },
+  };
+
+  div.model = m;
+  Model.dirtyCheck();
+
+  var i = start;
+  assertEquals('1', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('2', div.childNodes[i++].textContent);
+
+  m.a.b = 11;
+  Model.dirtyCheck();
+  assertEquals('11', div.childNodes[start].textContent);
+
+  m.a.c = {d: 22};
+  Model.dirtyCheck();
+  assertEquals('22', div.childNodes[start + 2].textContent);
+}
+
+function testNested() {
+  nestedHelper(
+      '<template instantiate="a">' +
+        '{{b}}' +
+        '<template instantiate="c">' +
+          '{{d}}' +
+        '</template>' +
+      '</template>', 1);
+}
+
+function testNestedWithRef() {
+  nestedHelper(
+      '<template id="inner">{{d}}</template>' +
+      '<template id="outer" instantiate="a">' +
+        '{{b}}' +
+        '<template ref="inner" instantiate="c"></template>' +
+      '</template>', 2);
+}
+
+function nestedIterateInstantiateHelper(s, start) {
+  var div = createTestHtml(s);
+
+  var m = {
+    a: [
+      {
+        b: 1,
+        c: {d: 11}
+      },
+      {
+        b: 2,
+        c: {d: 22}
+      }
+    ]
+  };
+
+  div.model = m;
+  Model.dirtyCheck();
+
+  var i = start;
+  assertEquals('1', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('11', div.childNodes[i++].textContent);
+  assertEquals('2', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('22', div.childNodes[i++].textContent);
+
+  m.a[1] = {
+    b: 3,
+    c: {d: 33}
+  };
+
+  Model.dirtyCheck();
+  assertEquals('3', div.childNodes[start + 3].textContent);
+  assertEquals('33', div.childNodes[start + 5].textContent);
+}
+
+function testNestedIterateInstantiate() {
+  nestedIterateInstantiateHelper(
+      '<template iterate="a">' +
+        '{{b}}' +
+        '<template instantiate="c">' +
+          '{{d}}' +
+        '</template>' +
+      '</template>', 1);
+}
+
+function testNestedIterateInstantiateWithRef() {
+  nestedIterateInstantiateHelper(
+      '<template id="inner">' +
+        '{{d}}' +
+      '</template>' +
+      '<template iterate="a">' +
+        '{{b}}' +
+        '<template ref="inner" instantiate="c"></template>' +
+      '</template>', 2);
+}
+
+function nestedIterateIterateHelper(s, start) {
+  var div = createTestHtml(s);
+
+  var m = {
+    a: [
+      {
+        b: 1,
+        c: [{d: 11}, {d: 12}]
+      },
+      {
+        b: 2,
+        c: [{d: 21}, {d: 22}]
+      }
+    ]
+  };
+
+  div.model = m;
+  Model.dirtyCheck();
+
+  var i = start;
+  assertEquals('1', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('11', div.childNodes[i++].textContent);
+  assertEquals('12', div.childNodes[i++].textContent);
+  assertEquals('2', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('21', div.childNodes[i++].textContent);
+  assertEquals('22', div.childNodes[i++].textContent);
+
+  m.a[1] = {
+    b: 3,
+    c: [{d: 31}, {d: 32}, {d: 33}]
+  };
+
+  i = start + 4;
+  Model.dirtyCheck();
+  assertEquals('3', div.childNodes[start + 4].textContent);
+  assertEquals('31', div.childNodes[start + 6].textContent);
+  assertEquals('32', div.childNodes[start + 7].textContent);
+  assertEquals('33', div.childNodes[start + 8].textContent);
+}
+
+function testNestedIterateIterate() {
+  nestedIterateIterateHelper(
+      '<template iterate="a">' +
+        '{{b}}' +
+        '<template iterate="c">' +
+          '{{d}}' +
+        '</template>' +
+      '</template>', 1);
+}
+
+function testNestedIterateIterateWithRef() {
+  nestedIterateIterateHelper(
+      '<template id="inner">' +
+        '{{d}}' +
+      '</template>' +
+      '<template iterate="a">' +
+        '{{b}}' +
+        '<template ref="inner" iterate="c"></template>' +
+      '</template>', 2);
+}
+
+function testNestedIterateSelfRef() {
+  var div = createTestHtml(
+      '<template id="t" iterate="">' +
+        '{{name}}' +
+        '<template ref="t" iterate="items"></template>' +
+      '</template>');
+
+  var m = [
+    {
+      name: 'Item 1',
+      items: [
+        {
+          name: 'Item 1.1',
+          items: [
+            {
+               name: 'Item 1.1.1',
+               items: []
+            }
+          ]
+        },
+        {
+          name: 'Item 1.2'
+        }
+      ]
+    },
+    {
+      name: 'Item 2',
+      items: []
+    },
+  ];
+
+  div.model = m;
+  Model.dirtyCheck();
+
+  var i = 1;
+  assertEquals('Item 1', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('Item 1.1', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('Item 1.1.1', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('Item 1.2', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('Item 2', div.childNodes[i++].textContent);
+
+  m[0] = {
+    name: 'Item 1 changed'
+  };
+
+  i = 1;
+  Model.dirtyCheck();
+  assertEquals('Item 1 changed', div.childNodes[i++].textContent);
+  assertEquals('TEMPLATE', div.childNodes[i++].tagName);
+  assertEquals('Item 2', div.childNodes[i++].textContent);
+}
+
+
+function testNestedIterateTable() {
+  var div = createTestHtml(
+      '<table><tbody>' +
+        '<tr template iterate>' +
+          '<td template iterate class="{{ val }}">{{ val }}</td>' +
+        '</tr>' +
+      '</tbody></table>');
+
+  var m = [
+    [{ val: 0 }, { val: 1 }],
+    [{ val: 2 }, { val: 3 }]
+  ];
+
+  div.model = m;
+  Model.dirtyCheck();
+
+  var i = 1;
+  var tbody = div.childNodes[0].childNodes[0];
+
+  // 1 for the <tr template>, 2 * (1 tr)
+  assertEquals(3, tbody.childNodes.length);
+
+  // 1 for the <td template>, 2 * (1 td)
+  assertEquals(3, tbody.childNodes[1].childNodes.length);
+  assertEquals('0', tbody.childNodes[1].childNodes[1].textContent)
+  assertEquals('1', tbody.childNodes[1].childNodes[2].textContent)
+
+  // 1 for the <td template>, 2 * (1 td)
+  assertEquals(3, tbody.childNodes[2].childNodes.length);
+  assertEquals('2', tbody.childNodes[2].childNodes[1].textContent)
+  assertEquals('3', tbody.childNodes[2].childNodes[2].textContent)
+
+  // Asset the 'class' binding is retained on the semantic template (just check
+  // the last one).
+  assertEquals('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
+}
+
+function testNestedIterateDeletionOfMultipleSubTemplates() {
+  var div = createTestHtml(
+      '<ul>' +
+        '<template iterate id=t1>' +
+          '<li>{{name}}' +
+            '<ul>' +
+              '<template ref=t1 iterate="items"></template>' +
+            '</ul>' +
+          '</li>' +
+        '</template>' +
+      '</ul>');
+
+  var m = [
+    {
+      name: 'Item 1',
+      items: [
+        {
+          name: 'Item 1.1'
+        }
+      ]
+    }
+  ];
+
+  div.model = m;
+
+  Model.dirtyCheck();
+  m.splice(0, 1);
+  Model.dirtyCheck();
+}
+
+function testDeepNested() {
+  var div = createTestHtml(
+    '<template instantiate="a">' +
+      '<p>' +
+        '<template instantiate="b">' +
+          '{{ c }}' +
+        '</template>' +
+      '</p>' +
+    '</template>');
+
+  var m = div.model = {
+    a: {
+      b: {
+        c: 42
+      }
+    }
+  };
+  Model.dirtyCheck();
+
+  assertEquals('P', div.childNodes[1].tagName);
+  assertEquals('TEMPLATE', div.childNodes[1].firstChild.tagName);
+  assertEquals('42', div.childNodes[1].childNodes[1].textContent);
+}
+
+function testTemplateContentRemoved() {
+  var div = createTestHtml('<template instantiate>{{ ./ }}</template>');
+  div.model = 42;
+  Model.dirtyCheck();
+  assertEquals('42', div.childNodes[1].textContent);
+  assertEquals('', div.childNodes[0].textContent);
+}
+
+function testTemplateContentRemovedEmptyArray() {
+  var div = createTestHtml('<template iterate>Remove me</template>');
+  div.model = [];
+  Model.dirtyCheck();
+  assertEquals(1, div.childNodes.length);
+  assertEquals('', div.childNodes[0].textContent);
+}
+
+function testTemplateContentRemovedNested() {
+  var div = createTestHtml(
+      '<template instantiate>' +
+        '{{ a }}' +
+        '<template instantiate>' +
+          '{{ b }}' +
+        '</template>' +
+      '</template>');
+
+  div.model = {
+    a: 1,
+    b: 2
+  };
+  Model.dirtyCheck();
+
+  assertEquals('', div.childNodes[0].textContent);
+  assertEquals('1', div.childNodes[1].textContent);
+  assertEquals('', div.childNodes[2].textContent);
+  assertEquals('2', div.childNodes[3].textContent);
+}
+
+function testInstantiateWithUndefinedModel() {
+  var div = createTestHtml('<template instantiate>{{ a }}</template>');
+
+  div.model = {a: 42};
+  Model.dirtyCheck();
+  assertEquals('42', div.childNodes[1].textContent);
+
+  div.model = undefined;
+  Model.dirtyCheck();
+  assertEquals(1, div.childNodes.length);
+
+  div.model = {a: 42};
+  Model.dirtyCheck();
+  assertEquals('42', div.childNodes[1].textContent);
+}
+
+function testInstantiateNested() {
+  var div = createTestHtml(
+      '<template instantiate>' +
+        'Name: {{ name }}' +
+        '<template instantiate="wife">' +
+          'Wife: {{ name }}' +
+        '</template>' +
+        '<template instantiate="child">' +
+          'Child: {{ name }}' +
+        '</template>' +
+      '</template>');
+
+  var m = div.model = {
+    name: 'Hermes',
+    wife: {
+      name: 'LaBarbara'
+    }
+  };
+  Model.dirtyCheck();
+
+  assertEquals(5, div.childNodes.length);
+  assertEquals('Name: Hermes', div.childNodes[1].textContent);
+  assertEquals('Wife: LaBarbara', div.childNodes[3].textContent);
+
+  m.child = {name: 'Dwight'};
+  Model.dirtyCheck();
+  assertEquals(6, div.childNodes.length);
+  assertEquals('Child: Dwight', div.childNodes[5].textContent);
+
+  delete m.wife;
+  Model.dirtyCheck();
+  assertEquals(5, div.childNodes.length);
+  assertEquals('Child: Dwight', div.childNodes[4].textContent);
+}
+
+function testInstantiateRecursive() {
+  var div = createTestHtml(
+      '<template instantiate id="t">' +
+        'Name: {{ name }}' +
+        '<template instantiate="friend" ref="t"></template>' +
+      '</template>');
+
+  var m = div.model = {
+    name: 'Fry',
+    friend: {
+      name: 'Bender'
+    }
+  };
+  Model.dirtyCheck();
+
+  assertEquals(5, div.childNodes.length);
+  assertEquals('Name: Fry', div.childNodes[1].textContent);
+  assertEquals('Name: Bender', div.childNodes[3].textContent);
+
+  m.friend.friend = {name: 'Leela'};
+  Model.dirtyCheck();
+  assertEquals(7, div.childNodes.length);
+  assertEquals('Name: Leela', div.childNodes[5].textContent);
+
+  m.friend = {name: 'Leela'};
+  Model.dirtyCheck();
+  assertEquals(5, div.childNodes.length);
+  assertEquals('Name: Leela', div.childNodes[3].textContent);
+}
+
+function testChangeFromInstantiateToIterate() {
+  var div = createTestHtml(
+      '<template instantiate="a">' +
+        '{{ length }}' +
+      '</template>');
+  var template = div.firstChild;
+
+  var m = div.model = {
+    a: [
+      {length: 0},
+      {
+        length: 1,
+        b: {length: 4}
+      },
+      {length: 2}
+    ]
+  };
+  Model.dirtyCheck();
+
+  assertEquals(2, div.childNodes.length);
+  assertEquals('3', div.childNodes[1].textContent);
+
+  template.iterate = 'a';
+  Model.dirtyCheck();
+  assertEquals(4, div.childNodes.length);
+  assertEquals('0', div.childNodes[1].textContent);
+  assertEquals('1', div.childNodes[2].textContent);
+  assertEquals('2', div.childNodes[3].textContent);
+
+  template.instantiate = 'a[1].b';
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('4', div.childNodes[1].textContent);
+}
+
+function testChangeRefId() {
+  var div = createTestHtml(
+      '<template id="a">a:{{ ./ }}</template>' +
+      '<template id="b">b:{{ ./ }}</template>' +
+      '<template iterate>' +
+        '<template ref="a" instantiate></template>' +
+      '</template>');
+  div.model = [];
+  Model.dirtyCheck();
+
+  assertEquals(3, div.childNodes.length);
+
+  document.getElementById('a').id = 'old-a';
+  document.getElementById('b').id = 'a';
+
+  div.model.push(1, 2);
+  Model.dirtyCheck();
+
+  assertEquals(7, div.childNodes.length);
+  assertEquals('b:1', div.childNodes[4].textContent);
+  assertEquals('b:2', div.childNodes[6].textContent);
+}
+
+function testDynamicallyDecoratedNestedTemplateScope() {
+  var div = createTestHtml(
+      '<template instantiate="inner">' +
+      '<div id="container"></div>' +
+      '</template>');
+  div.model = {inner: {foo: 'bar'}};
+  Model.dirtyCheck();
+  var container = div.querySelector('#container');
+  container.innerHTML = '<template instantiate><b>{{foo}}</b></template>';
+  HTMLTemplateElement.decorate(div.querySelectorAll('template')[1]);
+  Model.dirtyCheck();
+  assertEquals('bar', div.querySelector('b').textContent);
+}
+
+function testContent() {
+  var div = createTestHtml(
+      '<template><a></a></template>' +
+      '<template><b></b></template>');
+  var templateA = div.firstChild;
+  var templateB = div.lastChild;
+  var contentA = templateA.content;
+  var contentB = templateB.content;
+  assertNotUndefined(contentA);
+
+  assertNotEquals(templateA.ownerDocument, contentA.ownerDocument);
+  assertNotEquals(templateB.ownerDocument, contentB.ownerDocument);
+
+  assertEquals(templateA.ownerDocument, templateB.ownerDocument);
+  assertEquals(contentA.ownerDocument, contentB.ownerDocument);
+
+  assertEquals(templateA.ownerDocument.defaultView, window);
+  assertEquals(templateB.ownerDocument.defaultView, window);
+
+  assertEquals(contentA.ownerDocument.defaultView, null);
+  assertEquals(contentB.ownerDocument.defaultView, null);
+
+  assertEquals(contentA.firstChild, contentA.lastChild);
+  assertEquals(contentA.firstChild.tagName, 'A');
+
+  assertEquals(contentB.firstChild, contentB.lastChild);
+  assertEquals(contentB.firstChild.tagName, 'B');
+}
+
+function testNestedContent() {
+  var div = createTestHtml(
+      '<template>' +
+      '<template></template>' +
+      '</template>');
+  var templateA = div.firstChild;
+  var templateB = templateA.content.firstChild;
+
+  assertEquals(templateA.content.ownerDocument, templateB.ownerDocument);
+  assertEquals(templateA.content.ownerDocument,
+               templateB.content.ownerDocument);
+}
+
+
 
 </script>
 </body>
