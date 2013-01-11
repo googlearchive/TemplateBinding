@@ -400,7 +400,7 @@ function assertNodesAre() {
   var nodesPerInstance = 1;
   assertEquals(arguments.length * nodesPerInstance + startIndex,
                div.childNodes.length);
-  var model = Model.getValueAtPath(div.model, t.iterate);
+  var model = Model.getValueAtPath(t.model, t.iterate);
 
   for (var i = 0; i < arguments.length; i++) {
     var targetNode = div.childNodes[i * nodesPerInstance + startIndex];
@@ -1141,7 +1141,69 @@ function testNestedContent() {
                templateB.content.ownerDocument);
 }
 
+function testIterateTemplateModel() {
+  div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
+  t = div.firstChild;
 
+  var m = t.model = {
+    contacts: [
+      {name: 'Raf'},
+      {name: 'Arv'},
+      {name: 'Neal'}
+    ]
+  };
+  Model.dirtyCheck();
+
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
+
+  m.contacts.push({name: 'Alex'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
+
+  m.contacts.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
+
+  m.contacts.splice(1, 2);
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Alex');
+
+  m.contacts.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
+
+  m.contacts.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
+  Model.dirtyCheck();
+  assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
+
+  m.contacts = [{name: 'Alex'}];
+  Model.dirtyCheck();
+  assertNodesAre('Hi Alex');
+
+  m.contacts.length = 0;
+  Model.dirtyCheck();
+  assertNodesAre();
+}
+
+function testModelOnTemplate() {
+  var div = createTestHtml('<template instantiate>{{x}}</template>');
+  var t = div.firstChild;
+  t.model = {x: 1};
+  Model.dirtyCheck();
+  assertEquals(2, div.childNodes.length);
+  assertEquals('1', div.childNodes[1].textContent);
+
+  t.model = {x: 2};
+  assertEquals('1', div.childNodes[1].textContent);
+  Model.dirtyCheck();
+  assertEquals('2', div.childNodes[1].textContent);
+
+  div.model = {x: 3};
+  t.model = undefined;
+  assertEquals('2', div.childNodes[1].textContent);
+  Model.dirtyCheck();
+  assertEquals('3', div.childNodes[1].textContent);
+}
 
 </script>
 </body>
