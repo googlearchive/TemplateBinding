@@ -57,11 +57,11 @@ limitations under the License.
               On Sale!!! {{ salePrice | currency }}
             </span>
             <template instantiate="offersAccepted">
-              Now taking offers: <input value="{{ bid }}">
-              <span hidden="{{ expr(bid, reserve) bid >= reserve }}">
+              Now taking offers: <input value="{{ bid }}" type="number">
+              <span hidden="{{ expr(bid, reserve) bid >= reserve ? '' : null }}">
                 ...{{ bid | currency }} for that? You must be mad!!!
               </span>
-              <span hidden="{{ expr(bid, reserve) bid < reserve }}">
+              <span hidden="{{ expr(bid, reserve) bid < reserve ? '' : null }}">
                 ...{{ bid | currency }}? SOLD!!!
               </span>
             </template>
@@ -97,6 +97,7 @@ document.body.model = [
     }
   }
 ];
+document.body.modelDelegate = MDVDelegate;
 </script>
   <div class="comment">
     <h1>Comment</h1>

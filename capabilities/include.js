@@ -18,15 +18,13 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
   '../side_table.js',
   '../path.js',
   '../model.js',
-  '../transform.js',
-  '../dependency_parser.js',
-  '../expression_parser.js',
-  '../place_holder_parser.js',
-  '../bind_attribute_parser.js',
-  '../element_model.js',
-  '../html5_attributes.js',
-  '../element_bindings.js',
-  '../template_element.js'
+  '../script_value_binding.js',
+  '../text_replacements_binding.js',
+  '../element_attribute_bindings.js',
+  '../new_element_bindings.js',
+  '../input_bindings.js',
+  '../new_template_element.js',
+  '../delegates.js',
 ].forEach(function(src) {
   document.write('<script src="' + src + '"></script>');
 });

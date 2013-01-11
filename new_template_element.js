@@ -73,6 +73,7 @@
   document.addEventListener('DOMContentLoaded', function(e) {
     var templates = getTemplateDescendentsOf(document);
     forEach(templates, HTMLTemplateElement.decorate);
+    Model.dirtyCheck();
   }, false);
 
   var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';

@@ -23,15 +23,12 @@ limitations under the License.
 <script src="../side_table.js"></script>
 <script src="../path.js"></script>
 <script src="../model.js"></script>
-<script src="../transform.js"></script>
-<script src="../dependency_parser.js"></script>
-<script src="../expression_parser.js"></script>
-<script src="../bind_attribute_parser.js"></script>
-<script src="../place_holder_parser.js"></script>
-<script src="../element_model.js"></script>
-<script src="../html5_attributes.js"></script>
-<script src="../element_bindings.js"></script>
-<script src="../template_element.js"></script>
+<script src="../script_value_binding.js"></script>
+<script src="../text_replacements_binding.js"></script>
+<script src="../element_attribute_bindings.js"></script>
+<script src="../new_element_bindings.js"></script>
+<script src="../input_bindings.js"></script>
+<script src="../new_template_element.js"></script>
 <script src="view_controller.js"></script>
 
 <script>
@@ -92,15 +89,16 @@ function testBasic() {
                    '</template>' +
                  '</ul>');
 
+  Model.dirtyCheck();
   var thirdInstance =
-      document.getElementById('testDiv').childNodes[0].childNodes[5];
+      document.getElementById('testDiv').childNodes[0].childNodes[3];
   expectName = 'three';
   assertEquals(expectName, thirdInstance.textContent);
   dispatchEvent('click', thirdInstance);
   assertEquals(1, clickCount);
 
   var secondInstance =
-      document.getElementById('testDiv').childNodes[0].childNodes[3];
+      document.getElementById('testDiv').childNodes[0].childNodes[2];
   expectName = 'two';
   assertEquals(expectName, secondInstance.textContent);
   dispatchEvent('click', secondInstance);

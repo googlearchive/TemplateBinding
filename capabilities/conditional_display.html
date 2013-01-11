@@ -39,7 +39,7 @@ limitations under the License.
           <span class="person {{ dog | toggle('dog-owner') }}">
             Person: {{ name }}
           </span>
-          <span hidden="{{ expr(dog) !dog }}">
+          <span hidden="{{ expr(dog) dog ? null : '' }}">
             Dog: {{ dog }}
           </span>
         </li>
@@ -64,6 +64,7 @@ document.body.model = {
     }
   ]
 };
+document.body.modelDelegate = MDVDelegate;
 </script>
 
   <div class="comment">

@@ -83,8 +83,11 @@
 
     updateBinding: function() {
       var value = this.element_.value;
-      if (value !== this.lastValue_)
+      if (value !== this.lastValue_) {
         this.binding_.value = value;
+        // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
+        Model.dirtyCheck();
+      }
     }
   });
 
@@ -157,6 +160,9 @@
             }
           });
         }
+
+        // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
+        Model.dirtyCheck();
       }
     }
   });

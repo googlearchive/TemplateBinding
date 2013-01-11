@@ -887,6 +887,38 @@ function testMinimalReads() {
   assertEquals(3 * accessesPerNotifyObservers, bAccess);
 }
 
+function testObserveOnElement() {
+  var d = document.createElement('div');
+
+  var count = 0;
+  function callback(c) {
+    count++;
+  }
+
+  Model.observe(d, 'model', callback);
+
+  d.model = {};
+  Model.dirtyCheck();
+  assertEquals(1, count);
+}
+
+function testObserveOnElement2() {
+  var div = document.createElement('div');
+
+  var count = 0;
+  function callback(c) {
+    count++;
+  }
+
+  var divModel = div;
+
+  Model.observe(divModel, 'model', callback);
+
+  divModel.model = {};
+  Model.dirtyCheck();
+  assertEquals(1, count);
+}
+
 </script>
 </body>
 </html>
