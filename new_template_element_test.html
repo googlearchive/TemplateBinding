@@ -1205,6 +1205,32 @@ function testModelOnTemplate() {
   assertEquals('3', div.childNodes[1].textContent);
 }
 
+function createShadowTestHtml(s) {
+  var div = document.createElement('div');
+  var root = div.webkitCreateShadowRoot();
+  root.innerHTML = s;
+  testDiv.appendChild(div);
+
+  Array.prototype.forEach.call(root.querySelectorAll(
+      HTMLTemplateElement.allTemplatesSelectors),
+    function(t) {
+      HTMLTemplateElement.decorate(t);
+    }
+  );
+
+  return root;
+}
+
+function testInstantiateShadowDOM() {
+  if (HTMLElement.prototype.webkitCreateShadowRoot) {
+    var root = createShadowTestHtml(
+        '<template instantiate>Hi {{ name }}</template>');
+    root.model = {name: 'Leela'};
+    Model.dirtyCheck();
+    assertEquals('Hi Leela', root.childNodes[1].textContent);
+  }
+}
+
 </script>
 </body>
 </html>
