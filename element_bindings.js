@@ -72,7 +72,7 @@
       Model.enqueue(this.lazyModelChanged.bind(this));
 
     for (var child = this.firstChild; child; child = child.nextSibling) {
-      if (!hasOwnModel(child))
+      if (!hasOwnModel(child) && child.modelChanged)
         child.modelChanged();
     }
   }
@@ -82,7 +82,7 @@
       Model.enqueue(this.lazyModelDelegateChanged.bind(this));
 
     for (var child = this.firstChild; child; child = child.nextSibling) {
-      if (!hasOwnModel(child))
+      if (!hasOwnModel(child) && child.modelDelegateChanged)
         child.modelDelegateChanged();
     }
   }
