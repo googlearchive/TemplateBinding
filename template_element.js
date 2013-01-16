@@ -49,6 +49,8 @@
     'OPTION': true
   };
 
+  var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
+
   var allTemplatesSelectors = 'template, ' +
       Object.keys(semanticTemplateElements).map(function(tagName) {
         return tagName.toLowerCase() + '[template]';
@@ -63,20 +65,28 @@
         el.hasAttribute('template');
   }
 
-  function isTemplateElement(el) {
+  function isTemplate(el) {
     return el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
+  }
+
+  function isNativeTemplate(el) {
+    return hasTemplateElement && el.tagName == 'TEMPLATE';
   }
 
   // FIXME: Observe templates being added/removed from documents
   // FIXME: Expose imperative API to decorate and observe templates in
   // "disconnected tress" (e.g. ShadowRoot)
   document.addEventListener('DOMContentLoaded', function(e) {
-    var templates = getTemplateDescendentsOf(document);
-    forEach(templates, HTMLTemplateElement.decorate);
+    bootstrapTemplatesRecursivelyFrom(document);
     Model.dirtyCheck();
   }, false);
 
-  var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
+  function bootstrapTemplatesRecursivelyFrom(node) {
+    forEach(getTemplateDescendentsOf(node), function(template) {
+      if (!HTMLTemplateElement.decorate(template))
+        bootstrapTemplatesRecursivelyFrom(template.content);
+    });
+  }
 
   if (!hasTemplateElement) {
     /**
@@ -100,6 +110,7 @@
 
   var templateContentsTable = new SideTable('templateContents');
   var templateContentsOwnerTable = new SideTable('templateContentsOwner');
+  var templateInstanceRefTable = new SideTable('templateInstanceRef');
 
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
   function getTemplateContentsOwner(doc) {
@@ -133,69 +144,82 @@
     return clone;
   }
 
-  function moveTemplateContentIntoContent(templateElement) {
-    var doc = getTemplateContentsOwner(templateElement.ownerDocument);
-    var df = doc.createDocumentFragment();
-    if (isAttributeTemplate(templateElement)) {
-      // For attribute templates we copy the whole thing into the content and
-      // we move the non template attributes into the content.
-      //
-      //   <tr foo template>
-      //
-      // becomes
-      //
-      //   <tr template>
-      //   + #document-fragment
-      //     + <tr foo>
-      //
-      var newRoot = cloneAndSeperateAttributeTemplate(templateElement);
+  function liftNonNativeTemplateChildrenIntoContent(templateElement) {
+    var content = templateElement.content;
+
+    if (!isAttributeTemplate(templateElement)) {
       var child;
       while (child = templateElement.firstChild) {
-        newRoot.appendChild(child);
+        content.appendChild(child);
       }
-      df.appendChild(newRoot);
-    } else {
-      var child;
-      while (child = templateElement.firstChild) {
-        df.appendChild(child);
-      }
-    }
-    templateContentsTable.set(templateElement, df);
-
-    forEach(getTemplateDescendentsOf(df), HTMLTemplateElement.decorate);
-  }
-
-  /**
-   * Similar to |templateElement.content| but it also works on attribute
-   * templates.
-   */
-  function getTemplateContent(templateElement) {
-    if (!hasTemplateElement || isAttributeTemplate(templateElement))
-      return templateContentsTable.get(templateElement);
-    return templateElement.content;
-  }
-
-  HTMLTemplateElement.decorate = function(el) {
-    if (el.templateIsDecorated_)
       return;
+    }
+
+    // For attribute templates we copy the whole thing into the content and
+    // we move the non template attributes into the content.
+    //
+    //   <tr foo template>
+    //
+    // becomes
+    //
+    //   <tr template>
+    //   + #document-fragment
+    //     + <tr foo>
+    //
+    var newRoot = cloneAndSeperateAttributeTemplate(templateElement);
+    var child;
+    while (child = templateElement.firstChild) {
+      newRoot.appendChild(child);
+    }
+    content.appendChild(newRoot);
+  }
+
+  HTMLTemplateElement.decorate = function(el, opt_instanceRef) {
+    if (el.templateIsDecorated_)
+      return false;
+    el.templateIsDecorated_ = true;
+
     fixTemplateElementPrototype(el);
-    decorateTemplateElement(el, true);
+
+    Model.enqueue(el.checkIteration.bind(el));
+
+    // Create content
+    if (!isNativeTemplate(el)) {
+      var doc = getTemplateContentsOwner(el.ownerDocument);
+      templateContentsTable.set(el, doc.createDocumentFragment());
+    }
+
+    if (opt_instanceRef) {
+      templateInstanceRefTable.set(el, opt_instanceRef);
+      return true; // content is empty.
+    }
+
+    if (isNativeTemplate(el)) {
+      bootstrapTemplatesRecursivelyFrom(el.content);
+    } else {
+      liftNonNativeTemplateChildrenIntoContent(el);
+    }
+
+    return true;
   };
 
   var htmlElement = global.HTMLUnknownElement || HTMLElement;
+
+  var contentDescriptor = {
+    get: function() {
+      return templateContentsTable.get(this);
+    },
+    enumerable: true,
+    configurable: true
+  };
 
   if (!hasTemplateElement) {
     // Gecko is more picky with the prototype than WebKit. Make sure to use the
     // same prototype as created in the constructor.
     HTMLTemplateElement.prototype = Object.create(htmlElement.prototype);
 
-    Object.defineProperty(HTMLTemplateElement.prototype, 'content', {
-      get: function() {
-        return templateContentsTable.get(this);
-      },
-      enumerable: true,
-      configurable: true
-    });
+    Object.defineProperty(HTMLTemplateElement.prototype, 'content',
+                          contentDescriptor);
   }
 
   function fixTemplateElementPrototype(el) {
@@ -211,19 +235,32 @@
       }
     } else {
       mixin(el, HTMLTemplateElement.prototype);
+      // FIXME: Won't need this when webkit methods move to the prototype.
+      Object.defineProperty(el, 'content', contentDescriptor);
     }
   }
 
-  function decorateTemplateElement(el, shouldMoveContent) {
-      el.templateIsDecorated_ = true;
-
-      if (shouldMoveContent && (!hasTemplateElement || isAttributeTemplate(el)))
-        moveTemplateContentIntoContent(el);
-
-      Model.enqueue(el.checkIteration.bind(el));
-  }
-
   mixin(HTMLTemplateElement.prototype, {
+    createInstance: function(model, modelDelegate) {
+      var content;
+      var ref = this.ref;
+      if (ref)
+        content = ref.content;
+      else
+        content = this.content;
+
+      var instance = createDeepCloneAndDecorateTemplates(content);
+
+      for (var child = instance.firstChild; child; child = child.nextSibling) {
+        child.model = model;
+
+        // FIXME: Is it neccessary to hard-set modelDelegate?
+        child.modelDelegate = modelDelegate;
+      }
+
+      addBindings(instance, content);
+      return instance;
+    },
 
     get instantiate() {
       return this.getAttribute('instantiate');
@@ -258,11 +295,15 @@
     },
 
     get ref() {
-      var ref = this.getAttribute('ref');
-      if (!ref)
-        return null;
+      var ref;
+      var refId = this.getAttribute('ref');
+      if (refId)
+        ref = this.ownerDocument.getElementById(refId);
 
-      return this.ownerDocument.getElementById(ref) || null;
+      if (!ref)
+        ref = templateInstanceRefTable.get(this);
+
+      return ref || null;
     }
   });
 
@@ -334,13 +375,6 @@
     assert(child && protoChild || !child && !protoChild);
   }
 
-  function setModelAndDelegateOnChildren(node, model, modelDelegate) {
-    for (var child = node.firstChild; child; child = child.nextSibling) {
-      child.model = model;
-      child.modelDelegate = modelDelegate;
-    }
-  }
-
   function ArrayTracker(value, observer) {
     this.object_ = value;
     this.observer_ = observer;
@@ -363,38 +397,19 @@
     }
   };
 
-  function cloneNodeAndContent(node) {
+  function createDeepCloneAndDecorateTemplates(node) {
     var clone = node.cloneNode(false);  // Shallow clone.
-    if (isTemplateElement(clone)) {
-      var df = cloneNodeAndContent(node.content);
-      templateContentsTable.set(clone, df);
-      fixTemplateElementPrototype(clone);
-      decorateTemplateElement(clone, false);
+    if (isTemplate(clone)) {
+      HTMLTemplateElement.decorate(clone, node);
     }
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      clone.appendChild(cloneNodeAndContent(child))
+      clone.appendChild(createDeepCloneAndDecorateTemplates(child))
     }
-    return clone;
-  }
-
-  function cloneTemplateContent(df) {
-    if (!hasTemplateElement)
-      return cloneNodeAndContent(df);
-
-    function initializeTemplates(node) {
-      forEach(getTemplateDescendentsOf(node), function(node) {
-        HTMLTemplateElement.decorate(node);
-        initializeTemplates(node.content);
-      });
-    }
-
-    var clone = df.cloneNode(true);
-    initializeTemplates(clone);
     return clone;
   }
 
   function removeChild(parent, child) {
-    if (isTemplateElement(child)) {
+    if (isTemplate(child)) {
       // Make sure we stop observing when we remove an element.
       var templateIterator = templateIteratorTable.get(child);
       if (templateIterator) {
@@ -443,17 +458,8 @@
       this.previousIndex_ = this.index_;
       this.index_++;
 
-      var content = null;
-      var ref = this.template_.ref;
-      if (ref)
-        content = ref.content;
-      if (!content)
-        content = this.template_.content;
-      var instance = cloneTemplateContent(content);
-
-      setModelAndDelegateOnChildren(instance, model,
-                                    this.template_.parentNode.modelDelegate);
-      addBindings(instance, content);
+      var instance = this.template_.createInstance(model,
+          this.template_.parentNode.modelDelegate);
 
       this.terminator_ = instance.lastChild || this.previousTerminator_;
       this.template_.parentNode.insertBefore(instance,

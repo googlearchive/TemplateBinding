@@ -16,7 +16,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <head>
-<title>Element Bindings Tests</title>
+<title>Template Element Tests</title>
 <link rel="stylesheet" href="template_element.css">
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
@@ -28,6 +28,9 @@ limitations under the License.
 <script src="element_attribute_bindings.js"></script>
 <script src="element_bindings.js"></script>
 <script src="input_bindings.js"></script>
+<script>
+var hasNativeTemplates = typeof HTMLTemplateElement !== 'undefined';
+</script>
 <script src="template_element.js"></script>
 <script src="delegates.js"></script>
 <script src="test_common.js"></script>
@@ -814,6 +817,47 @@ function testNestedIterateSelfRef() {
   assertEquals('Item 2', div.childNodes[i++].textContent);
 }
 
+function testNestedIterateTableMixedSemanticNative() {
+  if (!hasNativeTemplates)
+    return;
+
+  var div = createTestHtml(
+      '<table><tbody>' +
+        '<template iterate>' +
+          '<tr>' +
+            '<td template iterate class="{{ val }}">{{ val }}</td>' +
+          '</tr>' +
+        '</template>' +
+      '</tbody></table>');
+
+  var m = [
+    [{ val: 0 }, { val: 1 }],
+    [{ val: 2 }, { val: 3 }]
+  ];
+
+  div.model = m;
+  Model.dirtyCheck();
+
+  var i = 1;
+  var tbody = div.childNodes[0].childNodes[0];
+
+  // 1 for the <tr template>, 2 * (1 tr)
+  assertEquals(3, tbody.childNodes.length);
+
+  // 1 for the <td template>, 2 * (1 td)
+  assertEquals(3, tbody.childNodes[1].childNodes.length);
+  assertEquals('0', tbody.childNodes[1].childNodes[1].textContent)
+  assertEquals('1', tbody.childNodes[1].childNodes[2].textContent)
+
+  // 1 for the <td template>, 2 * (1 td)
+  assertEquals(3, tbody.childNodes[2].childNodes.length);
+  assertEquals('2', tbody.childNodes[2].childNodes[1].textContent)
+  assertEquals('3', tbody.childNodes[2].childNodes[2].textContent)
+
+  // Asset the 'class' binding is retained on the semantic template (just check
+  // the last one).
+  assertEquals('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
+}
 
 function testNestedIterateTable() {
   var div = createTestHtml(
