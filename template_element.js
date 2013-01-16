@@ -100,8 +100,6 @@
 
   var templateContentsTable = new SideTable('templateContents');
   var templateContentsOwnerTable = new SideTable('templateContentsOwner');
-  var reverseTemplateContentsOwnerTable =
-      new SideTable('reverseTemplateContentsOwner');
 
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
   function getTemplateContentsOwner(doc) {
@@ -222,14 +220,6 @@
       if (shouldMoveContent && (!hasTemplateElement || isAttributeTemplate(el)))
         moveTemplateContentIntoContent(el);
 
-      // Associate the inner document with the outer.
-      // This is needed to be able to find ref templates from the inner document
-      // to the outer document.
-      var outerDocument = el.ownerDocument;
-      var innerDocument = getTemplateContent(el).ownerDocument;
-      if (innerDocument !== outerDocument)
-        reverseTemplateContentsOwnerTable.set(innerDocument, outerDocument);
-
       Model.enqueue(el.checkIteration.bind(el));
   }
 
@@ -272,18 +262,7 @@
       if (!ref)
         return null;
 
-      // If this template element is inside another template element we need to
-      // also check the owner document of the outer template.
-      var doc = this.ownerDocument;
-      var refTemplate = doc.getElementById(ref);
-      if (refTemplate)
-        return refTemplate;
-
-      doc = reverseTemplateContentsOwnerTable.get(doc);
-      if (!doc)
-        return null;
-
-      return doc.getElementById(ref) || null;
+      return this.ownerDocument.getElementById(ref) || null;
     }
   });
 
