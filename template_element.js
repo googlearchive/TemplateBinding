@@ -174,6 +174,12 @@
     content.appendChild(newRoot);
   }
 
+  /**
+   * Ensures proper API and content model for template elements.
+   * @param {HTMLTemplateElement} opt_instanceRef The template element which
+   *     |el| template element will return as the value of its ref(), and whose
+   *     content will be used as source when createInstance() is invoked.
+   */
   HTMLTemplateElement.decorate = function(el, opt_instanceRef) {
     if (el.templateIsDecorated_)
       return false;
@@ -242,13 +248,7 @@
 
   mixin(HTMLTemplateElement.prototype, {
     createInstance: function(model, modelDelegate) {
-      var content;
-      var ref = this.ref;
-      if (ref)
-        content = ref.content;
-      else
-        content = this.content;
-
+      var content = this.ref ? this.ref.content : this.content;
       var instance = createDeepCloneAndDecorateTemplates(content);
 
       for (var child = instance.firstChild; child; child = child.nextSibling) {
@@ -399,10 +399,10 @@
 
   function createDeepCloneAndDecorateTemplates(node) {
     var clone = node.cloneNode(false);  // Shallow clone.
-    if (isTemplate(clone)) {
+    if (isTemplate(clone))
       HTMLTemplateElement.decorate(clone, node);
-    }
-    for (var child = node.firstChild; child; child = child.nextSibling) {
+
+     for (var child = node.firstChild; child; child = child.nextSibling) {
       clone.appendChild(createDeepCloneAndDecorateTemplates(child))
     }
     return clone;
