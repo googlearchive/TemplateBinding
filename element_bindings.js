@@ -37,13 +37,21 @@
       bindings.removeBinding(attributeName);
   }
 
+  function makeTextObserver(textNode) {
+    return {
+      valueChanged: function(binding) {
+        textValueChanged(textNode, binding);
+      }
+    };
+  }
+
   function addTextBinding(path) {
     this.removeBinding();
 
     var binding = new TextReplacementsBinding(this.model, this.modelDelegate,
-                                              path, this);
+                                              path, makeTextObserver(this));
     textContentBindingTable.set(this, binding);
-    this.valueChanged(binding);
+    textValueChanged(this, binding);
   }
 
   function removeTextBinding() {
@@ -188,7 +196,7 @@
   Text.prototype.lazyModelChanged = function() {
     var binding = textContentBindingTable.get(this);
     if (binding && binding.setModel(this.model))
-      this.valueChanged(binding);
+      textValueChanged(this, binding);
   };
 
   Element.prototype.lazyModelDelegateChanged = function() {
@@ -200,7 +208,7 @@
   Text.prototype.lazyModelDelegateChanged = function() {
     var binding = textContentBindingTable.get(this);
     if (binding && binding.setModelDelegate(this.model, this.modelDelegate))
-      this.valueChanged(binding);
+      textValueChanged(this, binding);
   };
 
   Element.prototype.addBinding = addBinding;
@@ -221,9 +229,8 @@
     return binding ? binding.bindingText : null
   }));
 
-  // TODO(arv): This should not be public.
-  Text.prototype.valueChanged = function(binding) {
-    this.data = binding.value;
-  };
+  function textValueChanged(textNode, binding) {
+    textNode.data = binding.value;
+  }
 
 })();
