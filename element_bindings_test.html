@@ -290,6 +290,19 @@ function testSimpleBindingWithDashes() {
   assertEquals('2', el.getAttribute('foo-bar'));
 }
 
+function testSimpleBindingWithComment() {
+  var el = document.createElement('div');
+  el.innerHTML = '<!-- Comment -->';
+  el.model = {a: '1'};
+  el.addBinding('foo-bar', '{{a}}');
+  Model.dirtyCheck();
+  assertEquals('1', el.getAttribute('foo-bar'));
+
+  el.model.a = '2';
+  Model.dirtyCheck();
+  assertEquals('2', el.getAttribute('foo-bar'));
+}
+
 function testSimpleBindingChangeModel() {
   var el = document.createElement('div');
   el.addBinding('foo', '{{a}}');
