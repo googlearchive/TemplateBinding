@@ -1,6 +1,6 @@
 (function(global) {
 
-"use strict";
+'use strict';
 
 function Transform() {}
 Transform.registry = {};

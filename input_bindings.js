@@ -154,9 +154,10 @@
         if (this.element_.tagName === 'INPUT' &&
             this.element_.type === 'radio') {
           getAssociatedRadioButtons(this.element_).forEach(function(r) {
-            if (r.checkedBinding_) {
+            var checkedBinding = checkedBindingTable.get(r);
+            if (checkedBinding) {
               // Set the value directly to avoid an infinite call stack.
-              r.checkedBinding_.binding_.value = false;
+              checkedBinding.binding_.value = false;
             }
           });
         }
@@ -167,53 +168,71 @@
     }
   });
 
+  var valueBindingTable = new SideTable('valueBinding');
+  var checkedBindingTable = new SideTable('checkedBinding');
+
+  Object.defineProperty(HTMLInputElement.prototype, 'checkedBinding_', {
+    get: function() {
+      return checkedBindingTable.get(this);
+    },
+    set: function(value) {
+      checkedBindingTable.set(this, value);
+    }
+  });
+
+
   HTMLInputElement.prototype.addValueBinding = function(path) {
     this.removeValueBinding();
-    this.valueBinding_ = new ValueBinding(this, path);
+    valueBindingTable.set(this, new ValueBinding(this, path));
   };
 
   HTMLInputElement.prototype.removeValueBinding = function() {
-    if (this.valueBinding_) {
-      this.valueBinding_.unbind();
-      this.valueBinding_ = null;
+    var valueBinding = valueBindingTable.get(this);
+    if (valueBinding) {
+      valueBinding.unbind();
+      valueBindingTable.delete(this);
     }
   };
 
   HTMLInputElement.prototype.addCheckedBinding = function(path) {
     this.removeCheckedBinding();
-    this.checkedBinding_ = new CheckedBinding(this, path);
+    checkedBindingTable.set(this, new CheckedBinding(this, path));
   };
 
   HTMLInputElement.prototype.removeCheckedBinding = function() {
-    if (this.checkedBinding_) {
-      this.checkedBinding_.unbind();
-      this.checkedBinding_ = null;
+    if (checkedBindingTable.get(this)) {
+      checkedBindingTable.get(this).unbind();
+      checkedBindingTable.delete(this)
     }
   };
 
   HTMLInputElement.prototype.lazyModelChanged = function() {
-    if (this.valueBinding_)
-      this.valueBinding_.setModel(this.model);
-    if (this.checkedBinding_)
-      this.checkedBinding_.setModel(this.model);
+    var valueBinding = valueBindingTable.get(this);
+    if (valueBinding)
+      valueBinding.setModel(this.model);
+    var checkedBinding = checkedBindingTable.get(this);
+    if (checkedBinding)
+      checkedBinding.setModel(this.model);
   };
 
   HTMLInputElement.prototype.lazyModelDelegateChanged = function() {
-    if (this.valueBinding_)
-      this.valueBinding_.setDelegate(this.model, this.modelDelegate);
-    if (this.checkedBinding_)
-      this.checkedBinding_.setDelegate(this.model, this.modelDelegate);
+    var valueBinding = valueBindingTable.get(this);
+    if (valueBinding)
+      valueBinding.setDelegate(this.model, this.modelDelegate);
+    var checkedBinding = checkedBindingTable.get(this);
+    if (checkedBinding)
+      checkedBinding.setDelegate(this.model, this.modelDelegate);
   };
 
   HTMLInputElement.prototype.modelChanged = function() {
     Element.prototype.modelChanged.call(this);
-    if (this.valueBinding_ || this.checkedBinding_)
+    if (valueBindingTable.get(this) || checkedBindingTable.get(this))
       Model.enqueue(this.lazyModelChanged.bind(this));
   };
 
   HTMLInputElement.prototype.modelDelegateChanged = function() {
     Element.prototype.modelDelegateChanged.call(this);
-    if (this.valueBinding_ || this.checkedBinding_)
+    if (valueBindingTable.get(this) || checkedBindingTable.get(this))
       Model.enqueue(this.lazyModelDelegateChanged.bind(this));
   };
 
