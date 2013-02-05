@@ -1,0 +1,3 @@
+[submodule "ChangeSummary"]
+	path = ChangeSummary
+	url = https://github.com/rafaelw/ChangeSummary.git
