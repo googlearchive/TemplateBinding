@@ -20,7 +20,7 @@ limitations under the License.
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
 <script src="side_table.js"></script>
-<script src="path.js"></script>
+<script src="ChangeSummary/change_summary.js"></script>
 <script src="model.js"></script>
 <script src="script_value_binding.js"></script>
 <script src="text_replacements_binding.js"></script>
@@ -45,12 +45,12 @@ function testElementAttributeBindings() {
   assertEquals('2', element.id);
 
   model.a = null;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertFalse(element.hasAttribute('hidden'));
 
   element.model = {a: false, b: 'x'};
   bindings.modelChanged(element.model);
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('false', element.getAttribute('hidden'));
   assertEquals('x', element.id);
 

@@ -86,7 +86,7 @@
       if (value !== this.lastValue_) {
         this.binding_.value = value;
         // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
-        Model.dirtyCheck();
+        Model.notifyChanges();
       }
     }
   });
@@ -163,7 +163,7 @@
         }
 
         // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
-        Model.dirtyCheck();
+        Model.notifyChanges();
       }
     }
   });

@@ -39,9 +39,9 @@ function FormController(root) {
                     model.email != model.repeatEmail;
   }
 
-  Model.observe(model, 'email', checkValid);
-  Model.observe(model, 'repeatEmail', checkValid);
-  Model.observe(model, 'agreeToTerms', checkValid);
+  Model.observePath(model, 'email', checkValid);
+  Model.observePath(model, 'repeatEmail', checkValid);
+  Model.observePath(model, 'agreeToTerms', checkValid);
   checkValid();
 }
 

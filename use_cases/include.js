@@ -16,7 +16,7 @@ document.write('<link rel="stylesheet" href="../template_element.css">');
 [
   '../platform/compat.js',
   '../side_table.js',
-  '../path.js',
+  '../ChangeSummary/change_summary.js',
   '../model.js',
   '../transform.js',
   '../dependency_parser.js',

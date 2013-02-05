@@ -20,7 +20,7 @@ limitations under the License.
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
 <script src="side_table.js"></script>
-<script src="path.js"></script>
+<script src="ChangeSummary/change_summary.js"></script>
 <script src="model.js"></script>
 <script src="script_value_binding.js"></script>
 <script src="text_replacements_binding.js"></script>
@@ -61,21 +61,22 @@ function testModelCleared() {
 
   parent.model = 'a';
   child.model = 'b';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('b', child.model);
 
   var count = 0;
 
-  Model.observe(child, 'model', function(val, oldVal) {
+  Model.observePath(child, 'model', function(val, oldVal) {
     count++;
     assertEquals('b', oldVal);
   });
 
   child.model = undefined;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('a', child.model);
 
-  assertEquals(1, count);
+// FIXME: Decide if .model property should be observable.
+//  assertEquals(1, count);
 }
 
 function testModelDelegateInheritance() {
@@ -102,11 +103,11 @@ function testText() {
   assertEquals('1 and 2', text.data);
 
   model.a = 3;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('3 and 2', text.data);
 
   text.model = {a: 4, b: 5};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 and 5', text.data);
 }
 
@@ -118,19 +119,19 @@ function testTextInherited() {
   assertEquals('1 and 2', text.data);
 
   model.a = 3;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('3 and 2', text.data);
 
   element.model = {a: 4, b: 5};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 and 5', text.data);
 
   text.model = {a: 6, b: 7};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('6 and 7', text.data);
 
   text.model = undefined;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 and 5', text.data);
 }
 
@@ -157,11 +158,11 @@ function testAttributes() {
   assertEquals('2', element.id);
 
   model.a = null;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertFalse(element.hasAttribute('hidden'));
 
   element.model = {a: false, b: 'x'};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('false', element.getAttribute('hidden'));
   assertEquals('x', element.id);
 
@@ -172,7 +173,7 @@ function testAttributes() {
     return [[text], toTarget];
   }
   element.modelDelegate = delegate;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertFalse(element.hasAttribute('hidden'));
   assertEquals('x', element.id);
 }
@@ -188,11 +189,11 @@ function testAttributesInherited() {
   assertEquals('2', element.id);
 
   model.a = null;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertFalse(element.hasAttribute('hidden'));
 
   parent.model = {a: false, b: 'x'};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('false', element.getAttribute('hidden'));
   assertEquals('x', element.id);
 
@@ -203,7 +204,7 @@ function testAttributesInherited() {
     return [[text], toTarget];
   }
   parent.modelDelegate = delegate;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertFalse(element.hasAttribute('hidden'));
   assertEquals('x', element.id);
 }
@@ -220,7 +221,7 @@ function testAttributesBindingText() {
   assertEquals(bindingText, attr.bindingText);
 
   model.a = null;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertFalse(element.hasAttribute('hidden'));
   assertNull(attr.bindingText);
 }
@@ -229,64 +230,39 @@ function testSimpleBinding() {
   var el = document.createElement('div');
   el.model = {a: '1'};
   el.addBinding('foo', '{{a}}');
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1', el.getAttribute('foo'));
 
   el.model.a = '2';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', el.getAttribute('foo'));
 
   el.model.a = 232.2;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('232.2', el.getAttribute('foo'));
 
   el.model.a = 232;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('232', el.getAttribute('foo'));
 
   el.model.a = null;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(null, el.getAttribute('foo'));
 
   el.model.a = undefined;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('', el.getAttribute('foo'));
-}
-
-function testSimpleBindingAbsoluteRelativeAndCurrent() {
-  var parent = document.createElement('div');
-  var child = parent.appendChild(document.createElement('div'))
-  var el = child.appendChild(document.createElement('div'))
-
-  parent.model = {
-    val: 'root',
-    abs: {
-      val: 'abs',
-      ans: {
-        val: 'ans',
-        cur: 'cur'
-      }
-    }
-  };
-
-  el.addBinding('root', '{{ /val }}');
-  Model.dirtyCheck();
-  assertEquals('root', el.getAttribute('root'));
-
-  el.addBinding('abs', '{{ /abs.val }}');
-  Model.dirtyCheck();
-  assertEquals('abs', el.getAttribute('abs'));
 }
 
 function testSimpleBindingWithDashes() {
   var el = document.createElement('div');
   el.model = {a: '1'};
   el.addBinding('foo-bar', '{{a}}');
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1', el.getAttribute('foo-bar'));
 
   el.model.a = '2';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', el.getAttribute('foo-bar'));
 }
 
@@ -295,11 +271,11 @@ function testSimpleBindingWithComment() {
   el.innerHTML = '<!-- Comment -->';
   el.model = {a: '1'};
   el.addBinding('foo-bar', '{{a}}');
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1', el.getAttribute('foo-bar'));
 
   el.model.a = '2';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', el.getAttribute('foo-bar'));
 }
 
@@ -307,7 +283,7 @@ function testSimpleBindingChangeModel() {
   var el = document.createElement('div');
   el.addBinding('foo', '{{a}}');
   el.model = {a: '1'};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1', el.getAttribute('foo'));
 }
 
@@ -318,31 +294,31 @@ function testSimpleBindingChangeAncestorModel() {
   d3.addBinding('foo', '{{a}}');
 
   d1.model = {a: 1};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1', d3.getAttribute('foo'));
 
   d1.model = {a: 2};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', d3.getAttribute('foo'));
 
   d2.model = {a: 3};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('3', d3.getAttribute('foo'));
 
   d3.model = {a: 4};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4', d3.getAttribute('foo'));
 
   d2.model = {a: 5};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4', d3.getAttribute('foo'));
 
   d3.model = undefined;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('5', d3.getAttribute('foo'));
 
   d2.model = undefined;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', d3.getAttribute('foo'));
 }
 
@@ -357,18 +333,18 @@ function testPlaceHolderBindingText() {
   el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
   el.model = m;
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello cruel world!', el.textContent);
 
   el.model.adj = 'happy';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello happy world!', el.textContent);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello sunny day!', el.textContent);
 }
 
@@ -383,18 +359,18 @@ function testPlaceHolderBindingText2() {
   el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
   el.model = m;
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello cruel world!', el.textContent);
 
   el.model.adj = 'happy';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello happy world!', el.textContent);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello sunny day!', el.textContent);
 }
 
@@ -409,18 +385,18 @@ function testPlaceHolderBindingTextInline() {
   el.firstChild.addBinding('Hello {{ adj }} {{noun}}!');
   el.model = m;
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello cruel world!', el.textContent);
 
   el.model.adj = 'happy';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello happy world!', el.textContent);
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello sunny day!', el.textContent);
 }
 
@@ -434,29 +410,29 @@ function testPlaceHolderBindingElementProperty() {
   el.addBinding('foo', 'Hello {{adj}} {{noun}}!');
   el.model = m;
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello cruel world!', el.getAttribute('foo'));
 
   el.model.adj = 'happy';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello happy world!', el.getAttribute('foo'));
 
   el.model = {
     adj: 'sunny',
     noun: 'day'
   };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello sunny day!', el.getAttribute('foo'));
 
   // Change the binding.
   el.addBinding('foo', 'Goodbye {{ adj }} {{noun}}!');
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Goodbye sunny day!', el.getAttribute('foo'));
 
   // Remove the binding. Should stop following the model.
   el.removeBinding('foo');
   el.model.adj = 'cloudy';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Goodbye sunny day!', el.getAttribute('foo'));
 }
 
@@ -472,18 +448,18 @@ function testDomTreeChanges() {
   testContainerDiv.appendChild(d1);
   testContainerDiv.appendChild(d2);
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('', d3.getAttribute('foo'));
 
   d1.model = {a: 1};
   d2.model = {a: 2};
 
   d1.appendChild(d3);
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1', d3.getAttribute('foo'));
 
   d2.appendChild(d3);
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', d3.getAttribute('foo'));
 
   testContainerDiv.innerHTML = '';
@@ -493,7 +469,7 @@ function dispatchEvent(type, target) {
   var event = document.createEvent('HTMLEvents');
   event.initEvent(type, true, false);
   target.dispatchEvent(event);
-  Model.dirtyCheck();
+  Model.notifyChanges();
 }
 
 function testInputElementTextBinding() {
@@ -502,7 +478,7 @@ function testInputElementTextBinding() {
   var el = document.createElement('input');
   el.addValueBinding('val');
   el.model = m;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('ping', el.value);
 
   el.value = 'pong';
@@ -520,7 +496,7 @@ function testInputElementTextBinding() {
 
   el.addValueBinding('a.b.c');
   el.model = m;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('ping', el.value);
 
   el.value = 'pong';
@@ -529,17 +505,17 @@ function testInputElementTextBinding() {
 
   // Start with the model property being absent.
   delete m.a.b.c;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('', el.value);
 
   el.value = 'pong';
   dispatchEvent('input', el);
   assertEquals('pong', Model.getValueAtPath(m, 'a.b.c'));
-  Model.dirtyCheck();
+  Model.notifyChanges();
 
   // Model property unreachable (and unsettable).
   delete m.a.b;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('', el.value);
 
   el.value = 'pong';
@@ -565,7 +541,7 @@ function testSimpleTransform() {
   el.addValueBinding('val');
   el.model = m;
   el.modelDelegate = delegate;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', el.value);
 
   el.value = '3';
@@ -598,7 +574,7 @@ function testDeclarativeTransform() {
   el.addValueBinding('val | myTrans("a", \'b\', 1)');
   el.model = m;
   el.modelDelegate = MDVDelegate;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('2', el.value);
   assertArrayEquals([m.val, 'val'], toTargetArgs);
 
@@ -617,11 +593,11 @@ function testClassListTransform() {
   el.modelDelegate = MDVDelegate;
   el.addBinding('class', '{{ val | toggle("selected") }}');
   el.model = { val: false };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('', el.className);
 
   el.model.val = true;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('selected', el.className);
 
   // Test impicit naming
@@ -629,11 +605,11 @@ function testClassListTransform() {
   el.modelDelegate = MDVDelegate;
   el.addBinding('class', '{{ selected | toggle }}');
   el.model = { selected: false };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('', el.className);
 
   el.model.selected = true;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('selected', el.className);
 
   // Test impicit naming
@@ -641,11 +617,11 @@ function testClassListTransform() {
   el.modelDelegate = MDVDelegate;
   el.addBinding('class', 'classA {{ selected | toggle }} classB');
   el.model = { selected: false };
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('classA  classB', el.className);
 
   el.model.selected = true;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('classA selected classB', el.className);
 }
 
@@ -656,11 +632,11 @@ function testInputElementCheckbox() {
   el.type = 'checkbox';
   el.addCheckedBinding('val');
   el.model = m;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(true, el.checked);
 
   m.val = false;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(false, el.checked);
 
   el.checked = true;
@@ -699,7 +675,7 @@ function testInputElementRadio() {
   el4.name = 'othergroup';
   el4.addCheckedBinding('val4');
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(true, el1.checked);
   assertEquals(false, el2.checked);
   assertEquals(false, el3.checked);
@@ -707,7 +683,7 @@ function testInputElementRadio() {
 
   m.val1 = false;
   m.val2 = true;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(false, el1.checked);
   assertEquals(true, el2.checked);
   assertEquals(false, el3.checked);
@@ -759,7 +735,7 @@ function testInputElementRadioMultipleForms() {
   el4.name = RADIO_GROUP_NAME;
   el4.addCheckedBinding('val4');
 
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(true, el1.checked);
   assertEquals(false, el2.checked);
   assertEquals(false, el3.checked);
@@ -816,19 +792,19 @@ function testExpressionBinding() {
   var m = el.model = {a: 1, b: 2};
   el.modelDelegate = MDVDelegate;
   el.addBinding('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1 + 2 = 3', el.getAttribute('foo'));
 
   m.a = 4;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 + 2 = 6', el.getAttribute('foo'));
 
   m.b = 8;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 + 8 = 12', el.getAttribute('foo'));
 
   el.model = null;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(' +  = NaN', el.getAttribute('foo'));
 }
 
@@ -853,6 +829,11 @@ function testExpressionBindingNoCoerce() {
   el.addBinding('foo', '{{ expr(a.b, c.d) b + d }}');
   assertEquals('3', el.getAttribute('foo'));
 }
+
+/*
+
+ FIXME: Decide of .model is observable.
+ FIXME: Decide if minimal reads should be implemented.
 
 function testMinimalReads() {
   var accessesPerNotifyObservers = Model.observableObjects_ ? 1 : 2;
@@ -888,13 +869,13 @@ function testMinimalReads() {
   assertEquals(1 * accessesPerNotifyObservers, bAccess);
 
   el.model.a = 'c';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('c b', el.getAttribute('foo'));
   assertEquals(2 * accessesPerNotifyObservers, aAccess);
   assertEquals(2 * accessesPerNotifyObservers, bAccess);
 
   el.model.b = 'd';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('c d', el.getAttribute('foo'));
   assertEquals(3 * accessesPerNotifyObservers, aAccess);
   assertEquals(3 * accessesPerNotifyObservers, bAccess);
@@ -908,10 +889,10 @@ function testObserveOnElement() {
     count++;
   }
 
-  Model.observe(d, 'model', callback);
+  Model.observePath(d, 'model', callback);
 
   d.model = {};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(1, count);
 }
 
@@ -925,12 +906,13 @@ function testObserveOnElement2() {
 
   var divModel = div;
 
-  Model.observe(divModel, 'model', callback);
+  Model.observePath(divModel, 'model', callback);
 
   divModel.model = {};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(1, count);
 }
+*/
 
 </script>
 </body>

@@ -78,7 +78,7 @@
   // "disconnected tress" (e.g. ShadowRoot)
   document.addEventListener('DOMContentLoaded', function(e) {
     bootstrapTemplatesRecursivelyFrom(document);
-    Model.dirtyCheck();
+    Model.notifyChanges();
   }, false);
 
   function bootstrapTemplatesRecursivelyFrom(node) {
@@ -382,18 +382,17 @@
     assert(this.observer_);
 
     this.boundScriptPropertyChanged_ = this.scriptPropertyChanged.bind(this);
-    Model.observePropertySet(value, this.boundScriptPropertyChanged_);
+    Model.observeArray(value, this.boundScriptPropertyChanged_);
   }
 
   ArrayTracker.prototype = {
     unbind: function() {
-      Model.stopObservingPropertySet(value, this.boundScriptPropertyChanged_);
+      Model.unobserveArray(value, this.boundScriptPropertyChanged_);
     },
 
-    scriptPropertyChanged: function(record) {
-      assert(record.mutation === 'splice');
-      if (record.added.length !== record.removed.length)
-        this.observer_.lengthChanged(this.object_.length);
+    scriptPropertyChanged: function() {
+      // FIXME: Implement minimal instance updates.
+      this.observer_.lengthChanged(this.object_.length);
     }
   };
 
@@ -591,7 +590,7 @@
         return;
       }
 
-      if (!isObject(value))
+      if (!Array.isArray(value))
         return;
 
       // undefined etc will result in 0.

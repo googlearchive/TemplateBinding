@@ -365,7 +365,7 @@ Planner.prototype = createObject({
     }
 
     properties.forEach(function(property) {
-      Model.observe(this.model, property, function() {
+      Model.observePath(this.model, property, function() {
         return function() {
           propertyChanged(property);
         }

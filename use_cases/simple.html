@@ -99,7 +99,7 @@ function disabledExamplePostLoad() {
   }
   update(checkBox.checked);
 
-  Model.observe(m.sample2, 'useShipping', update);
+  Model.observePath(m.sample2, 'useShipping', update);
 }
 </script>
 </body>

@@ -20,7 +20,7 @@ limitations under the License.
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
 <script src="side_table.js"></script>
-<script src="path.js"></script>
+<script src="ChangeSummary/change_summary.js"></script>
 <script src="model.js"></script>
 <script src="script_value_binding.js"></script>
 <script src="test_common.js"></script>
@@ -50,7 +50,7 @@ function testScriptValueBindingA() {
   assertUndefined(lastSeenValue);
 
   model.a = 'Changed';
-  Model.dirtyCheck();
+  Model.notifyChanges();
 
   assertEquals('Changed', binding.value);
   assertEquals(1, changeCount);
@@ -75,14 +75,14 @@ function testScriptValueBindingAB() {
   assertUndefined(lastSeenValue);
 
   model.a.b = 'Changed';
-  Model.dirtyCheck();
+  Model.notifyChanges();
 
   assertEquals('Changed', binding.value);
   assertEquals(1, changeCount);
   assertEquals('Changed', lastSeenValue);
 
   model.a = {b: true};
-  Model.dirtyCheck();
+  Model.notifyChanges();
 
   assertEquals(true, binding.value);
   assertEquals(2, changeCount);
@@ -117,13 +117,13 @@ function testDelegatedValueBinding() {
   assertEquals('ab', binding.value);
 
   model.a = 1;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1b', binding.value);
   assertEquals(1, changeCount);
   assertEquals('1b', lastSeenValue);
 
   model.b = 2;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(3, binding.value);
   assertEquals(2, changeCount);
   assertEquals(3, lastSeenValue);
@@ -160,26 +160,26 @@ function testDelegatedValueBindingDeep() {
   assertEquals('abcd', binding.value);
 
   model.a.b = 1;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1cd', binding.value);
   assertEquals(1, changeCount);
   assertEquals('1cd', lastSeenValue);
 
   model.c.d = 2;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(3, binding.value);
   assertEquals(2, changeCount);
   assertEquals(3, lastSeenValue);
 
   model.a = {b: 3};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(5, binding.value);
   assertEquals(3, changeCount);
   assertEquals(5, lastSeenValue);
 
   model.a = {b: 'hello'};
   model.c = {d: ' world'};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('hello world', binding.value);
   assertEquals(5, changeCount);
   assertEquals('hello world', lastSeenValue);
@@ -216,20 +216,20 @@ function testDelegatedValueBindingTwoWay() {
   assertEquals('ab', binding.value);
 
   model.a = 1;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1b', binding.value);
   assertEquals(1, changeCount);
   assertEquals('1b', lastSeenValue);
 
   model.b = 2;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(3, binding.value);
   assertEquals(2, changeCount);
   assertEquals(3, lastSeenValue);
 
   binding.value = 3;
   assertEquals(4, model.a);
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(6, binding.value);
   assertEquals(3, changeCount);
   assertEquals(6, lastSeenValue);
@@ -269,33 +269,33 @@ function testDelegatedValueBindingTwoWayDeep() {
   assertEquals('abcd', binding.value);
 
   model.a.b = 1;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('1cd', binding.value);
   assertEquals(1, changeCount);
   assertEquals('1cd', lastSeenValue);
 
   model.c.d = 2;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(3, binding.value);
   assertEquals(2, changeCount);
   assertEquals(3, lastSeenValue);
 
   model.a = {b: 3};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals(5, binding.value);
   assertEquals(3, changeCount);
   assertEquals(5, lastSeenValue);
 
   model.a = {b: 'hello'};
   model.c = {d: ' world'};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('hello world', binding.value);
   assertEquals(5, changeCount);
   assertEquals('hello world', lastSeenValue);
 
   binding.value = 3;
   assertEquals(4, model.a.b);
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 world', binding.value);
   assertEquals(6, changeCount);
   assertEquals('4 world', lastSeenValue);

@@ -36,21 +36,15 @@ var DelegatedValueBinding;
   }
 
   ScriptValueBinding = function(model, path, observer) {
-    this.model_ = model;
     this.path_ = path;
     this.observer_ = observer;
     this.boundCallback_ = this.scriptPropertyChanged.bind(this);
-    if (isObject(model)) {
-      this.value_ = Model.getValueAtPath(model, path);
-      Model.observe(model, path, this.boundCallback_);
-    } else {
-      this.value_ = model;
-    }
+    this.setModel(model);
   };
 
   ScriptValueBinding.prototype = {
     unbind: function() {
-      Model.stopObserving(this.model_, this.path_, this.boundCallback_);
+      Model.unobservePath(this.model_, this.path_, this.boundCallback_);
     },
 
     scriptPropertyChanged: function(newValue) {
@@ -60,7 +54,8 @@ var DelegatedValueBinding;
         return;
       }
 
-      // FIXME: This check may not be neccessary. Consider refactoring ScriptValue & ScriptValueTrackers.
+      // FIXME: This check may not be neccessary.
+      // Consider refactoring ScriptValue & ScriptValueTrackers.
       if (this.value_ !== newValue) {
         this.value_ = newValue;
         this.observer_.valueChanged(this);
@@ -68,12 +63,11 @@ var DelegatedValueBinding;
     },
 
     setModel: function(model) {
-      Model.stopObserving(this.model_, this.path_, this.boundCallback_);
+      Model.unobservePath(this.model_, this.path_, this.boundCallback_);
       this.model_ = model;
       var oldValue = this.value_;
-      this.value_ = Model.getValueAtPath(this.model_, this.path_);
-      if (isObject(this.model_))
-        Model.observe(this.model_, this.path_, this.boundCallback_);
+      this.value_ = Model.observePath(this.model_, this.path_,
+                                      this.boundCallback_);
       return this.value_ !== oldValue;
     },
 

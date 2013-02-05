@@ -20,7 +20,7 @@ limitations under the License.
 <script src="third_party/closure/closure/goog/base.js"></script>
 <script src="platform/compat.js"></script>
 <script src="side_table.js"></script>
-<script src="path.js"></script>
+<script src="ChangeSummary/change_summary.js"></script>
 <script src="model.js"></script>
 <script src="script_value_binding.js"></script>
 <script src="text_replacements_binding.js"></script>
@@ -52,13 +52,13 @@ function testTextReplacementsBinding() {
   assertEquals('Hello First Last!', binding.value);
 
   model.last = 'Fry';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello First Fry!', binding.value);
   assertEquals(1, changeCount);
   assertEquals('Hello First Fry!', lastSeenValue);
 
   model.first = 'Philip';
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('Hello Philip Fry!', binding.value);
   assertEquals(2, changeCount);
   assertEquals('Hello Philip Fry!', lastSeenValue);
@@ -93,11 +93,11 @@ function testTextReplacementsBindingWithDelegate() {
   assertEquals('1 + 2 = 3', binding.value);
 
   model.v.x = 4;
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('4 + 2 = 6', binding.value);
 
   model.v = {x: 5, y: 6};
-  Model.dirtyCheck();
+  Model.notifyChanges();
   assertEquals('5 + 6 = 11', binding.value);
 }
 

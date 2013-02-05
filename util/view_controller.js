@@ -73,7 +73,7 @@
     forEach(actionElements, registerAction);
 
     // Controller constructors may have bound data.
-    Model.dirtyCheck();
+    Model.notifyChanges();
   }, false);
 
   document.addEventListener('DOMNodeInserted', function(e) {
@@ -104,7 +104,7 @@
     }
 
     if (handled)
-      Model.dirtyCheck();
+      Model.notifyChanges();
     else
       console.error('Error: unhandled action', action, e);
   }

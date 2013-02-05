@@ -30,7 +30,7 @@ Model.observeObject(m, function(change) {
   // Handle property add/update/deletes
 });
 
-Model.observe(m, "person.age", function(value, oldValue) {
+Model.observePath(m, "person.age", function(value, oldValue) {
   // Handle value change of m.person.age
 });
 
@@ -189,7 +189,7 @@ Otherwise, the <code>change</code> argument encodes all mutations as adds, updat
 </ul>
 
 <h2 id="modelObserve">Model.observe</h2>
-<code>Model.observe(object, path, callback)</code>
+<code>Model.observePath(object, path, callback)</code>
 
 <p>Register a callback to be invoked when the value at <code>path</code> from the <code>object</code> changes.</p>
 
