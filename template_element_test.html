@@ -1275,6 +1275,60 @@ function testInstantiateShadowDOM() {
   }
 }
 
+
+var testHelper;
+
+// https://github.com/toolkitchen/mdv/issues/8
+function testUnbindingInNestedInstantiate() {
+  var div = createTestHtml(
+    '<template instantiate="outer">' +
+      '<template instantiate="inner">' +
+        '{{ expr(age) testHelper(age) }}' +
+      '</template>' +
+    '</template>');
+
+  var count = 0;
+  testHelper = function(value) {
+    assertEquals(42, value);
+    count++;
+  };
+
+  div.model = {
+    outer: {
+      inner: {
+        age: 42
+      }
+    }
+  };
+  div.modelDelegate = MDVDelegate;
+
+  Model.notifyChanges();
+  assertEquals(1, count);
+
+  testHelper = function(value) {
+    fail('Should not be called on disconnected instance');
+  };
+
+  var inner = div.model.outer.inner;
+  div.model.outer = null;
+  inner.age = 'FAIL';
+
+  Model.notifyChanges();
+  assertEquals(1, count);
+
+  div.model.outer = {inner: {age: 2}};
+
+  testHelper = function(value) {
+    assertEquals(2, value);
+    count++;
+  };
+
+  Model.notifyChanges();
+  assertEquals(2, count);
+
+  testHelper = undefined;
+}
+
 </script>
 </body>
 </html>

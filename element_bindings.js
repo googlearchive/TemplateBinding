@@ -207,7 +207,7 @@
 
   Text.prototype.lazyModelDelegateChanged = function() {
     var binding = textContentBindingTable.get(this);
-    if (binding && binding.setModelDelegate(this.model, this.modelDelegate))
+    if (binding && binding.setDelegate(this.model, this.modelDelegate))
       textValueChanged(this, binding);
   };
 

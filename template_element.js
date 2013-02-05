@@ -375,6 +375,30 @@
     assert(child && protoChild || !child && !protoChild);
   }
 
+  function removeAllBindingsRecursively(node) {
+    // All the remove methods checks if there is a binding for that
+    // attribute/value/textContent.
+    switch (node.nodeType) {
+      case Node.TEXT_NODE:
+        node.removeBinding();
+        break;
+      case Node.ELEMENT_NODE:
+        if (node.tagName === 'INPUT') {
+          node.removeValueBinding();
+          node.removeCheckedBinding();
+        }
+        var length = node.attributes.length;
+        for (var i = 0; i < length; i++) {
+          node.removeBinding(node.attributes[i]);
+        }
+        break;
+    }
+
+    for (var child = node.firstChild; child; child = child.nextSibling) {
+      removeAllBindingsRecursively(child);
+    }
+  }
+
   function ArrayTracker(value, observer) {
     this.object_ = value;
     this.observer_ = observer;
@@ -417,6 +441,8 @@
       }
     }
     parent.removeChild(child);
+    removeAllBindingsRecursively(child);
+    child.model = child.modelDelegate = undefined;
   }
 
   function InstanceCursor(templateElement) {

@@ -36,6 +36,7 @@ var DelegatedValueBinding;
   }
 
   ScriptValueBinding = function(model, path, observer) {
+    this.model_ = null;
     this.path_ = path;
     this.observer_ = observer;
     this.boundCallback_ = this.scriptPropertyChanged.bind(this);
