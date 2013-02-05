@@ -649,21 +649,6 @@
       return count;
     },
 
-    // FIXME: Consider merging this code with clear(), e.g. clear(bool abandonInstances = false)
-    abandonInstances: function() {
-      assert(!this.instances_.length || this.instances_.length == 1);
-      var cursor = new InstanceCursor(this.templateElement_);
-      for (var i = 0; i < this.instances_.length; i++) {
-        if (this.instances_[i].isActive) {
-          cursor.next();
-          cursor.abandon();
-        }
-      }
-      this.unbind();
-      this.instances_ = [];
-      this.arrayTracker_ = null;
-    },
-
     lengthChanged: function(newLength) {
       var currentSize = this.instances_.length;
       if (currentSize === newLength)
@@ -700,15 +685,6 @@
     instanceCount: function() {
       var templateIterator = templateIteratorTable.get(this);
       return templateIterator ? templateIterator.instanceCount() : 0;
-    },
-
-    abandonInstances: function() {
-      var templateIterator = templateIteratorTable.get(this);
-      if (!templateIterator)
-        return;
-
-      templateIterator.abandonInstances();
-      templateIteratorTable.delete(this);
     },
 
     checkIteration: function() {
