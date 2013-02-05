@@ -21,8 +21,8 @@ var Model = {};
   }
 
   // FIXME: Use Map/Set iterators when available.
-  var HarmonyMap = global.Map ? global.Map : null;
-  var HarmonySet = global.Set ? global.Set : null;
+  var HarmonyMap = global.Map || null;
+  var HarmonySet = global.Set || null;
 
   function Map() {
     if (HarmonyMap)
@@ -35,7 +35,8 @@ var Model = {};
 
   Map.prototype = {
     get: function(key) {
-      return this.map_ ? this.map_.get(key) : this.values_[this.keys_.indexOf(key)];
+      return this.map_ ? this.map_.get(key) :
+          this.values_[this.keys_.indexOf(key)];
     },
 
     set: function(key, value) {

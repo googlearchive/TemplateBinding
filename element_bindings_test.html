@@ -75,7 +75,8 @@ function testModelCleared() {
   Model.notifyChanges();
   assertEquals('a', child.model);
 
-// FIXME: Decide if .model property should be observable.
+// TODO(rafaelw): Decide if .model property should be observable
+// https://github.com/toolkitchen/mdv/issues/10
 //  assertEquals(1, count);
 }
 
@@ -831,10 +832,9 @@ function testExpressionBindingNoCoerce() {
 }
 
 /*
-
- FIXME: Decide of .model is observable.
- FIXME: Decide if minimal reads should be implemented.
-
+ * TODO(rafaelw): Decide if minimal reads should be implemented.
+ * https://github.com/toolkitchen/mdv/issues/11
+ *
 function testMinimalReads() {
   var accessesPerNotifyObservers = Model.observableObjects_ ? 1 : 2;
   var el = document.createElement('div');
