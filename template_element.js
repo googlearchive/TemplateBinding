@@ -187,7 +187,7 @@
 
     fixTemplateElementPrototype(el);
 
-    Model.enqueue(el.checkIteration.bind(el));
+    Model.enqueue(checkIteration.bind(null, el));
 
     // Create content
     if (!isNativeTemplate(el)) {
@@ -246,21 +246,22 @@
     }
   }
 
+  function createInstance(element, model, modelDelegate) {
+    var content = element.ref ? element.ref.content : element.content;
+    var instance = createDeepCloneAndDecorateTemplates(content);
+
+    for (var child = instance.firstChild; child; child = child.nextSibling) {
+      child.model = model;
+
+      // FIXME: Is it neccessary to hard-set modelDelegate?
+      child.modelDelegate = modelDelegate;
+    }
+
+    addBindings(instance, content);
+    return instance;
+  }
+
   mixin(HTMLTemplateElement.prototype, {
-    createInstance: function(model, modelDelegate) {
-      var content = this.ref ? this.ref.content : this.content;
-      var instance = createDeepCloneAndDecorateTemplates(content);
-
-      for (var child = instance.firstChild; child; child = child.nextSibling) {
-        child.model = model;
-
-        // FIXME: Is it neccessary to hard-set modelDelegate?
-        child.modelDelegate = modelDelegate;
-      }
-
-      addBindings(instance, content);
-      return instance;
-    },
 
     get instantiate() {
       return this.getAttribute('instantiate');
@@ -274,7 +275,7 @@
         this.setAttribute('instantiate', instantiate);
       if (instantiate != oldVal) {
         this.removeAttribute('iterate');
-        Model.enqueue(this.checkIteration.bind(this));
+        Model.enqueue(checkIteration.bind(null, this));
       }
     },
 
@@ -290,7 +291,7 @@
         this.setAttribute('iterate', iterate);
       if (iterate != oldVal) {
         this.removeAttribute('instantiate');
-        Model.enqueue(this.checkIteration.bind(this));
+        Model.enqueue(checkIteration.bind(null, this));
       }
     },
 
@@ -463,12 +464,12 @@
         this.index_ -= instanceTerminatorCount(this.terminator_);
         this.terminator_ = this.terminator_.nextSibling;
         if (this.terminator_.tagName === 'TEMPLATE')
-          this.index_ += this.terminator_.instanceCount();
+          this.index_ += instanceCount(this.terminator_);
       }
     },
 
     abandon: function() {
-      assert(this.template_.instanceCount());
+      assert(instanceCount(this.template_));
       assert(instanceTerminatorCount(this.terminator_));
       assert(this.index_);
 
@@ -483,7 +484,7 @@
       this.previousIndex_ = this.index_;
       this.index_++;
 
-      var instance = this.template_.createInstance(model,
+      var instance = createInstance(this.template_, model,
           this.template_.parentNode.modelDelegate);
 
       this.terminator_ = instance.lastChild || this.previousTerminator_;
@@ -507,7 +508,7 @@
               this.previousTerminator_ === this.template_));
       assert(this.terminator_ && this.index_ > 0);
       assert(this.template_.parentNode);
-      assert(this.template_.instanceCount());
+      assert(instanceCount(this.template_));
 
       if (this.previousTerminator_ === this.terminator_) {
         assert(this.index_ == this.previousIndex_ + 1);
@@ -706,42 +707,43 @@
 
   var templateIteratorTable = new SideTable('templateIterator');
 
+  function instanceCount(element) {
+    var templateIterator = templateIteratorTable.get(element);
+    return templateIterator ? templateIterator.instanceCount() : 0;
+  }
+
+  function checkIteration(element) {
+    var bindingText;
+    var isIterate = false;
+    if (element.parentNode && element.ownerDocument.defaultView) {
+      bindingText = element.getAttribute('instantiate');
+      if (bindingText === null) {
+        isIterate = true;
+        bindingText = element.getAttribute('iterate');
+      }
+    }
+
+    var templateIterator = templateIteratorTable.get(element);
+    if (templateIterator &&
+        templateIterator.bindingText === element.bindingText &&
+        templateIterator.isIterate === isIterate) {
+      return;
+    }
+
+    if (templateIterator) {
+      templateIterator.clear();
+      templateIteratorTable.delete(element);
+    }
+
+    if (bindingText == null)
+      return;
+
+    templateIterator = new TemplateIterator(element, bindingText, isIterate);
+    templateIteratorTable.set(element, templateIterator);
+  }
+
   // TODO(arv): These should not be public.
   mixin(HTMLTemplateElement.prototype, {
-    instanceCount: function() {
-      var templateIterator = templateIteratorTable.get(this);
-      return templateIterator ? templateIterator.instanceCount() : 0;
-    },
-
-    checkIteration: function() {
-      var bindingText;
-      var isIterate = false;
-      if (this.parentNode && this.ownerDocument.defaultView) {
-        bindingText = this.getAttribute('instantiate');
-        if (bindingText === null) {
-          isIterate = true;
-          bindingText = this.getAttribute('iterate');
-        }
-      }
-
-      var templateIterator = templateIteratorTable.get(this);
-      if (templateIterator &&
-          templateIterator.bindingText === this.bindingText &&
-          templateIterator.isIterate === isIterate) {
-        return;
-      }
-
-      if (templateIterator) {
-        templateIterator.clear();
-        templateIteratorTable.delete(this);
-      }
-
-      if (bindingText == null)
-        return;
-
-      templateIterator = new TemplateIterator(this, bindingText, isIterate);
-      templateIteratorTable.set(this, templateIterator);
-    },
 
     modelChanged: function() {
       Element.prototype.modelChanged.call(this);

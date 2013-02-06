@@ -12,12 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var Model = (function(global) {
-
+var Model = (function() {
   var router = new ChangeSummary.CallbackRouter();
-
   var queue = [];
-
   var notificationQueueIsRunning = false;
 
   return {
@@ -41,19 +38,12 @@ var Model = (function(global) {
     },
 
     getValueAtPath: ChangeSummary.getValueAtPath,
-
     setValueAtPath: ChangeSummary.setValueAtPath,
-
     observeObject: router.observeObject.bind(router),
-
     unobserveObject: router.unobserveObject.bind(router),
-
     observeArray: router.observeArray.bind(router),
-
     unobserveArray: router.unobserveArray.bind(router),
-
     observePath: router.observePath.bind(router),
-
     unobservePath: router.unobservePath.bind(router)
   };
-})(this);
+})();
