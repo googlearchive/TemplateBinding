@@ -12,46 +12,48 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var Model = {};
+var Model = (function(global) {
 
-(function(global) {
-
-  var observer = new ChangeSummary.CallbackRouter();
+  var router = new ChangeSummary.CallbackRouter();
 
   var queue = [];
 
-  Model.enqueue = function enqueue(func) {
-    queue.push(func);
-  };
-
   var notificationQueueIsRunning = false;
 
-  Model.notifyChanges = function() {
-    // Prevent reentrancy.
-    if (notificationQueueIsRunning)
-      return;
-    notificationQueueIsRunning = true;
+  return {
+    enqueue: function(func) {
+      queue.push(func);
+    },
 
-    observer.deliver();
+    notifyChanges: function() {
+      if (notificationQueueIsRunning)
+        return;
 
-    while (queue.length > 0) {
-      var f = queue.shift();
-      f();
-    }
+      notificationQueueIsRunning = true;
+      router.deliver();
 
-    notificationQueueIsRunning = false;
+      while (queue.length > 0) {
+        var f = queue.shift();
+        f();
+      }
+
+      notificationQueueIsRunning = false;
+    },
+
+    getValueAtPath: ChangeSummary.getValueAtPath,
+
+    setValueAtPath: ChangeSummary.setValueAtPath,
+
+    observeObject: router.observeObject.bind(router),
+
+    unobserveObject: router.unobserveObject.bind(router),
+
+    observeArray: router.observeArray.bind(router),
+
+    unobserveArray: router.unobserveArray.bind(router),
+
+    observePath: router.observePath.bind(router),
+
+    unobservePath: router.unobservePath.bind(router)
   };
-
-  Model.observeArray = observer.observeArray.bind(observer);
-
-  Model.unobserveArray = observer.unobserveArray.bind(observer);
-
-  Model.observePath = observer.observePath.bind(observer);
-
-  Model.unobservePath = observer.unobservePath.bind(observer);
-
-  Model.getValueAtPath = ChangeSummary.getValueAtPath;
-
-  Model.setValueAtPath = ChangeSummary.setValueAtPath;
-
 })(this);
