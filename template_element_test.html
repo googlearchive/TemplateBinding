@@ -1329,6 +1329,22 @@ function testUnbindingInNestedInstantiate() {
   testHelper = undefined;
 }
 
+function testCreateIntance() {
+  var div = createTestHtml(
+    '<template instantiate=a>' +
+      '<template instantiate=b>' +
+        '{{text}}' +
+      '</template>' +
+    '</template>');
+  var outer = div.firstChild;
+
+  var instance = outer.createInstance(null, null);
+  assertEquals(instance.firstChild.ref, outer.content.firstChild);
+
+  var instance2 =  outer.createInstance(null, null);
+  assertEquals(instance.firstChild.ref, instance2.firstChild.ref);
+}
+
 </script>
 </body>
 </html>

@@ -263,6 +263,10 @@
 
   mixin(HTMLTemplateElement.prototype, {
 
+    createInstance: function(model, modelDelegate) {
+      return createInstance(this, model, modelDelegate);
+    },
+
     get instantiate() {
       return this.getAttribute('instantiate');
     },
