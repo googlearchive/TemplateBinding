@@ -248,17 +248,7 @@
 
   function createInstance(element, model, modelDelegate) {
     var content = element.ref ? element.ref.content : element.content;
-    var instance = createDeepCloneAndDecorateTemplates(content);
-
-    for (var child = instance.firstChild; child; child = child.nextSibling) {
-      child.model = model;
-
-      // FIXME: Is it neccessary to hard-set modelDelegate?
-      child.modelDelegate = modelDelegate;
-    }
-
-    addBindings(instance, content);
-    return instance;
+    return createDeepCloneAndDecorateTemplates(content);
   }
 
   mixin(HTMLTemplateElement.prototype, {
@@ -362,7 +352,7 @@
       text.addBinding(text.data);
   }
 
-  function addBindings(node, prototype) {
+  function addBindings(node) {
     assert(node);
 
     if (node.nodeType === Node.ELEMENT_NODE)
@@ -370,14 +360,8 @@
     else if (node.nodeType === Node.TEXT_NODE)
       addTextNodeBinding(node);
 
-    var child = node.firstChild;
-    var protoChild = prototype.firstChild;
-    for ( ; child && protoChild;
-         child = child.nextSibling, protoChild = protoChild.nextSibling) {
-      addBindings(child, protoChild);
-    }
-
-    assert(child && protoChild || !child && !protoChild);
+    for (var child = node.firstChild; child ; child = child.nextSibling)
+      addBindings(child);
   }
 
   function removeAllBindingsRecursively(node) {
@@ -488,8 +472,13 @@
       this.previousIndex_ = this.index_;
       this.index_++;
 
-      var instance = createInstance(this.template_, model,
-          this.template_.parentNode.modelDelegate);
+      var instance = createInstance(this.template_);
+      for (var child = instance.firstChild; child; child = child.nextSibling) {
+        child.model = model;
+        // FIXME: Is it neccessary to hard-set modelDelegate?
+        child.modelDelegate = this.template_.parentNode.modelDelegate;
+      }
+      addBindings(instance);
 
       this.terminator_ = instance.lastChild || this.previousTerminator_;
       this.template_.parentNode.insertBefore(instance,
