@@ -209,6 +209,12 @@
     return true;
   };
 
+  // TODO(rafaelw): This used to decorate recursively all templates from a given
+  // node. This happens by default on 'DOMContentLoaded', but may be needed
+  // in subtrees not descendent from document (e.g. ShadowRoot).
+  // Review whether this is the right public API.
+  HTMLTemplateElement.bootstrap = bootstrapTemplatesRecursivelyFrom;
+
   var htmlElement = global.HTMLUnknownElement || HTMLElement;
 
   var contentDescriptor = {

@@ -1345,6 +1345,24 @@ function testCreateIntance() {
   assertEquals(instance.firstChild.ref, instance2.firstChild.ref);
 }
 
+function testBootstrap() {
+  var div = document.createElement('div');
+  div.innerHTML =
+    '<template>' +
+      '<div></div>' +
+      '<template>' +
+        'Hello' +
+      '</template>' +
+    '</template>';
+
+  HTMLTemplateElement.bootstrap(div);
+  var template = div.firstChild;
+  assertEquals(2, template.content.childNodes.length);
+  var template2 = template.content.firstChild.nextSibling;
+  assertEquals(1, template2.content.childNodes.length);
+  assertEquals('Hello', template2.content.firstChild.textContent);
+}
+
 </script>
 </body>
 </html>
