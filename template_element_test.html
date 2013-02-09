@@ -1361,6 +1361,22 @@ function testBootstrap() {
   var template2 = template.content.firstChild.nextSibling;
   assertEquals(1, template2.content.childNodes.length);
   assertEquals('Hello', template2.content.firstChild.textContent);
+
+  var template = document.createElement('template');
+  template.innerHTML =
+    '<template>' +
+      '<div></div>' +
+      '<template>' +
+        'Hello' +
+      '</template>' +
+    '</template>';
+
+  HTMLTemplateElement.bootstrap(template);
+  var template2 = template.content.firstChild;
+  assertEquals(2, template2.content.childNodes.length);
+  var template3 = template2.content.firstChild.nextSibling;
+  assertEquals(1, template3.content.childNodes.length);
+  assertEquals('Hello', template3.content.firstChild.textContent);
 }
 
 </script>

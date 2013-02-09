@@ -82,10 +82,18 @@
   }, false);
 
   function bootstrapTemplatesRecursivelyFrom(node) {
-    forEach(getTemplateDescendentsOf(node), function(template) {
+    function bootstrap(template) {
       if (!HTMLTemplateElement.decorate(template))
         bootstrapTemplatesRecursivelyFrom(template.content);
-    });
+    }
+
+    // Need to do this first as the contents may get lifted if |node| is
+    // template.
+    var templateDescendents = getTemplateDescendentsOf(node);
+    if (isTemplate(node))
+      bootstrap(node);
+
+    forEach(templateDescendents, bootstrap);
   }
 
   if (!hasTemplateElement) {
