@@ -12,19 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-document.write('<link rel="stylesheet" href="../template_element.css">');
-[
-  '../src/compat.js',
-  '../src/side_table.js',
-  '../third_party/ChangeSummary/change_summary.js',
-  '../src/model.js',
-  '../src/script_value_binding.js',
-  '../src/text_replacements_binding.js',
-  '../src/element_attribute_bindings.js',
-  '../src/element_bindings.js',
-  '../src/input_bindings.js',
-  '../src/template_element.js',
-  '../src/delegates.js',
-].forEach(function(src) {
-  document.write('<script src="' + src + '"></script>');
-});
+document.write('<link rel="stylesheet" href="common_styles.css">');
+document.write('<script src="../src/mdv.js"></script>');
+document.write('<script src="../src/delegates.js"></script>');

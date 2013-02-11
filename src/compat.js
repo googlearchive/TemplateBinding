@@ -12,25 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-if (!Function.prototype.bind) {
-  // JSC does not implement bind
-  Object.defineProperty(Function.prototype, 'bind', {
-    value: function(selfObj, var_args) {
-      var fn = this;
-      var context = selfObj || goog.global;
-      var boundArgs = Array.prototype.slice.call(arguments, 1);
-      return function() {
-        // Prepend the bound arguments to the current arguments.
-        var newArgs = Array.prototype.slice.call(arguments);
-        Array.prototype.unshift.apply(newArgs, boundArgs);
-        return fn.apply(context, newArgs);
-      };
-    },
-    writable: true,
-    configurable: true
-  });
-}
-
 // JScript does not have __proto__. We wrap all object literals with
 // createObject which uses Object.create, Object.defineProperty and
 // Object.getOwnPropertyDescriptor to create a new object that does the exact
