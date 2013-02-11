@@ -92,7 +92,7 @@ function MDVDelegate(binding) {
     function strip(s) {
         return s.replace(/\s/g, '');
     }
-    
+
     function createExpression(args, body) {
         var args = strip(args);
         args = args ? args.split(',') : [];
