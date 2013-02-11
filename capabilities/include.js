@@ -14,17 +14,17 @@
 
 document.write('<link rel="stylesheet" href="../template_element.css">');
 [
-  '../platform/compat.js',
-  '../side_table.js',
+  '../src/compat.js',
+  '../src/side_table.js',
   '../ChangeSummary/change_summary.js',
-  '../model.js',
-  '../script_value_binding.js',
-  '../text_replacements_binding.js',
-  '../element_attribute_bindings.js',
-  '../element_bindings.js',
-  '../input_bindings.js',
-  '../template_element.js',
-  '../delegates.js',
+  '../src/model.js',
+  '../src/script_value_binding.js',
+  '../src/text_replacements_binding.js',
+  '../src/element_attribute_bindings.js',
+  '../src/element_bindings.js',
+  '../src/input_bindings.js',
+  '../src/template_element.js',
+  '../src/delegates.js',
 ].forEach(function(src) {
   document.write('<script src="' + src + '"></script>');
 });
