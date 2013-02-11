@@ -749,35 +749,31 @@
     templateIteratorTable.set(element, templateIterator);
   }
 
-  // TODO(arv): These should not be public.
-  mixin(HTMLTemplateElement.prototype, {
-
-    modelChanged: function() {
-      Element.prototype.modelChanged.call(this);
-      var templateIterator = templateIteratorTable.get(this);
-      if (templateIterator)
-        Model.enqueue(this.lazyModelChanged.bind(this));
-    },
-
-    lazyModelChanged: function() {
-      var templateIterator = templateIteratorTable.get(this);
-      if (templateIterator)
-        templateIterator.setModel(this.model);
-    },
-
-    modelDelegateChanged: function() {
-      Element.prototype.modelDelegateChanged.call(this);
-      var templateIterator = templateIteratorTable.get(this);
-      if (templateIterator)
-        Model.enqueue(this.lazyModelDelegateChanged.bind(this));
-    },
-
-    lazyModelDelegateChanged: function() {
-      var templateIterator = templateIteratorTable.get(this);
-      if (templateIterator)
-        templateIterator.setDelegate(this.model, this.modelDelegate);
-    }
+  modelChangedTable.set(HTMLTemplateElement.prototype, function() {
+    modelChangedTable.get(Element.prototype).call(this);
+    var templateIterator = templateIteratorTable.get(this);
+    if (templateIterator)
+      Model.enqueue(lazyModelChanged.bind(this));
   });
+
+  modelDelegateChangedTable.set(HTMLTemplateElement.prototype, function() {
+    modelDelegateChangedTable.get(Element.prototype).call(this);
+    var templateIterator = templateIteratorTable.get(this);
+    if (templateIterator)
+      Model.enqueue(lazyModelDelegateChanged.bind(this));
+  });
+
+  function lazyModelChanged() {
+    var templateIterator = templateIteratorTable.get(this);
+    if (templateIterator)
+      templateIterator.setModel(this.model);
+  }
+
+  function lazyModelDelegateChanged() {
+    var templateIterator = templateIteratorTable.get(this);
+    if (templateIterator)
+      templateIterator.setDelegate(this.model, this.modelDelegate);
+  }
 
   // TODO(arv): Consider storing all "NodeRareData" on a single object?
   function InstanceTerminatorCount() {

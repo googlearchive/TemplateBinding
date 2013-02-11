@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+var modelChangedTable = new SideTableInherit('modelChanged');
+var modelDelegateChangedTable = new SideTableInherit('modelDelegateChanged');
+
 (function() {
   'use strict';
 
@@ -77,21 +80,23 @@
 
   function modelChanged() {
     if (hasBindings(this))
-      Model.enqueue(this.lazyModelChanged.bind(this));
+      Model.enqueue(lazyModelChanged.bind(this));
 
+    var f;
     for (var child = this.firstChild; child; child = child.nextSibling) {
-      if (!hasOwnModel(child) && child.modelChanged)
-        child.modelChanged();
+      if (!hasOwnModel(child) && (f = modelChangedTable.get(child)))
+        f.call(child);
     }
   }
 
   function modelDelegateChanged() {
     if (hasBindings(this))
-      Model.enqueue(this.lazyModelDelegateChanged.bind(this));
+      Model.enqueue(lazyModelDelegateChanged.bind(this));
 
+    var f;
     for (var child = this.firstChild; child; child = child.nextSibling) {
-      if (!hasOwnModel(child) && child.modelDelegateChanged)
-        child.modelDelegateChanged();
+      if (!hasOwnModel(child) && (f = modelDelegateChangedTable.get(child)))
+        f.call(child);
     }
   }
 
@@ -107,8 +112,9 @@
   }
 
   function handleDomNodeInsertedOrRemoved(e) {
-    if (!hasOwnModel(e.target))
-      e.target.modelChanged();
+    var node = e.target;
+    if (!hasOwnModel(node))
+      modelChangedTable.get(node).call(node);
   }
 
   function setupMutationListeners(node) {
@@ -143,7 +149,7 @@
 
     modelTable.set(this, model);
     setupMutationListeners(this);
-    this.modelChanged(this);
+    modelChangedTable.get(this).call(this, this);
   }
 
   function setModelDelegate(modelDelegate) {
@@ -154,16 +160,7 @@
 
     modelDelegateTable.set(this, modelDelegate);
     setupMutationListeners(this);
-    this.modelDelegateChanged(this);
-  }
-
-  function method(func) {
-    return {
-      value: func,
-      writable: true,
-      enumerable: true,
-      configurable: true
-    };
+    modelDelegateChangedTable.get(this).call(this, this);
   }
 
   function accessor(get, set) {
@@ -178,38 +175,38 @@
   var descriptor = {
     model: accessor(inheritedGetter(modelTable), setModel),
     modelDelegate: accessor(inheritedGetter(modelDelegateTable),
-                            setModelDelegate),
-    modelChanged: method(modelChanged),
-    modelDelegateChanged: method(modelDelegateChanged),
+                            setModelDelegate)
   };
 
-  Object.defineProperties(Element.prototype, descriptor);
-  Object.defineProperties(Text.prototype, descriptor);
-  Object.defineProperties(DocumentFragment.prototype, descriptor);
+  [Element, Text, DocumentFragment].forEach(function(ctor) {
+    Object.defineProperties(ctor.prototype, descriptor);
+    modelChangedTable.set(ctor.prototype, modelChanged);
+    modelDelegateChangedTable.set(ctor.prototype, modelDelegateChanged);
+  });
 
-  Element.prototype.lazyModelChanged = function() {
+  function lazyModelChanged() {
+    // Element
     var bindings = attributeBindingsTable.get(this);
     if (bindings)
       bindings.modelChanged(this.model);
-  };
 
-  Text.prototype.lazyModelChanged = function() {
+    // Text
     var binding = textContentBindingTable.get(this);
     if (binding && binding.setModel(this.model))
       textValueChanged(this, binding);
-  };
+  }
 
-  Element.prototype.lazyModelDelegateChanged = function() {
+  function lazyModelDelegateChanged() {
+    // Element
     var bindings = attributeBindingsTable.get(this);
     if (bindings)
       bindings.modelDelegateChanged(this.modelDelegate);
-  };
 
-  Text.prototype.lazyModelDelegateChanged = function() {
+    // Text
     var binding = textContentBindingTable.get(this);
     if (binding && binding.setDelegate(this.model, this.modelDelegate))
       textValueChanged(this, binding);
-  };
+  }
 
   Element.prototype.addBinding = addBinding;
   Element.prototype.removeBinding = removeBinding;

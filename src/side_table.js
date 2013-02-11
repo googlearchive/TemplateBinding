@@ -26,5 +26,29 @@ if (typeof WeakMap !== 'undefined') {
     delete: function(key) {
       this.set(key, undefined);
     }
-  }
+  };
 }
+
+/**
+ * Version of SideTable that walks the prototype chain for get.
+ */
+function SideTableInherit(name) {
+  // V8 does not allow inheriting WeakMap so we use composition instead.
+  this.map = new SideTable(name);
+}
+SideTableInherit.prototype = {
+  set: function(key, value) {
+    this.map.set(key, value);
+  },
+  get: function(key) {
+    if (key === null)
+      return undefined;
+    var value = this.map.get(key);
+    if (value !== undefined)
+      return value;
+    return this.get(Object.getPrototypeOf(key));
+  },
+  delete: function(key) {
+    this.map.delete(key);
+  }
+};

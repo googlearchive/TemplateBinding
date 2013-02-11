@@ -206,34 +206,34 @@
     }
   };
 
-  HTMLInputElement.prototype.lazyModelChanged = function() {
+  function lazyModelChanged() {
     var valueBinding = valueBindingTable.get(this);
     if (valueBinding)
       valueBinding.setModel(this.model);
     var checkedBinding = checkedBindingTable.get(this);
     if (checkedBinding)
       checkedBinding.setModel(this.model);
-  };
+  }
 
-  HTMLInputElement.prototype.lazyModelDelegateChanged = function() {
+  function lazyModelDelegateChanged() {
     var valueBinding = valueBindingTable.get(this);
     if (valueBinding)
       valueBinding.setDelegate(this.model, this.modelDelegate);
     var checkedBinding = checkedBindingTable.get(this);
     if (checkedBinding)
       checkedBinding.setDelegate(this.model, this.modelDelegate);
-  };
+  }
 
-  HTMLInputElement.prototype.modelChanged = function() {
-    Element.prototype.modelChanged.call(this);
+  modelChangedTable.set(HTMLInputElement.prototype, function() {
+    modelChangedTable.get(Element.prototype).call(this);
     if (valueBindingTable.get(this) || checkedBindingTable.get(this))
-      Model.enqueue(this.lazyModelChanged.bind(this));
-  };
+      Model.enqueue(lazyModelChanged.bind(this));
+  });
 
-  HTMLInputElement.prototype.modelDelegateChanged = function() {
-    Element.prototype.modelDelegateChanged.call(this);
+  modelDelegateChangedTable.set(HTMLInputElement.prototype, function() {
+    modelDelegateChangedTable.get(Element.prototype).call(this);
     if (valueBindingTable.get(this) || checkedBindingTable.get(this))
-      Model.enqueue(this.lazyModelDelegateChanged.bind(this));
-  };
+      Model.enqueue(lazyModelDelegateChanged.bind(this));
+  });
 
 })();
