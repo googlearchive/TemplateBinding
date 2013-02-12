@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var ElementAttributeBindings;
-
-(function() {
+var ElementAttributeBindings = (function() {
   'use strict';
 
   function Binding(element, attributeName, bindingText) {
@@ -56,9 +54,9 @@ var ElementAttributeBindings;
     }
   };
 
-  ElementAttributeBindings = function() {
+  function ElementAttributeBindings() {
     this.attributeBindings_ = Object.create(null);
-  };
+  }
 
   ElementAttributeBindings.prototype = {
     addBinding: function(element, attributeName, path) {
@@ -98,4 +96,5 @@ var ElementAttributeBindings;
     }
   };
 
+  return ElementAttributeBindings;
 })();

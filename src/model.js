@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var Model = (function() {
+this.Model = (function() {
   var router = new ChangeSummary.CallbackRouter();
   var queue = [];
   var notificationQueueIsRunning = false;

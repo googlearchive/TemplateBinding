@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-var TextReplacementsBinding;
-
-(function() {
+var TextReplacementsBinding = (function() {
   'use strict';
 
   var ONE_WAY = DelegatedValueBinding.Type.ONE_WAY;
@@ -66,7 +64,7 @@ var TextReplacementsBinding;
     return result;
   }
 
-  TextReplacementsBinding = function(model, delegate, bindingText, observer) {
+  function TextReplacementsBinding(model, delegate, bindingText, observer) {
     this.observer_ = observer;
     this.value_ = '';
     this.bindingText_ = bindingText;
@@ -74,7 +72,7 @@ var TextReplacementsBinding;
     this.tokens_ = parse(bindingText);
     this.bindPlaceHolders(model, delegate);
     this.computeValue();
-  };
+  }
 
   TextReplacementsBinding.prototype = {
     unbind: function() {
@@ -163,4 +161,5 @@ var TextReplacementsBinding;
     }
   };
 
+  return TextReplacementsBinding;
 })();
