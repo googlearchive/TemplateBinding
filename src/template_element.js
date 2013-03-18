@@ -402,27 +402,6 @@
     }
   }
 
-  function ArrayTracker(value, observer) {
-    this.object_ = value;
-    this.observer_ = observer;
-    assert(isObject(this.object_));
-    assert(this.observer_);
-
-    this.boundScriptPropertyChanged_ = this.scriptPropertyChanged.bind(this);
-    Model.observeArray(value, this.boundScriptPropertyChanged_);
-  }
-
-  ArrayTracker.prototype = {
-    unbind: function() {
-      Model.unobserveArray(value, this.boundScriptPropertyChanged_);
-    },
-
-    scriptPropertyChanged: function() {
-      // FIXME: Implement minimal instance updates.
-      this.observer_.lengthChanged(this.object_.length);
-    }
-  };
-
   function createDeepCloneAndDecorateTemplates(node) {
     var clone = node.cloneNode(false);  // Shallow clone.
     if (isTemplate(clone))
@@ -439,7 +418,7 @@
       // Make sure we stop observing when we remove an element.
       var templateIterator = templateIteratorTable.get(child);
       if (templateIterator) {
-        templateIterator.unbind();
+        // TODO(rafaelw): templateIterator.clear()?
         templateIteratorTable.delete(child);
       }
     }
@@ -448,12 +427,16 @@
     child.model = child.modelDelegate = undefined;
   }
 
-  function InstanceCursor(templateElement) {
+  function InstanceCursor(templateElement, opt_index) {
     this.template_ = templateElement;
     this.previousTerminator_ = null;
     this.previousIndex_ = -1;
     this.terminator_ = templateElement;
     this.index_ = 0;
+
+    opt_index = opt_index || 0;
+    while(opt_index-- > 0)
+      this.next();
   }
 
   InstanceCursor.prototype = {
@@ -541,42 +524,6 @@
     }
   };
 
-  function TemplateInstance(templateElement, model, path, index) {
-    this.template_ = templateElement;
-    this.index_ = index;
-    this.active_ = false;
-    this.binding_ = new ScriptValueBinding(model, path, this);
-
-    this.valueChanged(this.binding_);
-  }
-
-  TemplateInstance.prototype = {
-    unbind: function() {
-      this.binding_.unbind();
-    },
-
-    valueChanged: function(binding) {
-      var value = binding.value;
-      var cursor = new InstanceCursor(this.template_);
-      var advanced = false;
-      if (this.active_) {
-        for (var i = 0; i <= this.index_; i++) {
-          cursor.next();
-        }
-        cursor.remove();
-        advanced = true;
-      }
-
-      if (!advanced) {
-        for (var i = 0; i < this.index_; i++) {
-          cursor.next();
-        }
-      }
-      cursor.insert(value);
-      this.active_ = true;
-    }
-  };
-
   var ONE_WAY = DelegatedValueBinding.Type.ONE_WAY;
 
   function TemplateIterator(templateElement, bindingText, isIterate) {
@@ -586,9 +533,12 @@
                                               bindingText, ONE_WAY, this);
     this.bindingText_ = bindingText;
     this.isIterate_ = isIterate;
-    this.instances_ = [];
-    this.arrayTracker_ = null;
 
+    this.iteratedValue = undefined;
+    this.observing = false;
+    this.instanceCount = 0;
+
+    this.boundHandleSplices = this.handleSplices.bind(this);
     this.valueChanged(this.binding_);
   }
 
@@ -601,29 +551,45 @@
       return this.isIterate_;
     },
 
-    unbind: function() {
-      this.instances_.forEach(function(instance) {
-        instance.unbind();
-      });
-    },
-
     valueChanged: function(binding) {
       this.clear();
 
-      var value = this.binding_.value;
-      if (value == null)
-          return;
-
-      if (!this.isIterate_) {
-        this.instantiate();
+      if (this.binding_.value == null)
         return;
+
+      if (this.isIterate_ && !Array.isArray(this.binding_.value))
+        return;
+
+      this.iteratedValue = this.isIterate_ ?
+          this.binding_.value : [this.binding_.value];
+
+      if (this.isIterate_) {
+        Model.observeArray(this.iteratedValue, this.boundHandleSplices);
+        this.observing = true;
       }
 
-      if (!Array.isArray(value))
-        return;
+      this.handleSplices([{
+        index: 0,
+        addedCount: this.iteratedValue.length,
+        removed: []
+      }]);
+    },
 
-      // undefined etc will result in 0.
-      this.iterate(toUint32(value.length));
+    handleSplices: function(splices) {
+      splices.forEach(function(splice) {
+        splice.removed.forEach(function() {
+          var cursor = new InstanceCursor(this.templateElement_, splice.index + 1);
+          cursor.remove();
+          this.instanceCount--;
+        }, this);
+
+        var addIndex = splice.index;
+        for (; addIndex < splice.index + splice.addedCount; addIndex++) {
+          var cursor = new InstanceCursor(this.templateElement_, addIndex);
+          cursor.insert(this.iteratedValue[addIndex]);
+          this.instanceCount++;
+        }
+      }, this);
     },
 
     setModel: function(model) {
@@ -645,64 +611,21 @@
     },
 
     clear: function() {
-      if (!this.instances_.length)
+      if (this.observing) {
+        Model.unobserveArray(this.iteratedValue, this.boundHandleSplices)
+        this.observing = false;
+      }
+
+      this.iteratedValue = undefined;
+      if (!this.instanceCount)
         return;
-      var count = this.instanceCount();
-      for (var i = 0; i < count; i++) {
-        var cursor = new InstanceCursor(this.templateElement_);
-        cursor.next();
+
+      for (var i = 0; i < this.instanceCount; i++) {
+        var cursor = new InstanceCursor(this.templateElement_, 1);
         cursor.remove();
       }
-      this.unbind();
-      this.instances_ = [];
-      this.arrayTracker_ = null;
-    },
 
-    instantiate: function() {
-      this.instances_.push(new TemplateInstance(this.templateElement_,
-                                                this.binding_.value, '', 0));
-    },
-
-    iterate: function(length) {
-      if (length)
-        this.lengthChanged(length);
-      this.arrayTracker_ = new ArrayTracker(this.binding_.value, this);
-    },
-
-    instanceCount: function()  {
-      var count = 0;
-      for (var i = 0; i < this.instances_.length; i++)
-        count++;
-
-      return count;
-    },
-
-    lengthChanged: function(newLength) {
-      var currentSize = this.instances_.length;
-      if (currentSize === newLength)
-        return;
-
-      if (newLength < currentSize) {
-        // FIXME: InstanceCursor should be able to deal with multiple removals
-        for (var i = currentSize; i > newLength; i--) {
-          var cursor = new InstanceCursor(this.templateElement_);
-          for (var j = 0; j < i; j++) {
-            cursor.next();
-          }
-          cursor.remove();
-          this.instances_[i - 1].unbind();
-        }
-
-        this.instances_.length = newLength;
-        return;
-      }
-
-      for (var i = this.instances_.length; i < newLength; i++) {
-        var indexedPath = String(i);
-        this.instances_.push(new TemplateInstance(this.templateElement_,
-                                                  this.binding_.value,
-                                                  indexedPath, i));
-      }
+      this.instanceCount = 0;
     }
   };
 
@@ -710,7 +633,7 @@
 
   function instanceCount(element) {
     var templateIterator = templateIteratorTable.get(element);
-    return templateIterator ? templateIterator.instanceCount() : 0;
+    return templateIterator ? templateIterator.instanceCount : 0;
   }
 
   function checkIteration(element) {

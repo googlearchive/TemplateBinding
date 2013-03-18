@@ -162,6 +162,67 @@ suite('Template Element', function() {
     assert.strictEqual(3, div.childNodes.length);
   });
 
+  test('DOM Stability on Iteration', function() {
+    var div = createTestHtml(
+        '<template iterate>{{ }}</template>');
+    div.model = [1, 2, 3, 4, 5];
+
+    function getInstanceNode(index) {
+      var node = div.firstChild.nextSibling;
+      while(index-- > 0)
+        node = node.nextSibling;
+      return node;
+    }
+
+    function setInstanceExpando(index, value) {
+      getInstanceNode(index)['expando'] = value;
+    }
+
+    function getInstanceExpando(index) {
+      return getInstanceNode(index)['expando'];
+    }
+
+    Model.notifyChanges();
+    setInstanceExpando(0, 0);
+    setInstanceExpando(1, 1);
+    setInstanceExpando(2, 2);
+    setInstanceExpando(3, 3);
+    setInstanceExpando(4, 4);
+
+    div.model.shift();
+    div.model.pop();
+
+    Model.notifyChanges();
+    assert.strictEqual(1, getInstanceExpando(0));
+    assert.strictEqual(2, getInstanceExpando(1));
+    assert.strictEqual(3, getInstanceExpando(2));
+
+    div.model.unshift(5);
+    div.model[2] = 6;
+    div.model.push(7);
+
+    Model.notifyChanges();
+    assert.strictEqual(undefined, getInstanceExpando(0));
+    assert.strictEqual(1, getInstanceExpando(1));
+    assert.strictEqual(undefined, getInstanceExpando(2));
+    assert.strictEqual(3, getInstanceExpando(3));
+    assert.strictEqual(undefined, getInstanceExpando(4));
+
+    setInstanceExpando(0, 5);
+    setInstanceExpando(2, 6);
+    setInstanceExpando(4, 7);
+
+    div.model.splice(2, 0, 8);
+
+    Model.notifyChanges();
+    assert.strictEqual(5, getInstanceExpando(0));
+    assert.strictEqual(1, getInstanceExpando(1));
+    assert.strictEqual(undefined, getInstanceExpando(2));
+    assert.strictEqual(6, getInstanceExpando(3));
+    assert.strictEqual(3, getInstanceExpando(4));
+    assert.strictEqual(7, getInstanceExpando(5));
+  });
+
   test('Iterate2', function() {
     var div = createTestHtml(
         '<template iterate>{{value}}</template>');
