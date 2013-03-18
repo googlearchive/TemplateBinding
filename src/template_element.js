@@ -564,7 +564,6 @@
           cursor.next();
         }
         cursor.remove();
-        this.active_ = false;
         advanced = true;
       }
 
@@ -575,10 +574,6 @@
       }
       cursor.insert(value);
       this.active_ = true;
-    },
-
-    get isActive() {
-      return this.active_;
     }
   };
 
@@ -676,10 +671,9 @@
 
     instanceCount: function()  {
       var count = 0;
-      for (var i = 0; i < this.instances_.length; i++) {
-        if (this.instances_[i].isActive)
-          count++;
-      }
+      for (var i = 0; i < this.instances_.length; i++)
+        count++;
+
       return count;
     },
 
