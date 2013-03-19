@@ -162,6 +162,36 @@ suite('Template Element', function() {
     assert.strictEqual(3, div.childNodes.length);
   });
 
+  test('Removal from iteration needs to unbind', function() {
+    var div = createTestHtml(
+        '<template iterate><a>{{v}}</a></template>');
+    div.model = [{v: 0}, {v: 1}, {v: 2}, {v: 3}, {v: 4}];
+    Model.notifyChanges();
+
+    var as = [];
+    for (var node = div.firstChild.nextSibling; node; node = node.nextSibling) {
+      as.push(node);
+    }
+    var vs = div.model.slice();  // copy
+
+    for (var i = 0; i < 5; i++) {
+      assert.equal(as[i].textContent, String(i));
+    }
+
+    div.model.length = 3;
+    Model.notifyChanges();
+    for (var i = 0; i < 5; i++) {
+      assert.equal(as[i].textContent, String(i));
+    }
+
+    vs[3].v = 33;
+    vs[4].v = 44;
+    Model.notifyChanges();
+    for (var i = 0; i < 5; i++) {
+      assert.equal(as[i].textContent, String(i));
+    }
+  });
+
   test('DOM Stability on Iteration', function() {
     var div = createTestHtml(
         '<template iterate>{{ }}</template>');
