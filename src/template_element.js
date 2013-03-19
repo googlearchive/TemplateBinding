@@ -434,9 +434,12 @@
     this.terminator_ = templateElement;
     this.index_ = 0;
 
-    opt_index = opt_index || 0;
-    while(opt_index-- > 0)
+    if (!opt_index)
+      return;
+
+    while (opt_index-- > 0) {
       this.next();
+    }
   }
 
   InstanceCursor.prototype = {
