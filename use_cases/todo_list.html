@@ -22,7 +22,7 @@ limitations under the License.
 <body>
    <!-- TodoList -->
    <ul class="todoList" data-controller="TodoListController">
-     <template iterate>
+     <template repeat="{{}}">
      <li>
        <input value="{{ name }}">
        [<a href="#" data-action="click:remove">X</a>]

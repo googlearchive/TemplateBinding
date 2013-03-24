@@ -32,7 +32,8 @@
     var controller = new this[controllerClass](elm);
     if (controller.model) {
       // TODO(rafaelw): This should really only visit template elements
-      HTMLTemplateElement.bindTree(elm, controller.model);
+      // TODO(rafaelw): It's pretty lame you have to set the delegate here.
+      HTMLTemplateElement.bindTree(elm, controller.model, MDVDelegate);
     }
     elm.controller = controller;
   }

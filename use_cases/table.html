@@ -116,18 +116,19 @@ TickTackToeController.prototype = {
 </script>
 </head>
 <body data-controller="TickTackToeController">
-  <template instantiate>
+  <template bind="{{}}">
     <span>It's {{ currentPlayer }}'s turn</span>
     <table>
-      <tr template iterate="board">
+      <tr template repeat="{{board}}">
         <td template
-            iterate
+            repeat="{{}}"
             class="square {{ move | toggle('taken') }}"
             data-action="click:makeMove"> {{ move }} </td>
       </tr>
     </table>
-    <span hidden="{{ winner | absent }}">{{ winner }} wins!</span>
-    <a href="#" data-action="click:reset">Play Again</a>
+    <span hidden?="{{ expr(winner) !winner }}">{{ winner }} wins!
+      <a href="#" data-action="click:reset">Play Again?</a>
+    </span>
   </template>
 </body>
 </html>

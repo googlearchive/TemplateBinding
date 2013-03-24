@@ -101,7 +101,7 @@ h1, h2, h3 {
 
   <h1>Twitter Demo</h1>
 
-  <template instantiate>
+  <template bind="{{}}">
     <input type="search" value="{{ term }}">
   </template>
 
@@ -110,7 +110,7 @@ h1, h2, h3 {
       <h2>Users</h2>
 
       <ul id="list">
-        <template iterate="results">
+        <template repeat="{{results}}">
           <li data-action="click:updateDetails">{{from_user}}</li>
         </template>
       </ul>
@@ -120,7 +120,7 @@ h1, h2, h3 {
       <h2>Details</h2>
 
       <div id="details">
-        <template instantiate>
+        <template bind="{{details}}">
           <img src="{{profile_image_url}}">
           <h3><a href="http://twitter.com/{{from_user}}">{{from_user}}</a></h3>
           <p>{{text}}</p>
@@ -153,7 +153,7 @@ var jsonp = function() {
 var details = document.getElementById('details');
 
 function Controller(root) {
-  root.model = this;
+  this.model = this;
   this.term = 'Google Chrome';
 }
 
@@ -194,7 +194,7 @@ Controller.prototype = {
   updateDetails: function(item) {
     var index = this.indexOfUser(item.from_user);
     if (index >= 0)
-      details.model = this.results[index];
+      this.details = this.results[index];
   }
 };
 
