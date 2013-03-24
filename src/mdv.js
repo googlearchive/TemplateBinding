@@ -33,12 +33,7 @@
     'compat.js',
     'side_table.js',
     'model.js',
-    'script_value_binding.js',
-    'text_replacements_binding.js',
-    'element_attribute_bindings.js',
-    'element_bindings.js',
-    'input_bindings.js',
+    'node_bindings.js',
     'template_element.js',
-    'delegates.js'
   ].forEach(write);
 })();

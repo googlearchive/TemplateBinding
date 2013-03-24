@@ -24,10 +24,10 @@ limitations under the License.
     <h1>Recursive Template</h1>
     <div class="content">
       <ul class="tree">
-        <template iterate="items" id="t">
+        <template repeat="{{items}}" id="t">
           <li>{{name}}
             <ul>
-              <template ref="t" iterate="children"></template>
+              <template ref="t" repeat="{{children}}"></template>
             </ul>
           </li>
         </template>
@@ -36,8 +36,7 @@ limitations under the License.
   </div>
 
 <script>
-
-document.body.model = {
+var model = {
   'items': [
     {
       'name': 'Africa',
@@ -148,6 +147,7 @@ document.body.model = {
   ]
 };
 
+HTMLTemplateElement.bindTree(document, model);
 </script>
 
   <div class="comment">

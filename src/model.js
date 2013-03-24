@@ -27,12 +27,20 @@ this.Model = (function() {
         return;
 
       notificationQueueIsRunning = true;
-      router.deliver();
 
-      while (queue.length > 0) {
-        var f = queue.shift();
-        f();
-      }
+      // TODO(rafaelw): Can this be integrated into router.deliver()?
+      var callbacksRun;
+      do {
+        router.deliver();
+
+        callbacksRun = false;
+        while (queue.length > 0) {
+          var f = queue.shift();
+          f();
+          callbacksRun = true;
+        }
+      } while (callbacksRun);
+
 
       notificationQueueIsRunning = false;
     },

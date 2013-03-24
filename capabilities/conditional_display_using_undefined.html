@@ -49,16 +49,16 @@ limitations under the License.
     <h1>Conditional Display using Undefined</h1>
     <div class="content">
       <ul>
-      <template iterate="people">
+      <template repeat="{{people}}">
         <li class="person">
           Person: {{ name }}
-          <template instantiate="dog">
+          <template bind="{{dog}}" if="{{dog}}">
             <div class="dog">
               <div>Dog: {{ name }}</div>
               <div>Age: {{ age }}</div>
               <div>Food: <ul>
-                <template iterate="food">
-                  <li>{{ ./ }}</li>
+                <template repeat="{{food}}">
+                  <li>{{}}</li>
                 </template>
               </ul></div>
             </div>
@@ -70,7 +70,7 @@ limitations under the License.
   </div>
 
 <script>
-document.body.model = {
+var model = {
   people: [
     {
       name: 'Charlie Brown',
@@ -95,6 +95,8 @@ document.body.model = {
     }
   ]
 };
+
+HTMLTemplateElement.bindTree(document, model, MDVDelegate);
 </script>
 
   <div class="comment">
