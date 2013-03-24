@@ -87,10 +87,12 @@
 
   function boundSetAttribute(element, attributeName, conditional) {
     return function(value) {
-      if (conditional && !value)
+      if (conditional && !value) {
         element.removeAttribute(attributeName);
-      else
-        element.setAttribute(attributeName, conditional ? '' : String(value));
+      } else {
+        element.setAttribute(attributeName,
+            conditional ? '' : String(value === undefined ? '' : value));
+      }
     };
   }
 
@@ -201,8 +203,7 @@
     __proto__: InputBinding.prototype,
 
     valueChanged: function(value) {
-      if (value != null)
-        this.element.value = String(value);
+      this.element.value = String(value == null ? '' : value);
     },
 
     updateBinding: function() {

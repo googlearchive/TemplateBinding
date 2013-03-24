@@ -20,14 +20,6 @@
       throw new Error('Assertion failed');
   }
 
-  function isObject(value) {
-    return Object(value) === value;
-  }
-
-  function toUint32(v) {
-    return v >>> 0;
-  }
-
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
   var BIND = 'bind';
@@ -431,10 +423,12 @@
     if (!element.hasAttributes())
       return;
 
-    for (var i = 0; i < element.attributes.length; i++) {
-      var attr = element.attributes[i];
-      parseAndBind(element, attr.value, attr.name, model, delegate)
-    }
+    var attrs = [];
+    for (var i = 0; i < element.attributes.length; i++)
+      attrs.push(element.attributes[i]);
+
+    for (var i = 0; i < attrs.length; i++)
+      parseAndBind(element, attrs[i].value, attrs[i].name, model, delegate)
   }
 
   function addBindings(node, model, delegate) {
