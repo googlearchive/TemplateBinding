@@ -31,7 +31,8 @@
 
     var controller = new this[controllerClass](elm);
     if (controller.model) {
-      elm.model = controller.model;
+      // TODO(rafaelw): This should really only visit template elements
+      HTMLTemplateElement.bindTree(elm, controller.model);
     }
     elm.controller = controller;
   }
@@ -99,7 +100,9 @@
       }
 
       var func = currentTarget.controller[action.name];
-      func.call(currentTarget.controller, e.target.model, e);
+      var templateInstance = e.target.templateInstance;
+      func.call(currentTarget.controller,
+          templateInstance ? templateInstance.model : undefined, e);
       handled = true;
     }
 

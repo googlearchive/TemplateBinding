@@ -467,6 +467,7 @@
   }
 
   function removeChild(parent, child) {
+    removeTemplateInstanceRecord(child);
     if (isTemplate(child)) {
       // Make sure we stop observing when we remove an element.
       var templateIterator = templateIteratorTable.get(child);
@@ -494,6 +495,51 @@
       this.next();
     }
   }
+
+  function TemplateInstance(startNode, endNode, model) {
+    this.startNode_ = startNode;
+    this.endNode_ = endNode;
+    this.model_ = model;
+  }
+
+  TemplateInstance.prototype = {
+    get firstNode() {
+      return this.startNode_;
+    },
+    get lastNode() {
+      return this.endNode_;
+    },
+    get model() {
+      return this.model_;
+    }
+  }
+
+  function addTemplateInstanceRecord(fragment, model) {
+    if (!fragment.firstChild)
+      return;
+
+    var instanceRecord = new TemplateInstance(fragment.firstChild,
+                                              fragment.lastChild, model);
+    var node = instanceRecord.firstNode;
+    while (node) {
+      templateInstanceTable.set(node, instanceRecord);
+      node = node.nextSibling;
+    }
+  }
+
+  function removeTemplateInstanceRecord(node) {
+    templateInstanceTable.delete(node);
+  }
+
+  var templateInstanceTable = new SideTable('templateInstance');
+
+  Object.defineProperty(Node.prototype, 'templateInstance', {
+    get: function() {
+      var instance = templateInstanceTable.get(this);
+      return instance ? instance :
+          (this.parentNode ? this.parentNode.templateInstance : undefined);
+    }
+  });
 
   InstanceCursor.prototype = {
     next: function() {
@@ -527,6 +573,7 @@
 
       var instance = createInstance(this.template_);
       addBindings(instance, model, delegate);
+      addTemplateInstanceRecord(instance, model)
 
       this.terminator_ = instance.lastChild || this.previousTerminator_;
       this.template_.parentNode.insertBefore(instance,

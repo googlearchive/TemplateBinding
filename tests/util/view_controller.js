@@ -61,7 +61,7 @@ suite('View Controller', function() {
     window.Controller = Controller;
 
     createTestHtml('<ul data-controller="Controller">' +
-                     '<template iterate>' +
+                     '<template repeat="{{}}">' +
                        '<li data-action="click:handleClick">{{ name }}</li>' +
                      '</template>' +
                    '</ul>');
