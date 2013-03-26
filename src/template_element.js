@@ -531,10 +531,21 @@
     }
   }
 
-  function TemplateInstance(startNode, endNode, model) {
-    this.startNode_ = startNode;
-    this.endNode_ = endNode;
-    this.model_ = model;
+  function TemplateInstance(firstNode, lastNode, model) {
+    // TODO(rafaelw): firstNode & lastNode should be read-synchronous
+    // in cases where script has modified the template instance boundary.
+    Object.defineProperty(this, "firstNode", {
+      enumerable: true,
+      value: firstNode
+    });
+    Object.defineProperty(this, "lastNode", {
+      enumerable: true,
+      value: lastNode
+    });
+    Object.defineProperty(this, "model", {
+      enumerable: true,
+      value: model
+    });
   }
 
   TemplateInstance.prototype = {
