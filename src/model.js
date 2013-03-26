@@ -14,35 +14,10 @@
 
 this.Model = (function() {
   var router = new ChangeSummary.CallbackRouter();
-  var queue = [];
-  var notificationQueueIsRunning = false;
 
   return {
-    enqueue: function(func) {
-      queue.push(func);
-    },
-
     notifyChanges: function() {
-      if (notificationQueueIsRunning)
-        return;
-
-      notificationQueueIsRunning = true;
-
-      // TODO(rafaelw): Can this be integrated into router.deliver()?
-      var callbacksRun;
-      do {
-        router.deliver();
-
-        callbacksRun = false;
-        while (queue.length > 0) {
-          var f = queue.shift();
-          f();
-          callbacksRun = true;
-        }
-      } while (callbacksRun);
-
-
-      notificationQueueIsRunning = false;
+      router.deliver();
     },
 
     getValueAtPath: ChangeSummary.getValueAtPath,

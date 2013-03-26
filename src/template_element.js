@@ -70,6 +70,41 @@
     return hasTemplateElement && el.tagName == 'TEMPLATE';
   }
 
+  var ensureScheduled = function() {
+    var scheduled = [];
+    var delivering = [];
+    var obj = {
+      value: 0
+    };
+
+    var lastScheduled = obj.value;
+
+    function ensureScheduled(fn) {
+      if (delivering.indexOf(fn) >= 0 || scheduled.indexOf(fn) >= 0)
+        return;
+
+      scheduled.push(fn);
+
+      if (lastScheduled == obj.value)
+        obj.value = !obj.value;
+    }
+
+    function runScheduled() {
+      lastScheduled = obj.value;
+
+      delivering = scheduled;
+      scheduled = [];
+      while (delivering.length) {
+        var nextFn = delivering.shift();
+        nextFn();
+      }
+    }
+
+    Model.observePath(obj, 'value', runScheduled);
+
+    return ensureScheduled;
+  }();
+
   // FIXME: Observe templates being added/removed from documents
   // FIXME: Expose imperative API to decorate and observe templates in
   // "disconnected tress" (e.g. ShadowRoot)
@@ -645,7 +680,6 @@
     this.value = undefined;
     this.size = 0;
     this.combinator_ = combinator;
-    this.pendingResolve = false;
     this.boundResolve = this.resolve.bind(this);
     this.diposed = false;
   }
@@ -682,10 +716,7 @@
     // TODO(rafaelw): Consider having a seperate ChangeSummary for
     // CompoundBindings so to excess dirtyChecks.
     scheduleResolve: function() {
-      if (this.pendingResolve)
-        return;
-      Model.enqueue(this.boundResolve);
-      this.pendingResolve = true;
+      ensureScheduled(this.boundResolve);
     },
 
     resolve: function() {
@@ -696,7 +727,6 @@
         throw Error('CompoundBinding attempted to resolve without a combinator');
 
       this.value = this.combinator_(this.values);
-      this.pendingResolve = false;
     },
 
     dispose: function() {
