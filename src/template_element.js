@@ -547,30 +547,10 @@
   function TemplateInstance(firstNode, lastNode, model) {
     // TODO(rafaelw): firstNode & lastNode should be read-synchronous
     // in cases where script has modified the template instance boundary.
-    Object.defineProperty(this, "firstNode", {
-      enumerable: true,
-      value: firstNode
-    });
-    Object.defineProperty(this, "lastNode", {
-      enumerable: true,
-      value: lastNode
-    });
-    Object.defineProperty(this, "model", {
-      enumerable: true,
-      value: model
-    });
-  }
-
-  TemplateInstance.prototype = {
-    get firstNode() {
-      return this.startNode_;
-    },
-    get lastNode() {
-      return this.endNode_;
-    },
-    get model() {
-      return this.model_;
-    }
+    // All should be read-only.
+    this.firstNode = firstNode;
+    this.lastNode = lastNode;
+    this.model = model;
   }
 
   function addTemplateInstanceRecord(fragment, model) {
