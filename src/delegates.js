@@ -134,8 +134,8 @@ function MDVDelegate(binding, model) {
         var func = Function.apply(undefined, aliases);
         binding.combinator = function(values) {
             var args = [];
-            for (var i in values)
-                args.push(values[i]);
+            for (var key in values)
+                args.push(values[key]);
             return func.apply(undefined, args);
         }
         return binding;
@@ -199,7 +199,7 @@ function MDVDelegate(binding, model) {
         var binding = new CompoundBinding();
         binding.bind('dep', model, path);
         binding.combinator = function(values) {
-            return transform.toTarget.apply(transform, [values['dep']].concat(name));
+            return transform.toTarget.apply(transform, [values.dep].concat(name));
         };
 
 //            function(value) {

@@ -55,7 +55,7 @@
   }
 
   function bindText(name, model, path) {
-    if (name != 'textContent')
+    if (name !== 'textContent')
       return Node.prototype.bind.call(this, name, model, path);
 
     this.unbind('textContent');
@@ -77,6 +77,7 @@
 
   function unbindAllText() {
     this.unbind('textContent');
+    Node.prototype.unbindAll.call(this);
   }
 
   Text.prototype.bind = bindText;
@@ -86,13 +87,18 @@
   var attributeBindingsTable = new SideTable('attributeBindings');
 
   function boundSetAttribute(element, attributeName, conditional) {
+    if (conditional) {
+      return function(value) {
+        if (!value)
+          element.removeAttribute(attributeName);
+        else
+          element.setAttribute(attributeName, '');
+      };
+    }
+
     return function(value) {
-      if (conditional && !value) {
-        element.removeAttribute(attributeName);
-      } else {
-        element.setAttribute(attributeName,
-            conditional ? '' : String(value === undefined ? '' : value));
-      }
+      element.setAttribute(attributeName,
+                           String(value === undefined ? '' : value));
     };
   }
 
@@ -105,7 +111,7 @@
       element.removeAttribute(attributeName);
       var conditional = attributeName[attributeName.length - 1] == '?';
       if (conditional)
-        attributeName = attributeName.substring(0, attributeName.length - 1);
+        attributeName = attributeName.slice(0, -1);
 
       this.remove(attributeName);
 
@@ -154,6 +160,7 @@
       return;
     attributeBindingsTable.delete(this);
     bindings.removeAll();
+    Node.prototype.unbindAll.call(this);
   }
 
 
@@ -184,7 +191,7 @@
 
     this.binding = new Binding(model, path, this.boundValueChanged);
     this.element.addEventListener(getEventForInputType(this.element),
-                                   this.boundUpdateBinding, true);
+                                  this.boundUpdateBinding, true);
   }
 
   InputBinding.prototype = {
@@ -282,48 +289,49 @@
   });
 
   function bindInput(name, model, path) {
-    if (name == 'value') {
-      this.unbind('value');
-      this.removeAttribute('value');
-      valueBindingTable.set(this, new ValueBinding(this, model, path));
-      return;
+    switch(name) {
+      case 'value':
+        this.unbind('value');
+        this.removeAttribute('value');
+        valueBindingTable.set(this, new ValueBinding(this, model, path));
+        break;
+      case 'checked':
+        this.unbind('checked');
+        this.removeAttribute('checked');
+        checkedBindingTable.set(this, new CheckedBinding(this, model, path));
+        break;
+      default:
+        return Element.prototype.bind.call(this, name, model, path);
+        break;
     }
-
-    if (name == 'checked') {
-      this.unbind('checked');
-      this.removeAttribute('checked');
-      checkedBindingTable.set(this, new CheckedBinding(this, model, path));
-      return;
-    }
-
-    return Element.prototype.bind.call(this, name, model, path);
   }
 
   function unbindInput(name) {
-    if (name == 'value') {
-      var valueBinding = valueBindingTable.get(this);
-      if (valueBinding) {
-        valueBinding.unbind();
-        valueBindingTable.delete(this);
-      }
-      return;
+    switch(name) {
+      case 'value':
+        var valueBinding = valueBindingTable.get(this);
+        if (valueBinding) {
+          valueBinding.unbind();
+          valueBindingTable.delete(this);
+        }
+        break;
+      case 'checked':
+        var checkedBinding = checkedBindingTable.get(this);
+        if (checkedBinding) {
+          checkedBinding.unbind();
+          checkedBindingTable.delete(this)
+        }
+        break;
+      default:
+        return Element.prototype.unbind.call(this, name);
+        break;
     }
-
-    if (name == 'checked') {
-      var checkedBinding = checkedBindingTable.get(this);
-      if (checkedBinding) {
-        checkedBinding.unbind();
-        checkedBindingTable.delete(this)
-      }
-      return;
-    }
-
-    return Element.prototype.unbind.call(this, name);
   }
 
   function unbindAllInput(name) {
     this.unbind('value');
     this.unbind('checked');
+    Element.prototype.unbindAll.call(this);
   }
 
   HTMLInputElement.prototype.bind = bindInput;

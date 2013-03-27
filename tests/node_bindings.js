@@ -53,7 +53,7 @@ suite('Node Bindings', function() {
     assert.isFalse(element.hasAttribute('hidden'));
 
 	model.a = 'foo';
-	model.b = 'x';
+    model.b = 'x';
     Model.notifyChanges();
 	assert.isTrue(element.hasAttribute('hidden'));
     assert.strictEqual('', element.getAttribute('hidden'));

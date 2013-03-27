@@ -299,45 +299,58 @@
 
   mixin(HTMLTemplateElement.prototype, {
     bind: function(name, model, path) {
-      if (name != BIND && name != REPEAT && name != IF && name != DELEGATE)
-        return Element.prototype.bind.call(this, name, model, path);
-
-      var templateIterator = templateIteratorTable.get(this);
-      if (!templateIterator) {
-        templateIterator = new TemplateIterator(this);
-        templateIteratorTable.set(this, templateIterator);
+      switch (name) {
+        case DELEGATE:
+        case BIND:
+        case REPEAT:
+        case IF:
+          var templateIterator = templateIteratorTable.get(this);
+          if (!templateIterator) {
+            templateIterator = new TemplateIterator(this);
+            templateIteratorTable.set(this, templateIterator);
+          }
+          // TODO(rafaelw): Should delegate be a member of the inputs
+          // compound binding?
+          if (name === DELEGATE) {
+            templateIterator.delegate = model;
+          } else {
+            templateIterator.inputs.bind(name, model, path || '');
+          }
+          break;
+        default:
+          return Element.prototype.bind.call(this, name, model, path);
+          break;
       }
-
-      if (name == DELEGATE) {
-        templateIterator.delegate = model;
-        return;
-      }
-
-      templateIterator.inputs.bind(name, model, path ? path : '');
     },
 
     unbind: function(name, model, path) {
-      if (name != BIND && name != REPEAT && name != IF)
-        return Element.prototype.bind.call(this, name, model, path);
+      switch (name) {
+        case DELEGATE:
+          break;
+        case BIND:
+        case REPEAT:
+        case IF:
+          var templateIterator = templateIteratorTable.get(this);
+          if (!templateIterator)
+            break;
 
-      var templateIterator = templateIteratorTable.get(this);
-      if (!templateIterator)
-        return;
+          // the template iterator will clear() and unobserve() if
+          // its resolveInputs() is called and its inputs.size is 0.
+          templateIterator.inputs.unbind(name);
+          break;
+        default:
+          return Element.prototype.unbind.call(this, name, model, path);
+          break;
+      }
 
-      templateIterator.inputs.unbind(name);
-      if (templateIterator.inputs.size)
-        return;
 
-      // the template iterator will clear() and unobserve() if
-      // its resolveInputs() is called and its inputs.size is 0.
-      // TODO(rafaelw): Is it OK that we never clear the templateIterator
-      // from the templateIteratorTable?
     },
 
     unbindAll: function() {
       this.unbind(BIND);
       this.unbind(REPEAT);
       this.unbind(IF);
+      Element.prototype.unbindAll.call(this);
     },
 
     createInstance: function(model, delegate) {
