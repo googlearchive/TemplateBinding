@@ -468,7 +468,7 @@
 
   function addAttributeBindings(element, model, delegate) {
     assert(element);
-    if (!element.hasAttributes())
+    if (!element.attributes || !element.attributes.length)
       return;
 
     var attrs = [];
