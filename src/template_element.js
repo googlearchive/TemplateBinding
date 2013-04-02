@@ -262,7 +262,13 @@
 
   function createInstance(element, model, modelDelegate) {
     var content = element.ref ? element.ref.content : element.content;
-    return createDeepCloneAndDecorateTemplates(content);
+    var instance = createDeepCloneAndDecorateTemplates(content);
+    // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
+    // because custom elements are not upgraded during cloneNode().
+    if (typeof HTMLTemplateElement.__instanceCreated == 'function') {
+      HTMLTemplateElement.__instanceCreated(instance);
+    }
+    return instance;
   }
 
   mixin(HTMLTemplateElement.prototype, {
