@@ -32,7 +32,7 @@ limitations under the License.
     <h1>Expression</h1>
     <div class="content">
       <ul>
-      <template iterate>
+      <template repeat="{{}}">
         <li>{{ name }} is
           <span class="inputValue">{{ weight }}</span>
             lbs,
@@ -68,7 +68,7 @@ function ageInDogYears(humanYears, weight) {
   return humanYears * weightFactors[factorIndex];
 }
 
-document.body.model = [
+var model = [
   {
     name: 'Mr. Snacky Fingers',
     weight: 12,
@@ -86,7 +86,7 @@ document.body.model = [
   }
 ];
 
-document.body.modelDelegate = MDVDelegate;
+HTMLTemplateElement.bindTree(document, model, MDVDelegate);
 </script>
 
   <div class="comment">

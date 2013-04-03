@@ -86,7 +86,7 @@ global.Transform = Transform;
 
 })(window);
 
-function MDVDelegate(binding) {
+function MDVDelegate(binding, model) {
     // Expression = 'expr' '(' Params ')' Expression
     // Params = path ('@' Ident)?
     function strip(s) {
@@ -124,44 +124,27 @@ function MDVDelegate(binding) {
             aliases.push(alias);
         }
 
-        return [
-            deps,
-            Function.apply(null, aliases.concat(functionBody))
-        ];
+        var binding = new CompoundBinding();
+        deps.forEach(function(dep, i) {
+            binding.bind(i, model, dep);
+        }, this);
+
+        aliases.push(functionBody);
+
+        var func = Function.apply(undefined, aliases);
+        binding.combinator = function(values) {
+            var args = [];
+            for (var key in values)
+                args.push(values[key]);
+            return func.apply(undefined, args);
+        }
+        return binding;
     }
 
     var expressionPattern = /^expr\s*\(([^)]*)\s*\)\s*((?:.|\n)*)$/m;
     var match = binding.match(expressionPattern);
     if (match != null)
         return createExpression(match[1], match[2]);
-
-    function createConditional(outputPath, conditional, exprArgs, exprBody, conditionalInput) {
-        var isIf = conditional == 'if';
-
-        if (!exprArgs) {
-            return [
-                [outputPath, conditionalInput],
-                function (a, b) { return b ? (isIf ? a : undefined) : (isIf ? undefined : a); }
-            ];
-        }
-
-        var expr = createExpression(exprArgs, exprBody);
-        return [
-            [outputPath].concat(expr[0]),
-            function() {
-                var retval = arguments[0];
-                var args = Array.prototype.slice.call(arguments, 1);
-                var result = expr[1].apply(undefined, args);
-                return result ? (isIf ? retval : undefined) : (isIf ? undefined : retval);
-            }
-        ];
-    }
-
-    var conditionalPattern = /^\s*(\S*)\s+(if|unless)\s+(expr\s*\(([^)]*)\s*\)\s*((?:.|\n)*)$|(\S*))/m;
-    var match = binding.match(conditionalPattern);
-    if (match != null)
-        return createConditional(match[1], match[2], match[4], match[5], match[6]);
-
 
     function createTransform(binding, index) {
         var path = binding.substring(0, index).trim();
@@ -213,15 +196,17 @@ function MDVDelegate(binding) {
         else
             name = path.substring(index + 1);
 
-        return [
-            [path],
-            function() {
-                return transform.toTarget.apply(transform, Array.prototype.slice.apply(arguments).concat(name))
-            },
-            function(value) {
-                return transform.toSource.apply(transform, [value]);
-            }
-        ]
+        var binding = new CompoundBinding();
+        binding.bind('dep', model, path);
+        binding.combinator = function(values) {
+            return transform.toTarget.apply(transform, [values.dep].concat(name));
+        };
+
+//            function(value) {
+//                return transform.toSource.apply(transform, [value]);
+//            }
+
+        return binding;
     }
 
     var index = binding.indexOf('|');

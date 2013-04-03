@@ -33,19 +33,20 @@ limitations under the License.
     <h1>Path Reference, this: ./</h1>
     <div class="content">
       <ul>
-      <template iterate>
-        <li>{{ ./ }}</li>
+      <template repeat="{{}}">
+        <li>{{}}</li>
       </template>
       </ul>
     </div>
   </div>
 
 <script>
-document.body.model = [
+var model = [
   'Uno',
   'Dos',
   'Tres'
 ];
+HTMLTemplateElement.bindTree(document, model);
 </script>
 
   <div class="comment">

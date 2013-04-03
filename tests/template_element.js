@@ -47,138 +47,183 @@ suite('Template Element', function() {
 
   test('Template', function() {
     var div = createTestHtml(
-        '<template instantiate>text</template>');
-    div.model = 42;
+        '<template bind={{}}>text</template>');
+    HTMLTemplateElement.bindTree(div);
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
   });
 
-  test('TextTemplateWithBinding', function() {
+  test('TextTemplateWithNullStringBinding', function() {
     var div = createTestHtml(
-        '<template instantiate>a{{b}}c</template>');
-    div.model = {b: 'B'};
+        '<template bind={{}}>a{{b}}c</template>');
+    var model =  {b: 'B'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
 
-    div.model.b = 'b';
+    model.b = 'b';
+    Model.notifyChanges();
+    assert.strictEqual('abc', div.lastChild.textContent);
+
+    model.b = undefined;
+    Model.notifyChanges();
+    assert.strictEqual('ac', div.lastChild.textContent);
+
+    model = undefined;
+    Model.notifyChanges();
+    // setting model isn't observable.
+    assert.strictEqual('ac', div.lastChild.textContent);
+  });
+
+  test('TextTemplateWithBindingPath', function() {
+    var div = createTestHtml(
+        '<template bind="{{ data }}">a{{b}}c</template>');
+    var model =  { data: {b: 'B'} };
+    HTMLTemplateElement.bindTree(div, model);
+
+    Model.notifyChanges();
+    assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
+
+    model.data.b = 'b';
     Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.textContent);
 
-    div.model = {b: 'X'};
-    assert.strictEqual('abc', div.lastChild.textContent);
+    model.data = {b: 'X'};
     Model.notifyChanges();
     assert.strictEqual('aXc', div.lastChild.textContent);
 
-    div.model = undefined;
-    assert.strictEqual('aXc', div.lastChild.textContent);
+    model.data = undefined;
+    Model.notifyChanges();
+    assert.strictEqual('ac', div.lastChild.textContent);
+  });
+
+  test('TextTemplateWithBindingAndConditional', function() {
+    var div = createTestHtml(
+        '<template bind="{{}}" if="{{ d }}">a{{b}}c</template>');
+    var model =  {b: 'B', d: 1};
+    HTMLTemplateElement.bindTree(div, model);
+
+    Model.notifyChanges();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('aBc', div.lastChild.textContent);
+
+    model.b = 'b';
+    Model.notifyChanges();
+    assert.strictEqual('abc', div.lastChild.textContent);
+
+    model.d = '';
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
+
+    model.d = 'here';
+    model.b = 'd';
+
+    Model.notifyChanges();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('adc', div.lastChild.textContent);
   });
 
   test('TemplateWithTextBinding2', function() {
     var div = createTestHtml(
-        '<template instantiate="b">a{{value}}c</template>');
+        '<template bind="{{ b }}">a{{value}}c</template>');
     assert.strictEqual(1, div.childNodes.length);
-    div.model = {b: {value: 'B'}};
-    assert.strictEqual(1, div.childNodes.length);
+    var model = {b: {value: 'B'}};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
 
-    div.model.b = {value: 'b'};
-    assert.strictEqual('aBc', div.lastChild.textContent);
+    model.b = {value: 'b'};
     Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.textContent);
   });
 
   test('TemplateWithAttributeBinding', function() {
     var div = createTestHtml(
-        '<template instantiate>' +
+        '<template bind="{{}}">' +
         '<div foo="a{{b}}c"></div>' +
         '</template>');
-    div.model = {b: 'B'};
+    var model = {b: 'B'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.getAttribute('foo'));
 
-    div.model.b = 'b';
-    assert.strictEqual('aBc', div.lastChild.getAttribute('foo'));
+    model.b = 'b';
     Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.getAttribute('foo'));
 
-    div.model = {b: 'X'};
-    assert.strictEqual('abc', div.lastChild.getAttribute('foo'));
+    model.b = 'X';
     Model.notifyChanges();
     assert.strictEqual('aXc', div.lastChild.getAttribute('foo'));
-
-    div.model = undefined;
-    assert.strictEqual('aXc', div.lastChild.getAttribute('foo'));
-    Model.notifyChanges();
-    assert.strictEqual(1, div.childNodes.length);
   });
 
-  test('TemplateWithAttributeBinding2', function() {
+  test('TemplateWithConditionalBinding', function() {
     var div = createTestHtml(
-        '<template instantiate>' +
-        '<div foo="{{b}}"></div>' +
+        '<template bind="{{}}">' +
+        '<div foo?="{{b}}"></div>' +
         '</template>');
-    div.model = {b: 'b'};
-    assert.strictEqual(1, div.childNodes.length);
+    var model = {b: 'b'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('b', div.lastChild.getAttribute('foo'));
+    assert.isTrue(div.lastChild.hasAttribute('foo'));
+    assert.isFalse(div.lastChild.hasAttribute('foo?'));
+    assert.strictEqual('', div.lastChild.getAttribute('foo'));
 
-    div.model = {b: null};
-    assert.strictEqual('b', div.lastChild.getAttribute('foo'));
+    model.b = null;
     Model.notifyChanges();
     assert.isFalse(div.lastChild.hasAttribute('foo'));
   });
 
-  test('Iterate', function() {
+  test('Repeat', function() {
     var div = createTestHtml(
-        '<template iterate>text</template>');
-    assert.strictEqual(1, div.childNodes.length);
-    div.model = [0, 1, 2];
-    assert.strictEqual(1, div.childNodes.length);
+        '<template repeat="{{}}"">text</template>');
+
+    var model = [0, 1, 2];
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
 
-    div.model.length = 1;
-    assert.strictEqual(4, div.childNodes.length);
+    model.length = 1;
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
 
-    div.model.push(3, 4);
-    assert.strictEqual(2, div.childNodes.length);
+    model.push(3, 4);
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
 
-    div.model.splice(1, 1);
-    assert.strictEqual(4, div.childNodes.length);
+    model.splice(1, 1);
     Model.notifyChanges();
     assert.strictEqual(3, div.childNodes.length);
   });
 
   test('Removal from iteration needs to unbind', function() {
     var div = createTestHtml(
-        '<template iterate><a>{{v}}</a></template>');
-    div.model = [{v: 0}, {v: 1}, {v: 2}, {v: 3}, {v: 4}];
+        '<template repeat="{{}}"><a>{{v}}</a></template>');
+    var model = [{v: 0}, {v: 1}, {v: 2}, {v: 3}, {v: 4}];
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
 
     var as = [];
     for (var node = div.firstChild.nextSibling; node; node = node.nextSibling) {
       as.push(node);
     }
-    var vs = div.model.slice();  // copy
+    var vs = model.slice();  // copy
 
     for (var i = 0; i < 5; i++) {
       assert.equal(as[i].textContent, String(i));
     }
 
-    div.model.length = 3;
+    model.length = 3;
     Model.notifyChanges();
     for (var i = 0; i < 5; i++) {
       assert.equal(as[i].textContent, String(i));
@@ -194,8 +239,9 @@ suite('Template Element', function() {
 
   test('DOM Stability on Iteration', function() {
     var div = createTestHtml(
-        '<template iterate>{{ }}</template>');
-    div.model = [1, 2, 3, 4, 5];
+        '<template repeat="{{}}">{{}}</template>');
+    var model = [1, 2, 3, 4, 5];
+    HTMLTemplateElement.bindTree(div, model);
 
     function getInstanceNode(index) {
       var node = div.firstChild.nextSibling;
@@ -220,17 +266,17 @@ suite('Template Element', function() {
     setInstanceExpando(3, 3);
     setInstanceExpando(4, 4);
 
-    div.model.shift();
-    div.model.pop();
+    model.shift();
+    model.pop();
 
     Model.notifyChanges();
     assert.strictEqual(1, getInstanceExpando(0));
     assert.strictEqual(2, getInstanceExpando(1));
     assert.strictEqual(3, getInstanceExpando(2));
 
-    div.model.unshift(5);
-    div.model[2] = 6;
-    div.model.push(7);
+    model.unshift(5);
+    model[2] = 6;
+    model.push(7);
 
     Model.notifyChanges();
     assert.strictEqual(undefined, getInstanceExpando(0));
@@ -243,7 +289,7 @@ suite('Template Element', function() {
     setInstanceExpando(2, 6);
     setInstanceExpando(4, 7);
 
-    div.model.splice(2, 0, 8);
+    model.splice(2, 0, 8);
 
     Model.notifyChanges();
     assert.strictEqual(5, getInstanceExpando(0));
@@ -254,30 +300,32 @@ suite('Template Element', function() {
     assert.strictEqual(7, getInstanceExpando(5));
   });
 
-  test('Iterate2', function() {
+  test('Repeat2', function() {
     var div = createTestHtml(
-        '<template iterate>{{value}}</template>');
+        '<template repeat="{{}}">{{value}}</template>');
     assert.strictEqual(1, div.childNodes.length);
-    div.model = [
+
+    var model = [
       {value: 0},
       {value: 1},
       {value: 2}
     ];
-    assert.strictEqual(1, div.childNodes.length);
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
     assert.strictEqual('1', div.childNodes[2].textContent);
     assert.strictEqual('2', div.childNodes[3].textContent);
 
-    div.model[1].value = 'One';
+    model[1].value = 'One';
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
     assert.strictEqual('One', div.childNodes[2].textContent);
     assert.strictEqual('2', div.childNodes[3].textContent);
 
-    div.model.splice(0, 1, {value: 'Zero'});
+    model.splice(0, 1, {value: 'Zero'});
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('Zero', div.childNodes[1].textContent);
@@ -287,22 +335,24 @@ suite('Template Element', function() {
 
   test('TemplateWithInputValue', function() {
     var div = createTestHtml(
-        '<template instantiate>' +
+        '<template bind="{{}}">' +
         '<input value="{{x}}">' +
         '</template>');
-    div.model = {x: 'hi'};
+    var model = {x: 'hi'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('hi', div.lastChild.value);
 
-    div.model.x = 'bye';
+    model.x = 'bye';
     assert.strictEqual('hi', div.lastChild.value);
     Model.notifyChanges();
     assert.strictEqual('bye', div.lastChild.value);
 
     div.lastChild.value = 'hello';
     dispatchEvent('input', div.lastChild);
-    assert.strictEqual('hello', div.model.x);
+    assert.strictEqual('hello', model.x);
     Model.notifyChanges();
     assert.strictEqual('hello', div.lastChild.value);
   });
@@ -311,17 +361,18 @@ suite('Template Element', function() {
 
   test('Decorated', function() {
     var div = createTestHtml(
-        '<template instantiate="XX" id="t1">' +
+        '<template bind="{{ XX }}" id="t1">' +
           '<p>Crew member: {{name}}, Job title: {{title}}</p>' +
         '</template>' +
-        '<template instantiate="XY" id="t2" ref="t1"></template>');
+        '<template bind="{{ XY }}" id="t2" ref="t1"></template>');
 
-    div.model = {
-      scope: 'XX',
+    var model = {
       XX: {name: 'Leela', title: 'Captain'},
       XY: {name: 'Fry', title: 'Delivery boy'},
       XZ: {name: 'Zoidberg', title: 'Doctor'}
     };
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
 
     var t1 = document.getElementById('t1');
@@ -350,86 +401,78 @@ suite('Template Element', function() {
     document.body.removeChild(t);
   });
 
-  test('Instantiate', function() {
-    var div = createTestHtml('<template instantiate>Hi {{ name }}</template>');
-    div.model = {name: 'Leela'};
+
+  test('Bind', function() {
+    var div = createTestHtml('<template bind="{{}}">Hi {{ name }}</template>');
+    var model = {name: 'Leela'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
-  test('InstantiateImperative', function() {
+  test('BindImperative', function() {
     var div = createTestHtml(
         '<template>' +
           'Hi {{ name }}' +
         '</template>');
     var t = div.firstChild;
 
-    div.model = {name: 'Leela'};
-    t.instantiate = '';
+    var model = {name: 'Leela'};
+    t.bind('bind', model);
+
     Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
-  test('InstantiatePlaceHolderHasNewLine', function() {
-    var div = createTestHtml('<template instantiate>Hi {{\nname\n}}</template>');
-    div.model = {name: 'Leela'};
+  test('BindPlaceHolderHasNewLine', function() {
+    var div = createTestHtml('<template bind="{{}}">Hi {{\nname\n}}</template>');
+    var model = {name: 'Leela'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
-  test('InstantiateWithRef', function() {
+  test('BindWithRef', function() {
     var id = 't' + Math.random();
     var div = createTestHtml(
         '<template id="' + id +'">' +
           'Hi {{ name }}' +
         '</template>' +
-        '<template ref="' + id + '" instantiate></template>');
+        '<template ref="' + id + '" bind="{{}}"></template>');
 
     var t1 = div.firstChild;
     var t2 = div.childNodes[1];
 
     assert.strictEqual(t1, t2.ref);
 
-    div.model = {name: 'Fry'};
+    var model = {name: 'Fry'};
+    HTMLTemplateElement.bindTree(div, model);
+
     Model.notifyChanges();
     assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
   });
 
-  test('InstantiateWithScope', function() {
-    var data = {
-      scope: 'XX',
+  test('BindChanged', function() {
+    var model = {
       XX: {name: 'Leela', title: 'Captain'},
       XY: {name: 'Fry', title: 'Delivery boy'},
       XZ: {name: 'Zoidberg', title: 'Doctor'}
     };
 
     var div = createTestHtml(
-        '<template instantiate="XX">Hi {{ name }}</template>');
+        '<template bind="{{ XX }}">Hi {{ name }}</template>');
 
-    div.model = data;
-    Model.notifyChanges();
-    assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
-  });
-
-  test('InstantiateChanged', function() {
-    var data = {
-      scope: 'XX',
-      XX: {name: 'Leela', title: 'Captain'},
-      XY: {name: 'Fry', title: 'Delivery boy'},
-      XZ: {name: 'Zoidberg', title: 'Doctor'}
-    };
-
-    var div = createTestHtml(
-        '<template instantiate="XX">Hi {{ name }}</template>');
+    HTMLTemplateElement.bindTree(div, model);
 
     var t = div.firstChild;
-    div.model = data;
     Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('Hi Leela', t.nextSibling.textContent);
 
-    t.instantiate = 'XZ';
+    t.bind('bind', model, 'XZ');
     Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
@@ -438,49 +481,44 @@ suite('Template Element', function() {
 
   test('BindToClassName', function() {
     var div = createTestHtml(
-        '<template>' +
+        '<template bind="{{}}">' +
           '<div class="foo {{ val | toggle(\'bar\') }}"></div>' +
         '</template>');
     var t = div.firstChild;
+    var model = { val: false };
+    HTMLTemplateElement.bindTree(div, model, MDVDelegate);
 
-    div.model = { val: false};
-    div.modelDelegate = MDVDelegate;
-    t.instantiate = '';
     Model.notifyChanges();
     assert.strictEqual('foo ', div.childNodes[1].className);
 
-    div.model.val = true;
+    model.val = true;
     Model.notifyChanges();
     assert.strictEqual('foo bar', div.childNodes[1].className);
   });
 
   function assertNodesAre() {
-    // <template> is at index 0 and instances starts at 1 and use 2 nodes each.
-    var startIndex = 1;
-    var nodesPerInstance = 1;
-    assert.strictEqual(arguments.length * nodesPerInstance + startIndex,
-                 div.childNodes.length);
-    var model = Model.getValueAtPath(t.model, t.iterate);
+    var expectedLength = arguments.length;
+    assert.strictEqual(expectedLength + 1, div.childNodes.length);
 
     for (var i = 0; i < arguments.length; i++) {
-      var targetNode = div.childNodes[i * nodesPerInstance + startIndex];
+      var targetNode = div.childNodes[i + 1];
       assert.strictEqual(arguments[i], targetNode.textContent);
-      assert.strictEqual(JSON.stringify(model[i]),
-                   JSON.stringify(targetNode.model));
     }
   }
 
-  test('Iterate', function() {
-    div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
+  test('Repeat3', function() {
+    div = createTestHtml('<template repeat="{{ contacts }}">Hi {{ name }}</template>');
     t = div.firstChild;
 
-    var m = div.model = {
+    var m = {
       contacts: [
         {name: 'Raf'},
         {name: 'Arv'},
         {name: 'Neal'}
       ]
     };
+
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -514,33 +552,37 @@ suite('Template Element', function() {
     assertNodesAre();
   });
 
-  test('IterateModelSet', function() {
+  test('RepeatModelSet', function() {
     div = createTestHtml(
-        '<template iterate="contacts">' +
+        '<template repeat="{{ contacts }}">' +
           'Hi {{ name }}' +
         '</template>');
-    var m = div.model = {
+    var m = {
       contacts: [
         {name: 'Raf'},
         {name: 'Arv'},
         {name: 'Neal'}
       ]
     };
+    HTMLTemplateElement.bindTree(div, m);
+
     Model.notifyChanges();
     t = div.firstChild;
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
   });
 
-  test('IterateEmptyIteratePath', function() {
-    div = createTestHtml('<template iterate>Hi {{ name }}</template>');
+  test('RepeatEmptyPath', function() {
+    div = createTestHtml('<template repeat="{{}}">Hi {{ name }}</template>');
     t = div.firstChild;
 
-    var m = div.model = [
+    var m = [
       {name: 'Raf'},
       {name: 'Arv'},
       {name: 'Neal'}
     ];
+    HTMLTemplateElement.bindTree(div, m);
+
     Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -565,34 +607,40 @@ suite('Template Element', function() {
     Model.notifyChanges();
     assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
-    m = div.model = [{name: 'Alex'}];
+    m.length = 0;
+    m.push({name: 'Alex'});
     Model.notifyChanges();
     assertNodesAre('Hi Alex');
   });
 
-  test('IterateNullModel', function() {
-    div = createTestHtml('<template iterate>Hi {{ name }}</template>');
+  test('RepeatNullModel', function() {
+    div = createTestHtml('<template repeat="{{}}">Hi {{ name }}</template>');
     t = div.firstChild;
 
-    var m = div.model = null;
+    var m = null;
+    HTMLTemplateElement.bindTree(div, m);
+
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
     t.iterate = '';
-    m = div.model = {};
+    m = {};
+    HTMLTemplateElement.bindTree(div, m);
+
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
   });
 
-  test('IterateReuse', function() {
-    div = createTestHtml('<template iterate>Hi {{ name }}</template>');
+  test('RepeatReuse', function() {
+    div = createTestHtml('<template repeat="{{}}">Hi {{ name }}</template>');
     t = div.firstChild;
 
-    var m = div.model = [
+    var m = [
       {name: 'Raf'},
       {name: 'Arv'},
       {name: 'Neal'}
     ];
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -618,9 +666,10 @@ suite('Template Element', function() {
 
   test('TwoLevelsDeepBug', function() {
     div = createTestHtml(
-      '<template instantiate><span><span>{{ foo }}</span></span></template>');
+      '<template bind="{{}}"><span><span>{{ foo }}</span></span></template>');
 
-    div.model = {foo: 'bar'};
+    var model = {foo: 'bar'};
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
 
     assert.strictEqual('bar',
@@ -633,10 +682,10 @@ suite('Template Element', function() {
           '<input type="checkbox" checked="{{a}}">' +
         '</template>');
     var t = div.firstChild;
-    var m = div.model = {
+    var m = {
       a: true
     };
-    t.instantiate = '';
+    t.bind('bind', m);
     Model.notifyChanges();
 
     var instanceInput = t.nextSibling;
@@ -661,7 +710,7 @@ suite('Template Element', function() {
       },
     };
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     var i = start;
@@ -680,9 +729,9 @@ suite('Template Element', function() {
 
   test('Nested', function() {
     nestedHelper(
-        '<template instantiate="a">' +
+        '<template bind="{{a}}">' +
           '{{b}}' +
-          '<template instantiate="c">' +
+          '<template bind="{{c}}">' +
             '{{d}}' +
           '</template>' +
         '</template>', 1);
@@ -691,9 +740,9 @@ suite('Template Element', function() {
   test('NestedWithRef', function() {
     nestedHelper(
         '<template id="inner">{{d}}</template>' +
-        '<template id="outer" instantiate="a">' +
+        '<template id="outer" bind="{{a}}">' +
           '{{b}}' +
-          '<template ref="inner" instantiate="c"></template>' +
+          '<template ref="inner" bind="{{c}}"></template>' +
         '</template>', 2);
   });
 
@@ -713,7 +762,7 @@ suite('Template Element', function() {
       ]
     };
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     var i = start;
@@ -734,24 +783,24 @@ suite('Template Element', function() {
     assert.strictEqual('33', div.childNodes[start + 5].textContent);
   }
 
-  test('NestedIterateInstantiate', function() {
+  test('NestedRepeatBind', function() {
     nestedIterateInstantiateHelper(
-        '<template iterate="a">' +
+        '<template repeat="{{a}}">' +
           '{{b}}' +
-          '<template instantiate="c">' +
+          '<template bind="{{c}}">' +
             '{{d}}' +
           '</template>' +
         '</template>', 1);
   });
 
-  test('NestedIterateInstantiateWithRef', function() {
+  test('NestedRepeatBindWithRef', function() {
     nestedIterateInstantiateHelper(
         '<template id="inner">' +
           '{{d}}' +
         '</template>' +
-        '<template iterate="a">' +
+        '<template repeat="{{a}}">' +
           '{{b}}' +
-          '<template ref="inner" instantiate="c"></template>' +
+          '<template ref="inner" bind="{{c}}"></template>' +
         '</template>', 2);
   });
 
@@ -771,7 +820,7 @@ suite('Template Element', function() {
       ]
     };
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     var i = start;
@@ -797,32 +846,32 @@ suite('Template Element', function() {
     assert.strictEqual('33', div.childNodes[start + 8].textContent);
   }
 
-  test('NestedIterateIterate', function() {
+  test('NestedRepeatBind', function() {
     nestedIterateIterateHelper(
-        '<template iterate="a">' +
+        '<template repeat="{{a}}">' +
           '{{b}}' +
-          '<template iterate="c">' +
+          '<template repeat="{{c}}">' +
             '{{d}}' +
           '</template>' +
         '</template>', 1);
   });
 
-  test('NestedIterateIterateWithRef', function() {
+  test('NestedRepeatRepeatWithRef', function() {
     nestedIterateIterateHelper(
         '<template id="inner">' +
           '{{d}}' +
         '</template>' +
-        '<template iterate="a">' +
+        '<template repeat="{{a}}">' +
           '{{b}}' +
-          '<template ref="inner" iterate="c"></template>' +
+          '<template ref="inner" repeat="{{c}}"></template>' +
         '</template>', 2);
   });
 
-  test('NestedIterateSelfRef', function() {
+  test('NestedRepeatSelfRef', function() {
     var div = createTestHtml(
-        '<template id="t" iterate="">' +
+        '<template id="t" repeat="{{}}">' +
           '{{name}}' +
-          '<template ref="t" iterate="items"></template>' +
+          '<template ref="t" repeat="{{items}}"></template>' +
         '</template>');
 
     var m = [
@@ -849,7 +898,7 @@ suite('Template Element', function() {
       },
     ];
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     var i = 1;
@@ -880,9 +929,9 @@ suite('Template Element', function() {
 
     var div = createTestHtml(
         '<table><tbody>' +
-          '<template iterate>' +
+          '<template repeat="{{}}">' +
             '<tr>' +
-              '<td template iterate class="{{ val }}">{{ val }}</td>' +
+              '<td template repeat="{{}}" class="{{ val }}">{{ val }}</td>' +
             '</tr>' +
           '</template>' +
         '</tbody></table>');
@@ -892,7 +941,7 @@ suite('Template Element', function() {
       [{ val: 2 }, { val: 3 }]
     ];
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     var i = 1;
@@ -919,8 +968,8 @@ suite('Template Element', function() {
   test('NestedIterateTable', function() {
     var div = createTestHtml(
         '<table><tbody>' +
-          '<tr template iterate>' +
-            '<td template iterate class="{{ val }}">{{ val }}</td>' +
+          '<tr template repeat="{{}}">' +
+            '<td template repeat="{{}}" class="{{ val }}">{{ val }}</td>' +
           '</tr>' +
         '</tbody></table>');
 
@@ -929,7 +978,7 @@ suite('Template Element', function() {
       [{ val: 2 }, { val: 3 }]
     ];
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     var i = 1;
@@ -953,13 +1002,13 @@ suite('Template Element', function() {
     assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
   });
 
-  test('NestedIterateDeletionOfMultipleSubTemplates', function() {
+  test('NestedRepeatDeletionOfMultipleSubTemplates', function() {
     var div = createTestHtml(
         '<ul>' +
-          '<template iterate id=t1>' +
+          '<template repeat="{{}}" id=t1>' +
             '<li>{{name}}' +
               '<ul>' +
-                '<template ref=t1 iterate="items"></template>' +
+                '<template ref=t1 repaet="{{items}}"></template>' +
               '</ul>' +
             '</li>' +
           '</template>' +
@@ -976,7 +1025,7 @@ suite('Template Element', function() {
       }
     ];
 
-    div.model = m;
+    HTMLTemplateElement.bindTree(div, m);
 
     Model.notifyChanges();
     m.splice(0, 1);
@@ -985,21 +1034,22 @@ suite('Template Element', function() {
 
   test('DeepNested', function() {
     var div = createTestHtml(
-      '<template instantiate="a">' +
+      '<template bind="{{a}}">' +
         '<p>' +
-          '<template instantiate="b">' +
+          '<template bind="{{b}}">' +
             '{{ c }}' +
           '</template>' +
         '</p>' +
       '</template>');
 
-    var m = div.model = {
+    var m = {
       a: {
         b: {
           c: 42
         }
       }
     };
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     assert.strictEqual('P', div.childNodes[1].tagName);
@@ -1008,8 +1058,10 @@ suite('Template Element', function() {
   });
 
   test('TemplateContentRemoved', function() {
-    var div = createTestHtml('<template instantiate>{{ }}</template>');
-    div.model = 42;
+    var div = createTestHtml('<template bind="{{}}">{{ }}</template>');
+    var model = 42;
+
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
     assert.strictEqual('', div.childNodes[0].textContent);
@@ -1017,7 +1069,9 @@ suite('Template Element', function() {
 
   test('TemplateContentRemovedEmptyArray', function() {
     var div = createTestHtml('<template iterate>Remove me</template>');
-    div.model = [];
+    var model = [];
+
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
     assert.strictEqual('', div.childNodes[0].textContent);
@@ -1025,17 +1079,18 @@ suite('Template Element', function() {
 
   test('TemplateContentRemovedNested', function() {
     var div = createTestHtml(
-        '<template instantiate>' +
+        '<template bind="{{}}">' +
           '{{ a }}' +
-          '<template instantiate>' +
+          '<template bind="{{}}">' +
             '{{ b }}' +
           '</template>' +
         '</template>');
 
-    div.model = {
+    var model = {
       a: 1,
       b: 2
     };
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
 
     assert.strictEqual('', div.childNodes[0].textContent);
@@ -1044,40 +1099,44 @@ suite('Template Element', function() {
     assert.strictEqual('2', div.childNodes[3].textContent);
   });
 
-  test('InstantiateWithUndefinedModel', function() {
-    var div = createTestHtml('<template instantiate>{{ a }}</template>');
+  test('BindWithUndefinedModel', function() {
+    var div = createTestHtml('<template bind="{{}}" if="{{}}">{{ a }}</template>');
 
-    div.model = {a: 42};
+    var model = {a: 42};
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
 
-    div.model = undefined;
+    model = undefined;
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
-    div.model = {a: 42};
+    model = {a: 42};
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
   });
 
-  test('InstantiateNested', function() {
+  test('BindNested', function() {
     var div = createTestHtml(
-        '<template instantiate>' +
+        '<template bind="{{}}">' +
           'Name: {{ name }}' +
-          '<template instantiate="wife">' +
+          '<template bind="{{wife}}" if="{{wife}}">' +
             'Wife: {{ name }}' +
           '</template>' +
-          '<template instantiate="child">' +
+          '<template bind="{{child}}" if="{{child}}">' +
             'Child: {{ name }}' +
           '</template>' +
         '</template>');
 
-    var m = div.model = {
+    var m = {
       name: 'Hermes',
       wife: {
         name: 'LaBarbara'
       }
     };
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     assert.strictEqual(5, div.childNodes.length);
@@ -1095,19 +1154,20 @@ suite('Template Element', function() {
     assert.strictEqual('Child: Dwight', div.childNodes[4].textContent);
   });
 
-  test('InstantiateRecursive', function() {
+  test('BindRecursive', function() {
     var div = createTestHtml(
-        '<template instantiate id="t">' +
+        '<template bind="{{}}" if="{{}}" id="t">' +
           'Name: {{ name }}' +
-          '<template instantiate="friend" ref="t"></template>' +
+          '<template bind="{{friend}}" if="{{friend}}" ref="t"></template>' +
         '</template>');
 
-    var m = div.model = {
+    var m = {
       name: 'Fry',
       friend: {
         name: 'Bender'
       }
     };
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     assert.strictEqual(5, div.childNodes.length);
@@ -1125,14 +1185,14 @@ suite('Template Element', function() {
     assert.strictEqual('Name: Leela', div.childNodes[3].textContent);
   });
 
-  test('ChangeFromInstantiateToIterate', function() {
+  test('ChangeFromBindToRepeat', function() {
     var div = createTestHtml(
-        '<template instantiate="a">' +
+        '<template bind="{{a}}">' +
           '{{ length }}' +
         '</template>');
     var template = div.firstChild;
 
-    var m = div.model = {
+    var m = {
       a: [
         {length: 0},
         {
@@ -1142,19 +1202,23 @@ suite('Template Element', function() {
         {length: 2}
       ]
     };
+    HTMLTemplateElement.bindTree(div, m);
     Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('3', div.childNodes[1].textContent);
 
-    template.iterate = 'a';
+    template.unbind('bind');
+    template.bind('repeat', m, 'a');
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
     assert.strictEqual('1', div.childNodes[2].textContent);
     assert.strictEqual('2', div.childNodes[3].textContent);
 
-    template.instantiate = 'a.1.b';
+    template.unbind('repeat');
+    template.bind('bind', m, 'a.1.b')
+
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('4', div.childNodes[1].textContent);
@@ -1164,10 +1228,11 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template id="a">a:{{ }}</template>' +
         '<template id="b">b:{{ }}</template>' +
-        '<template iterate>' +
-          '<template ref="a" instantiate></template>' +
+        '<template repeat="{{}}">' +
+          '<template ref="a" bind="{{}}"></template>' +
         '</template>');
-    div.model = [];
+    var model = [];
+    HTMLTemplateElement.bindTree(div, model);
     Model.notifyChanges();
 
     assert.strictEqual(3, div.childNodes.length);
@@ -1175,26 +1240,12 @@ suite('Template Element', function() {
     document.getElementById('a').id = 'old-a';
     document.getElementById('b').id = 'a';
 
-    div.model.push(1, 2);
+    model.push(1, 2);
     Model.notifyChanges();
 
     assert.strictEqual(7, div.childNodes.length);
     assert.strictEqual('b:1', div.childNodes[4].textContent);
     assert.strictEqual('b:2', div.childNodes[6].textContent);
-  });
-
-  test('DynamicallyDecoratedNestedTemplateScope', function() {
-    var div = createTestHtml(
-        '<template instantiate="inner">' +
-        '<div id="container"></div>' +
-        '</template>');
-    div.model = {inner: {foo: 'bar'}};
-    Model.notifyChanges();
-    var container = div.querySelector('#container');
-    container.innerHTML = '<template instantiate><b>{{foo}}</b></template>';
-    HTMLTemplateElement.decorate(div.querySelectorAll('template')[1]);
-    Model.notifyChanges();
-    assert.strictEqual('bar', div.querySelector('b').textContent);
   });
 
   test('Content', function() {
@@ -1239,70 +1290,6 @@ suite('Template Element', function() {
                  templateB.content.ownerDocument);
   });
 
-  test('IterateTemplateModel', function() {
-    div = createTestHtml('<template iterate="contacts">Hi {{ name }}</template>');
-    t = div.firstChild;
-
-    var m = t.model = {
-      contacts: [
-        {name: 'Raf'},
-        {name: 'Arv'},
-        {name: 'Neal'}
-      ]
-    };
-    Model.notifyChanges();
-
-    assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
-
-    m.contacts.push({name: 'Alex'});
-    Model.notifyChanges();
-    assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
-
-    m.contacts.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
-    Model.notifyChanges();
-    assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
-
-    m.contacts.splice(1, 2);
-    Model.notifyChanges();
-    assertNodesAre('Hi Rafael', 'Hi Alex');
-
-    m.contacts.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
-    Model.notifyChanges();
-    assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
-
-    m.contacts.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
-    Model.notifyChanges();
-    assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
-
-    m.contacts = [{name: 'Alex'}];
-    Model.notifyChanges();
-    assertNodesAre('Hi Alex');
-
-    m.contacts.length = 0;
-    Model.notifyChanges();
-    assertNodesAre();
-  });
-
-  test('ModelOnTemplate', function() {
-    var div = createTestHtml('<template instantiate>{{x}}</template>');
-    var t = div.firstChild;
-    t.model = {x: 1};
-    Model.notifyChanges();
-    assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('1', div.childNodes[1].textContent);
-
-    t.model = {x: 2};
-    assert.strictEqual('1', div.childNodes[1].textContent);
-    Model.notifyChanges();
-    assert.strictEqual('2', div.childNodes[1].textContent);
-
-    div.model = {x: 3};
-    t.model = undefined;
-    assert.strictEqual('2', div.childNodes[1].textContent);
-    Model.notifyChanges();
-    assert.strictEqual('3', div.childNodes[1].textContent);
-  });
-
   function createShadowTestHtml(s) {
     var div = document.createElement('div');
     var root = div.webkitCreateShadowRoot();
@@ -1319,11 +1306,12 @@ suite('Template Element', function() {
     return root;
   }
 
-  test('InstantiateShadowDOM', function() {
+  test('BindShadowDOM', function() {
     if (HTMLElement.prototype.webkitCreateShadowRoot) {
       var root = createShadowTestHtml(
-          '<template instantiate>Hi {{ name }}</template>');
-      root.model = {name: 'Leela'};
+          '<template bind="{{}}">Hi {{ name }}</template>');
+      var model = {name: 'Leela'};
+      HTMLTemplateElement.bindTree(root, model);
       Model.notifyChanges();
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
     }
@@ -1333,11 +1321,11 @@ suite('Template Element', function() {
   this.testHelper = undefined;
 
   // https://github.com/toolkitchen/mdv/issues/8
-  test('UnbindingInNestedInstantiate', function() {
+  test('UnbindingInNestedBind', function() {
     var div = createTestHtml(
-      '<template instantiate="outer">' +
-        '<template instantiate="inner">' +
-          '{{ expr(age) testHelper(age) }}' +
+      '<template bind="{{outer}}" if="{{outer}}">' +
+        '<template bind="{{inner}}" if="{{inner}}">' +
+          '{{ expr(age, foo) testHelper(age) }}' +
         '</template>' +
       '</template>');
 
@@ -1347,30 +1335,27 @@ suite('Template Element', function() {
       count++;
     };
 
-    div.model = {
+    var model = {
       outer: {
         inner: {
-          age: 42
+          age: 42,
+          foo: 'bar'
         }
       }
     };
-    div.modelDelegate = MDVDelegate;
+
+    HTMLTemplateElement.bindTree(div, model, MDVDelegate);
 
     Model.notifyChanges();
     assert.strictEqual(1, count);
 
-    testHelper = function(value) {
-      fail('Should not be called on disconnected instance');
-    };
-
-    var inner = div.model.outer.inner;
-    div.model.outer = null;
-    inner.age = 'FAIL';
+    var inner = model.outer.inner;
+    model.outer = null;
 
     Model.notifyChanges();
     assert.strictEqual(1, count);
 
-    div.model.outer = {inner: {age: 2}};
+    model.outer = {inner: {age: 2}};
 
     testHelper = function(value) {
       assert.strictEqual(2, value);
@@ -1383,10 +1368,22 @@ suite('Template Element', function() {
     testHelper = undefined;
   });
 
+  // https://github.com/toolkitchen/mdv/issues/8
+  test('DontCreateInstancesForAbandonedIterators', function() {
+    var div = createTestHtml(
+      '<template bind="{{}} {{}}">' +
+        '<template bind="{{}}">Foo' +
+        '</template>' +
+      '</template>');
+    HTMLTemplateElement.bindTree(div);
+    Model.notifyChanges();
+    assert.isFalse(!!ChangeSummary._errorThrownDuringCallback);
+  });
+
   test('CreateIntance', function() {
     var div = createTestHtml(
-      '<template instantiate=a>' +
-        '<template instantiate=b>' +
+      '<template bind="{{a}}">' +
+        '<template bind="{{b}}">' +
           '{{text}}' +
         '</template>' +
       '</template>');
@@ -1433,4 +1430,20 @@ suite('Template Element', function() {
     assert.strictEqual('Hello', template3.content.firstChild.textContent);
   });
 
+  test('__instanceCreated() hack', function() {
+    var called = false;
+    HTMLTemplateElement.__instanceCreated = function(node) {
+      assert.strictEqual(Node.DOCUMENT_FRAGMENT_NODE, node.nodeType);
+      called = true;
+    }
+
+    var div = createTestHtml('<template bind="{{}}">Foo</template>');
+    assert.isFalse(called);
+
+    HTMLTemplateElement.bindTree(div);
+    Model.notifyChanges();
+    assert.isTrue(called);
+
+    HTMLTemplateElement.__instanceCreated = undefined;
+  });
 });

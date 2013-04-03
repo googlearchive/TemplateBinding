@@ -43,24 +43,24 @@ limitations under the License.
     <div class="content">
       <h2>Price List:</h2>
       <ul>
-        <template iterate>
+        <template repeat="{{}}">
           <li class="productRow {{ salePrice | toggle('onSale')}}">
             <span class="isImproved"
-                  hidden="{{ isNew | absent}}">Improved!</span>
+                  hidden?="{{ expr(isNew) !isNew }}">Improved!</span>
             <span class="new"
-                  hidden="{{ isImproved | absent }}">New!</span>
+                  hidden?="{{ expr(isImproved) !isImproved }}">New!</span>
             <span>{{ name }}, <span>
-            <span hidden="{{ offersAccepted | present }}">
+            <span hidden?="{{ offersAccepted }}">
                   {{ price | currency }}</span>
-            <span hidden="{{ salePrice | absent }}">
+            <span hidden?="{{ expr(salePrice) !salePrice }}">
               On Sale!!! {{ salePrice | currency }}
             </span>
-            <template instantiate="offersAccepted">
+            <template bind="{{offersAccepted}}" if="{{offersAccepted}}">
               Now taking offers: <input value="{{ bid }}" type="number">
-              <span hidden="{{ expr(bid, reserve) bid >= reserve ? '' : null }}">
+              <span hidden?="{{ expr(bid, reserve) bid >= reserve }}">
                 ...{{ bid | currency }} for that? You must be mad!!!
               </span>
-              <span hidden="{{ expr(bid, reserve) bid < reserve ? '' : null }}">
+              <span hidden?="{{ expr(bid, reserve) bid < reserve }}">
                 ...{{ bid | currency }}? SOLD!!!
               </span>
             </template>
@@ -71,7 +71,7 @@ limitations under the License.
   </div>
 
 <script>
-document.body.model = [
+var model = [
   {
     name: 'Rusty nails',
     isNew: true,
@@ -96,7 +96,8 @@ document.body.model = [
     }
   }
 ];
-document.body.modelDelegate = MDVDelegate;
+
+HTMLTemplateElement.bindTree(document, model, MDVDelegate);
 </script>
   <div class="comment">
     <h1>Comment</h1>

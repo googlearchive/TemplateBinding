@@ -14,27 +14,10 @@
 
 this.Model = (function() {
   var router = new ChangeSummary.CallbackRouter();
-  var queue = [];
-  var notificationQueueIsRunning = false;
 
   return {
-    enqueue: function(func) {
-      queue.push(func);
-    },
-
     notifyChanges: function() {
-      if (notificationQueueIsRunning)
-        return;
-
-      notificationQueueIsRunning = true;
       router.deliver();
-
-      while (queue.length > 0) {
-        var f = queue.shift();
-        f();
-      }
-
-      notificationQueueIsRunning = false;
     },
 
     getValueAtPath: ChangeSummary.getValueAtPath,

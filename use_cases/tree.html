@@ -45,10 +45,10 @@ limitations under the License.
 <button data-action="click:appendTree">Append tree</button>
 
 <ul class="tree">
-  <template iterate id=t1>
+  <template repeat="{{}}" id=t1>
     <li class="{{ children | toggle('has-children') }}">{{name}}
       <ul>
-        <template ref=t1 iterate=children></template>
+        <template ref=t1 repeat="{{children}}"></template>
       </ul>
     </li>
   </template>
