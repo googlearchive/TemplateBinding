@@ -27,8 +27,6 @@ this.Model = (function() {
     observeArray: router.observeArray.bind(router),
     unobserveArray: router.unobserveArray.bind(router),
     observePath: router.observePath.bind(router),
-    unobservePath: router.unobservePath.bind(router),
-    bind: router.bind.bind(router),
-    unbind: router.unbind.bind(router)
+    unobservePath: router.unobservePath.bind(router)
   };
 })();
