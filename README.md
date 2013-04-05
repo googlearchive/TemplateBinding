@@ -158,8 +158,8 @@ MDV is mainly concerned with being robust and efficient in interacting with appl
 MDV builds upon recently added primitives to the Web Platform:
 
 * [ECMAScript Object.observe](http://updates.html5rocks.com/2012/11/Respond-to-change-with-Object-observe)
-* [The HTML Template Element](http://updates.html5rocks.com/2012/11/Respond-to-change-with-Object-observe)
-* [DOM Mutation Observers](http://updates.html5rocks.com/2012/11/Respond-to-change-with-Object-observe)
+* [The HTML Template Element](http://www.html5rocks.com/en/tutorials/webcomponents/template/)
+* [DOM Mutation Observers](https://developer.mozilla.org/en-US/docs/DOM/MutationObserver)
   
 Not all browsers currently implement all the required primitives. MDV attempts to polyfil their absence, but targeting browsers which do not support all three requires understanding patterns of use which should be prefered or avoided to ensure proper behavior.
 
