@@ -6,9 +6,9 @@ Model-driven Views (or “MDV” for short) is a way to write _dynamic_ HTML _us
 
 ### Status
 
-MDV is currently available as a JavaScript library and we hope to eventually make it a web standard which is natively implemented by browsers.
+MDV is currently available as a JavaScript library and we aim to make it a web standard which is natively implemented by browsers.
 
-MDV works best with three new web platform features which aren't fully implemented by all browsers (more on this below). If you'd like to experience the best MDV has to offer, try the samples out in the [Chrome Canary](https://www.google.com/intl/en/chrome/browser/canary.html) and turn on `Enable Experimental JavaScript` in [chrome://flags](chrome://flags).
+MDV works best with three new web platform features, all of which aren't implemented by all browsers (more on this below). If you'd like to experience the best MDV has to offer, try the samples out in the [Chrome Canary](https://www.google.com/intl/en/chrome/browser/canary.html) and turn on `Enable Experimental JavaScript` in [chrome://flags](chrome://flags).
 
 ### An explanatory sample
 
@@ -114,9 +114,9 @@ The `<template>` is `repeat`ing which means that it ensures there is one instanc
 
 Getting the idea? MDV allows you author your HTML _using_ HTML which contains information about _where data goes_ and directives which _control the document’s structure_ -- all depending on the data you provide it.
 
-### Where to go from here?
+### Where to go from here? (IMPORTANT: The documentation and samples below have yet to created)
 
-If you are new to MDV, the best to place to go is to the look at the How-To Samples. These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
+If you are new to MDV, the best to place to go is to the look at the How-To examples. These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
   
 _Binding to DOM values:_
 
@@ -126,7 +126,7 @@ _Binding to DOM values:_
 * Binding to input elements: How to bind bi-directionally with input elements.
 * Custom bindings: How to implement a custom element which has a specialized interpretation of a binding.
   
-_Using `<template>` to produce DOM structures":_
+_Using `<template>` to produce DOM structures:_
 
 * Conditionals: How to control whether instance fragments are produced based on the value of a binding.
 * Nested templates: How to accomplish nested template production.
