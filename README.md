@@ -4,9 +4,9 @@
 
 Model-driven Views (or “MDV” for short) is a way to write _dynamic_ HTML _using_ HTML. It is currently available as a JavaScript library and we hope to eventually make it a web standard which is natively implemented by browsers.
 
-There’s plenty of detail, but it all hinges on the `<template>` element. Let’s walk through a simple [example -- NEED LINK] [1] which demonstrates the basics.
+There’s plenty of detail, but it all hinges on the `<template>` element. Let’s walk through a simple [example] [1] which demonstrates the basics.
 
-  [1]: http://www.w3.org/TR/html-templates/
+  [1]: https://github.com/toolkitchen/mdv/blob/master/sample.html
 
 ```HTML
 <head>
@@ -45,7 +45,7 @@ The [HTML Template element] [1] is new and browsers are in the process of implem
   [3]: https://developers.google.com/chrome-developer-tools/docs/overview
   [4]: http://www.w3.org/TR/html-templates/#api-html-template-element-content
   
-IMAGE HERE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/templateContent.png)
 
 If you loaded the above example without `<script src="src/mdv.js"></script>`, that’s about all `<template>` would do.
 
@@ -87,35 +87,35 @@ HTMLTemplateElement.bindTree(t, model);
 
 Now the template is off to the races. Here’s the result:
 
-IMAGE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/output.png)
 
 and here’s what the DOM looks like:
 
-IMAGE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/DOM.png)
 
 You can see that the template stamped out four instances immediately following its position in the document. All nodes within an instance have a property called `templateInstance` which points to an instance descriptor. The descriptor indicates the extent (first and last nodes) of the instance, as well as the `model` data for which the instance was produced:
 
-IMAGE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/templateInstance.png)
 
 Now, remember we said MDV teaches the DOM to derive its values from JavaScript data? If we change a value in our model, the DOM observes the change and updates accordingly:
 
-IMAGE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/updateData.png)
 
 However, the DOM doesn’t just observe data in the model, if DOM elements which collect user input are bound, they _push_ the collected value into the model:
 
-IMAGE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/input.png)
 
-Lastly, let’s look at what happens when we alter the contents of the `model.salutations` Array:
+Lastly, let’s look at what happens when we alter the contents of the `model.salutations` array:
 
-IMAGE
+![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/arrayUpdate.png)
 
-The `<template>` is `repeat`-ing which means that it ensures there is one instance for each item in the array. We removed two elements from the middle of salutations and inserted one in their place. The `<template>` responded by removing the two corresponding instances and creating a new one in the right location.
+The `<template>` is `repeat`ing which means that it ensures there is one instance for each item in the array. We removed two elements from the middle of salutations and inserted one in their place. The `<template>` responded by removing the two corresponding instances and creating a new one in the right location.
 
 Getting the idea? MDV allows you author your HTML _using_ HTML which contains information about _where data goes_ and directives which _control the document’s structure_ -- all depending on the data you provide it.
 
 ### Where to go from here?
 
-If you are new to MDV, the best to place to go is to the look at the [samples -- NEED LINK] [1]. These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
+If you are new to MDV, the best to place to go is to the look at the [How-To Samples] [1]. These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
 
   [1]: http://www.w3.org/TR/html-templates/
   
