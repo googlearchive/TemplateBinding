@@ -116,14 +116,14 @@ Getting the idea? MDV allows you author your HTML _using_ HTML which contains in
 
 ### Where to go from here? (IMPORTANT: The documentation and samples below have yet to created)
 
-If you are new to MDV, the best to place to go is to the look at the How-To examples. These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
+If you are new to MDV, the best to place to go is to the look at the [How-To examples](https://github.com/toolkitchen/mdv/tree/master/examples/how_to). These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
   
 _Binding to DOM values:_
 
-* Binding to text values: How to insert values into the DOM that render as text.
-* Binding to attributes: How to insert values into element attributes
-* Conditional attributes: How to bind to attributes such that the attribute is only present if the binding value is “truthy”.
-* Binding to input elements: How to bind bi-directionally with input elements.
+* [Binding to text values](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_text.html): How to insert values into the DOM that render as text.
+* [Binding to attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_attributes.html): How to insert values into element attributes
+* [Conditional attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_attributes.html): How to bind to attributes such that the attribute is only present if the binding value is “truthy”.
+* [Binding to input elements](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_input_elements.html): How to bind bi-directionally with input elements.
 * Custom bindings: How to implement a custom element which has a specialized interpretation of a binding.
   
 _Using `<template>` to produce DOM structures:_
