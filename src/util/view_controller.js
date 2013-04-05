@@ -1,4 +1,4 @@
-// Copyright 2011 Google Inc.
+// Copyright 2013 Google Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -33,7 +33,7 @@
     if (controller.model) {
       // TODO(rafaelw): This should really only visit template elements
       // TODO(rafaelw): It's pretty lame you have to set the delegate here.
-      HTMLTemplateElement.bindTree(elm, controller.model, MDVDelegate);
+      HTMLTemplateElement.bindTree(elm, controller.model);
     }
     elm.controller = controller;
   }
