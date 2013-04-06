@@ -25,15 +25,15 @@
     libLocation = script.src.slice(0, -thisFile.length);
 
   document.write('<link rel="stylesheet" href="' +
-      libLocation + 'template_element.css">');
+      libLocation + 'src/template_element.css">');
 
   [
-    '../third_party/ChangeSummary/planner.js',
-    '../third_party/ChangeSummary/change_summary.js',
-    'compat.js',
-    'side_table.js',
-    'model.js',
-    'node_bindings.js',
-    'template_element.js',
+    'third_party/ChangeSummary/planner.js',
+    'third_party/ChangeSummary/change_summary.js',
+    'src/compat.js',
+    'src/side_table.js',
+    'src/model.js',
+    'src/node_bindings.js',
+    'src/template_element.js',
   ].forEach(write);
 })();
