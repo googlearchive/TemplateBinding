@@ -80,6 +80,11 @@ suite('Node Bindings', function() {
     input.value = 'changed again';
     dispatchEvent('input', input);
     assert.strictEqual('changed', model.x);
+
+    input.bind('value', model, 'x');
+    model.x = null;
+    Model.notifyChanges();
+    assert.strictEqual('', input.value);
   });
 
   test('Radio Input', function() {
