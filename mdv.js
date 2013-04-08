@@ -28,7 +28,6 @@
       libLocation + 'src/template_element.css">');
 
   [
-    'third_party/ChangeSummary/planner.js',
     'third_party/ChangeSummary/change_summary.js',
     'src/compat.js',
     'src/side_table.js',
