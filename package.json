@@ -15,7 +15,7 @@
     "url": "https://github.com/toolkitchen/mdv.git"
   },
   "author": "",
-  "license": "ASL",
+  "license": "Apache License 2.0",
   "gitHead": "cdd89f1fb6273ede781c9e00a512720df1adffff",
   "devDependencies": {
     "chai": "*",
