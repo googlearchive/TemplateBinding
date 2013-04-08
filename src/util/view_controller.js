@@ -86,11 +86,14 @@
   }, false);
 
   function handleAction(e) {
-    var action = getAction(e.target);
-    if (!action)
-      return;
-
+    var action;
     var currentTarget = e.target;
+    while (!action && currentTarget) {
+      action = getAction(currentTarget);
+      if (!action)
+        currentTarget = currentTarget.parentNode;
+    }
+
     var handled = false;
     while (!handled && currentTarget) {
       if (!currentTarget.controller ||
