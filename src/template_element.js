@@ -22,6 +22,12 @@
 
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
+  var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
+
+  function isNodeInDocument(node) {
+    return node.ownerDocument.contains(node);
+  }
+
   function bindNode(name, model, path) {
     console.error('Unhandled binding to Node: ', this, name, model, path);
   }
@@ -188,8 +194,9 @@
     }
   }
 
-  function InputBinding(element, model, path) {
+  function InputBinding(element, valueProperty, model, path) {
     this.element = element;
+    this.valueProperty = valueProperty;
     this.boundValueChanged = this.valueChanged.bind(this);
     this.boundUpdateBinding = this.updateBinding.bind(this);
 
@@ -199,6 +206,19 @@
   }
 
   InputBinding.prototype = {
+    valueChanged: function(newValue) {
+      this.element[this.valueProperty] = this.produceElementValue(newValue);
+    },
+
+    updateBinding: function() {
+      // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
+      this.binding.value = this.element[this.valueProperty];
+      if (this.postUpdateBinding)
+        this.postUpdateBinding();
+
+      Model.notifyChanges();
+    },
+
     unbind: function() {
       this.binding.dispose();
       this.element.removeEventListener(getEventForInputType(this.element),
@@ -207,28 +227,16 @@
   };
 
   function ValueBinding(element, model, path) {
-    InputBinding.call(this, element, model, path);
+    InputBinding.call(this, element, 'value', model, path);
   }
 
   ValueBinding.prototype = createObject({
     __proto__: InputBinding.prototype,
 
-    valueChanged: function(value) {
-      this.element.value = String(value == null ? '' : value);
-    },
-
-    updateBinding: function() {
-      // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
-      this.binding.value = this.element.value;
-      Model.notifyChanges();
+    produceElementValue: function(value) {
+      return String(value == null ? '' : value);
     }
   });
-
-  function isNodeInDocument(node) {
-    return node.ownerDocument.contains(node);
-  }
-
-  var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
 
   // |element| is assumed to be an HTMLInputElement with |type| == 'radio'.
   // Returns an array containing all radio buttons other than |element| that
@@ -259,20 +267,17 @@
   }
 
   function CheckedBinding(element, model, path) {
-    InputBinding.call(this, element, model, path);
+    InputBinding.call(this, element, 'checked', model, path);
   }
 
   CheckedBinding.prototype = createObject({
     __proto__: InputBinding.prototype,
 
-    valueChanged: function(newValue) {
-      this.element.checked = Boolean(newValue);
+    produceElementValue: function(value) {
+      return Boolean(value);
     },
 
-    updateBinding: function() {
-      var value = this.element.checked;
-      this.binding.value = value;
-
+    postUpdateBinding: function() {
       // Only the radio button that is getting checked gets an event. We
       // therefore find all the associated radio buttons and update their
       // CheckedBinding manually.
@@ -286,9 +291,6 @@
           }
         });
       }
-
-      // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
-      Model.notifyChanges();
     }
   });
 
