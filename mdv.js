@@ -32,7 +32,6 @@
     'src/compat.js',
     'src/side_table.js',
     'src/model.js',
-    'src/node_bindings.js',
     'src/template_element.js',
   ].forEach(write);
 })();
