@@ -476,11 +476,9 @@
     assert(element);
 
     var attrs = {};
-    if (element.attributes) {
-      for (var i = 0; i < element.attributes.length; i++) {
-        var attr = element.attributes[i];
-        attrs[attr.name] = attr.value;
-      }
+    for (var i = 0; i < element.attributes.length; i++) {
+      var attr = element.attributes[i];
+      attrs[attr.name] = attr.value;
     }
 
     if (isTemplate(element)) {
