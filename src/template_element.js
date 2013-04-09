@@ -474,15 +474,25 @@
 
   function addAttributeBindings(element, model, delegate) {
     assert(element);
-    if (!element.attributes || !element.attributes.length)
-      return;
 
-    var attrs = [];
-    for (var i = 0; i < element.attributes.length; i++)
-      attrs.push(element.attributes[i]);
+    var attrs = {};
+    if (element.attributes) {
+      for (var i = 0; i < element.attributes.length; i++) {
+        var attr = element.attributes[i];
+        attrs[attr.name] = attr.value;
+      }
+    }
 
-    for (var i = 0; i < attrs.length; i++)
-      parseAndBind(element, attrs[i].value, attrs[i].name, model, delegate)
+    if (isTemplate(element)) {
+      if (attrs[BIND] === '')
+        attrs[BIND] = '{{}}';
+      if (attrs[REPEAT] === '')
+        attrs[REPEAT] = '{{}}';
+    }
+
+    Object.keys(attrs).forEach(function(attrName) {
+      parseAndBind(element, attrs[attrName], attrName, model, delegate);
+    });
   }
 
   function addBindings(node, model, delegate) {

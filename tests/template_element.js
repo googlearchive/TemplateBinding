@@ -54,6 +54,15 @@ suite('Template Element', function() {
     assert.strictEqual('text', div.lastChild.textContent);
   });
 
+  test('Template-Empty Bind', function() {
+    var div = createTestHtml(
+        '<template bind>text</template>');
+    HTMLTemplateElement.bindTree(div);
+    Model.notifyChanges();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
+  });
+
   test('TextTemplateWithNullStringBinding', function() {
     var div = createTestHtml(
         '<template bind={{}}>a{{b}}c</template>');
@@ -205,6 +214,30 @@ suite('Template Element', function() {
     Model.notifyChanges();
     assert.strictEqual(3, div.childNodes.length);
   });
+
+  test('Repeat-Empty', function() {
+    var div = createTestHtml(
+        '<template repeat>text</template>');
+
+    var model = [0, 1, 2];
+    HTMLTemplateElement.bindTree(div, model);
+
+    Model.notifyChanges();
+    assert.strictEqual(4, div.childNodes.length);
+
+    model.length = 1;
+    Model.notifyChanges();
+    assert.strictEqual(2, div.childNodes.length);
+
+    model.push(3, 4);
+    Model.notifyChanges();
+    assert.strictEqual(4, div.childNodes.length);
+
+    model.splice(1, 1);
+    Model.notifyChanges();
+    assert.strictEqual(3, div.childNodes.length);
+  });
+
 
   test('Removal from iteration needs to unbind', function() {
     var div = createTestHtml(
