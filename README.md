@@ -144,7 +144,7 @@ MDV is designed to as two primitives which could eventually become standardized 
 
 MDV is mainly concerned with being robust and efficient in interacting with application data and keeping the DOM in sync , but more advanced behaviors can be accomplished via one or both of the following:
 
-* A Custom Syntax API 
+* [A Custom Syntax API](https://github.com/toolkitchen/mdv/blob/master/docs/syntax.md)
 * Chained observation
   
 ### Advanced Topics
