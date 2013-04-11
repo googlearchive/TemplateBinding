@@ -55,7 +55,7 @@ var syntax = {
 HTMLTemplateElement.syntax['name'] = syntax;
 ```
 
-### Custon Syntax Usage
+### Custom Syntax Usage
 
 The `<template>` element can declare its intent to use a Custom Syntax by naming it in its `syntax` attribute:
 
