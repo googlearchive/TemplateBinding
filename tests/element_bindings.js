@@ -327,29 +327,6 @@ suite('Element Bindings', function() {
     assert.isFalse(model.a.b);
   });
 
-  test('ExpressionBinding', function() {
-    var el = document.createElement('div');
-    var model = {a: 1, b: 2};
-    el.setAttribute('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
-    HTMLTemplateElement.bindTree(el, model, MDVDelegate);
-    Model.notifyChanges();
-    assert.strictEqual('1 + 2 = 3', el.getAttribute('foo'));
-
-    model.a = 4;
-    Model.notifyChanges();
-    assert.strictEqual('4 + 2 = 6', el.getAttribute('foo'));
-
-    model.b = 8;
-    Model.notifyChanges();
-    assert.strictEqual('4 + 8 = 12', el.getAttribute('foo'));
-
-    model = null;
-    el.setAttribute('foo', '{{a}} + {{b}} = {{ expr(a, b) a + b }}');
-    HTMLTemplateElement.bindTree(el, model, MDVDelegate);
-    Model.notifyChanges();
-    assert.strictEqual(' +  = NaN', el.getAttribute('foo'));
-  });
-
   test('MultipleReferences', function() {
     var el = document.createElement('div');
     var model = {foo: 'bar'};
@@ -358,21 +335,4 @@ suite('Element Bindings', function() {
     Model.notifyChanges();
     assert.strictEqual('bar bar', el.getAttribute('foo'));
   });
-
-  test('ExpressionBindingNoCoerce', function() {
-    var el = document.createElement('div');
-    var model = {
-      a: {
-        b: 1
-      },
-      c: {
-        d: 2
-      }
-    };
-    el.setAttribute('foo', '{{ expr(a.b, c.d) b + d }}');
-    HTMLTemplateElement.bindTree(el, model, MDVDelegate);
-    Model.notifyChanges();
-    assert.strictEqual('3', el.getAttribute('foo'));
-  });
-
 });

@@ -238,7 +238,6 @@ suite('Template Element', function() {
     assert.strictEqual(3, div.childNodes.length);
   });
 
-
   test('Removal from iteration needs to unbind', function() {
     var div = createTestHtml(
         '<template repeat="{{}}"><a>{{v}}</a></template>');
@@ -510,23 +509,6 @@ suite('Template Element', function() {
 
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('Hi Zoidberg', t.nextSibling.textContent);
-  });
-
-  test('BindToClassName', function() {
-    var div = createTestHtml(
-        '<template bind="{{}}">' +
-          '<div class="foo {{ val | toggle(\'bar\') }}"></div>' +
-        '</template>');
-    var t = div.firstChild;
-    var model = { val: false };
-    HTMLTemplateElement.bindTree(div, model, MDVDelegate);
-
-    Model.notifyChanges();
-    assert.strictEqual('foo ', div.childNodes[1].className);
-
-    model.val = true;
-    Model.notifyChanges();
-    assert.strictEqual('foo bar', div.childNodes[1].className);
   });
 
   function assertNodesAre() {
@@ -1350,34 +1332,36 @@ suite('Template Element', function() {
     }
   });
 
-  // Needs to be global.
-  this.testHelper = undefined;
-
   // https://github.com/toolkitchen/mdv/issues/8
   test('UnbindingInNestedBind', function() {
     var div = createTestHtml(
-      '<template bind="{{outer}}" if="{{outer}}">' +
+      '<template bind="{{outer}}" if="{{outer}}" syntax="testHelper">' +
         '<template bind="{{inner}}" if="{{inner}}">' +
-          '{{ expr(age, foo) testHelper(age) }}' +
+          '{{ age }}' +
         '</template>' +
       '</template>');
 
     var count = 0;
-    testHelper = function(value) {
-      assert.strictEqual(42, value);
-      count++;
+    var expectedAge = 42;
+    HTMLTemplateElement.syntax['testHelper'] = {
+      getBinding: function(model, path, name, node) {
+        if (name != 'textContent' || path != 'age')
+          return;
+
+        assert.strictEqual(expectedAge, model.age);
+        count++;
+      }
     };
 
     var model = {
       outer: {
         inner: {
-          age: 42,
-          foo: 'bar'
+          age: 42
         }
       }
     };
 
-    HTMLTemplateElement.bindTree(div, model, MDVDelegate);
+    HTMLTemplateElement.bindTree(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(1, count);
@@ -1389,11 +1373,7 @@ suite('Template Element', function() {
     assert.strictEqual(1, count);
 
     model.outer = {inner: {age: 2}};
-
-    testHelper = function(value) {
-      assert.strictEqual(2, value);
-      count++;
-    };
+    expectedAge = 2;
 
     Model.notifyChanges();
     assert.strictEqual(2, count);
