@@ -18,13 +18,7 @@ MDV's native features enables a wide-range of use cases, but (by design) don't a
 </template>
 ```
 
-* "Filters" which transform data between in-memory representation and text-based display form, e.g.:
-
-```html
-<span class="{{ myClassName: data.thing }}">
-```
-
-* ... many others
+* ... And anything else you'd like.
 
 Enabling these features in MDV is a matter of implementing and registering an MDV Custom Syntax.
 
