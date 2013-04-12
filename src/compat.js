@@ -31,25 +31,9 @@ var createObject = ('__proto__' in {}) ?
       return newObject;
     };
 
-
-// IE does not support the hidden attribute/property.
-if (typeof document.createElement('div').hidden != 'boolean') {
-  Object.defineProperty(HTMLElement.prototype, 'hidden', {
-    get: function() {
-      return this.hasAttribute('hidden');
-    },
-    set: function(b) {
-      if (b)
-        this.setAttribute('hidden', '');
-      else
-        this.removeAttribute('hidden');
-    },
-    enumerable: true,
-    configurable: true
-  });
-
-  // Add default styling.
-  var styleElement = document.createElement('style');
-  styleElement.textContent = '[hidden] { display: none }';
-  document.head.appendChild(styleElement);
+// IE does not support have Document.prototype.contains.
+if (typeof document.contains != 'function') {
+  Document.prototype.contains = function(node) {
+    return this.documentElement.contains(node);
+  }
 }
