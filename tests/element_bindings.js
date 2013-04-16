@@ -17,18 +17,18 @@ suite('Element Bindings', function() {
   // Note: DOMNodeInserted/Removed only fire in webkit if the node is rooted in
   // document. This is just an attachment point so that tests will pass in
   // webkit.
-  var testContainerDiv;
+  var testDiv;
 
   setup(function() {
-    testContainerDiv = document.body.appendChild(document.createElement('div'));
+    testDiv = document.body.appendChild(document.createElement('div'));
   });
 
   teardown(function() {
-    document.body.removeChild(testContainerDiv);
+    document.body.removeChild(testDiv);
   });
 
   function dispatchEvent(type, target) {
-    var event = document.createEvent('HTMLEvents');
+    var event = document.createEvent('Event');
     event.initEvent(type, true, false);
     target.dispatchEvent(event);
     Model.notifyChanges();
@@ -173,6 +173,7 @@ suite('Element Bindings', function() {
     var model = {val: true};
 
     var el = document.createElement('input');
+    testDiv.appendChild(el);
     el.type = 'checkbox';
     el.bind('checked', model, 'val');
     Model.notifyChanges();
@@ -182,12 +183,10 @@ suite('Element Bindings', function() {
     Model.notifyChanges();
     assert.strictEqual(false, el.checked);
 
-    el.checked = true;
-    dispatchEvent('click', el);
+    el.click();
     assert.strictEqual(true, model.val);
 
-    el.checked = false;
-    dispatchEvent('click', el);
+    el.click();
     assert.strictEqual(false, model.val);
   });
 
@@ -305,6 +304,7 @@ suite('Element Bindings', function() {
 
   test('BindToChecked', function() {
     var div = document.createElement('div');
+    testDiv.appendChild(div);
     var child = div.appendChild(document.createElement('div'));
     var input = child.appendChild(document.createElement('input'));
     input.type = 'checkbox';
@@ -317,13 +317,10 @@ suite('Element Bindings', function() {
 
     input.bind('checked', model, 'a.b');
 
-    input.checked = true;
-    dispatchEvent('click', input);
+    input.click();
     assert.isTrue(model.a.b);
 
-    input.checked = false;
-    assert.isTrue(model.a.b);
-    dispatchEvent('click', input);
+    input.click();
     assert.isFalse(model.a.b);
   });
 

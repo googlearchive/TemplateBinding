@@ -19,7 +19,7 @@
   "gitHead": "cdd89f1fb6273ede781c9e00a512720df1adffff",
   "devDependencies": {
     "chai": "*",
-    "mocha": "*",
+    "mocha": ">=1.9",
     "grunt": "*"
   }
 }

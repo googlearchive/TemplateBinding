@@ -40,7 +40,7 @@ suite('Template Element', function() {
   }
 
   function dispatchEvent(type, target) {
-    var event = document.createEvent('HTMLEvents');
+    var event = document.createEvent('Event');
     event.initEvent(type, true, false);
     target.dispatchEvent(event);
   }
@@ -706,12 +706,10 @@ suite('Template Element', function() {
     var instanceInput = t.nextSibling;
     assert.isTrue(instanceInput.checked);
 
-    instanceInput.checked = false;
-    dispatchEvent('click', instanceInput);
+    instanceInput.click();
     assert.isFalse(instanceInput.checked);
 
-    instanceInput.checked = true;
-    dispatchEvent('click', instanceInput);
+    instanceInput.click();
     assert.isTrue(instanceInput.checked);
   });
 

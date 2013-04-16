@@ -25,7 +25,7 @@ suite('View Controller', function() {
   });
 
   function dispatchEvent(type, target) {
-    var event = document.createEvent('HTMLEvents');
+    var event = document.createEvent('Event');
     event.initEvent(type, true, false);
     target.dispatchEvent(event);
   }
