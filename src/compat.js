@@ -34,6 +34,8 @@ var createObject = ('__proto__' in {}) ?
 // IE does not support have Document.prototype.contains.
 if (typeof document.contains != 'function') {
   Document.prototype.contains = function(node) {
+    if (node === this)
+      return true;
     return this.documentElement.contains(node);
   }
 }

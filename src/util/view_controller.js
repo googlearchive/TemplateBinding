@@ -63,9 +63,6 @@
   }
 
   function registerAction(node) {
-    if (node.nodeType !== Node.ELEMENT_NODE)
-      return;
-
     var action = getAction(node);
     if (!action)
       return;
