@@ -12,14 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-function dispatchEvent(type, target) {
-  var event = document.createEvent('HTMLEvents');
-  event.initEvent(type, true, false);
-  target.dispatchEvent(event);
-  Model.notifyChanges();
-}
-
 suite('Node Bindings', function() {
+
+  var testDiv;
+
+  setup(function() {
+    testDiv = document.body.appendChild(document.createElement('div'));
+  });
+
+  teardown(function() {
+    document.body.removeChild(testDiv);
+  });
+
+  function dispatchEvent(type, target) {
+    var event = document.createEvent('Event');
+    event.initEvent(type, true, false);
+    target.dispatchEvent(event);
+    Model.notifyChanges();
+  }
+
   test('Text', function() {
     var text = document.createTextNode('hi');
     var model = {a: 1};
@@ -112,6 +123,7 @@ suite('Node Bindings', function() {
 
   test('Checkbox Input', function() {
     var input = document.createElement('input');
+    testDiv.appendChild(input);
     input.type = 'checkbox';
     var model = {x: true};
     input.bind('checked', model, 'x');
@@ -122,13 +134,11 @@ suite('Node Bindings', function() {
     Model.notifyChanges();
     assert.isFalse(input.checked);
 
-    input.checked = true;
-    dispatchEvent('click', input);
+    input.click();
     assert.isTrue(model.x);
     Model.notifyChanges();
 
-    input.checked = false;
-    dispatchEvent('click', input);
+    input.click();
     assert.isFalse(model.x);
   });
 });
