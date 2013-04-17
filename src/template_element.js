@@ -615,9 +615,8 @@
     }
   }
 
-  function createInstance(element, syntax) {
-    var content = element.ref ? element.ref.content : element.content;
-    var instance = createDeepCloneAndDecorateTemplates(content, syntax);
+  function createInstance(fragment, syntax) {
+    var instance = createDeepCloneAndDecorateTemplates(fragment, syntax);
     // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
     // because custom elements are not upgraded during cloneNode()
     if (typeof HTMLTemplateElement.__instanceCreated == 'function') {
@@ -673,7 +672,12 @@
     },
 
     createInstance: function(model, syntax) {
-      return createInstance(this, model, syntax);
+      return createInstance(this.effectiveContent, syntax);
+    },
+
+    get effectiveContent() {
+      var ref = this.ref;
+      return ref ? ref.content : this.content;
     },
 
     get ref() {
@@ -929,20 +933,15 @@
       this.index_--;
     },
 
-    insert: function(model) {
+    insert: function(fragment) {
       assert(this.template_.parentNode);
 
       this.previousTerminator_ = this.terminator_;
       this.previousIndex_ = this.index_;
       this.index_++;
 
-      var syntax = this.template_.getAttribute(SYNTAX);
-      var instance = createInstance(this.template_, syntax);
-      addBindings(instance, model, HTMLTemplateElement.syntax[syntax]);
-      addTemplateInstanceRecord(instance, model)
-
-      this.terminator_ = instance.lastChild || this.previousTerminator_;
-      this.template_.parentNode.insertBefore(instance,
+      this.terminator_ = fragment.lastChild || this.previousTerminator_;
+      this.template_.parentNode.insertBefore(fragment,
           this.previousTerminator_.nextSibling);
 
       incrementInstanceTerminatorCount(this.terminator_);
@@ -1092,18 +1091,38 @@
       }]);
     },
 
+    getInstanceModel: function(model, syntax) {
+      return model;
+    },
+
+    getInstanceFragment: function(model, syntax, syntaxString) {
+      return createInstance(this.templateElement_.effectiveContent,
+                                   syntaxString);
+    },
+
     handleSplices: function(splices) {
+      var syntaxString = this.templateElement_.getAttribute(SYNTAX);
+      var syntax = HTMLTemplateElement.syntax[syntaxString];
+
       splices.forEach(function(splice) {
         splice.removed.forEach(function() {
-          var cursor = new InstanceCursor(this.templateElement_, splice.index + 1);
+          var cursor = new InstanceCursor(this.templateElement_,
+                                          splice.index + 1);
           cursor.remove();
           this.instanceCount--;
         }, this);
 
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
+          var model = this.getInstanceModel(this.iteratedValue[addIndex],
+                                            syntax);
+          var fragment = this.getInstanceFragment(model, syntax, syntaxString);
+
+          addBindings(fragment, model, syntax);
+          addTemplateInstanceRecord(fragment, model)
+
           var cursor = new InstanceCursor(this.templateElement_, addIndex);
-          cursor.insert(this.iteratedValue[addIndex]);
+          cursor.insert(fragment);
           this.instanceCount++;
         }
       }, this);
