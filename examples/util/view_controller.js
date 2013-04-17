@@ -21,27 +21,33 @@
 
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
-  function bindController(elm) {
-    var controllerClass = elm.getAttribute(CONTROLLER_ATTRIBUTE);
+  function bindController(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE)
+      return;
+
+    var controllerClass = node.getAttribute(CONTROLLER_ATTRIBUTE);
     if (!controllerClass ||
         !this[controllerClass] ||
         typeof this[controllerClass] != 'function') {
       return;
     }
 
-    var controller = new this[controllerClass](elm);
+    var controller = new this[controllerClass](node);
     if (controller.model) {
       // TODO(rafaelw): This should really only visit template elements
       // TODO(rafaelw): It's pretty lame you have to set the delegate here.
-      HTMLTemplateElement.bindTree(elm, controller.model);
+      HTMLTemplateElement.bindTree(node, controller.model);
     }
-    elm.controller = controller;
+    node.controller = controller;
   }
 
   var registeredEvents = {};
 
-  function getAction(elm) {
-    var actionText = elm.getAttribute(ACTION_ATTRIBUTE);
+  function getAction(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE)
+      return;
+
+    var actionText = node.getAttribute(ACTION_ATTRIBUTE);
     if (!actionText)
       return;
     var tokens = actionText.split(':');
@@ -56,8 +62,8 @@
     }
   }
 
-  function registerAction(elm) {
-    var action = getAction(elm);
+  function registerAction(node) {
+    var action = getAction(node);
     if (!action)
       return;
     if (registeredEvents[action.eventType])

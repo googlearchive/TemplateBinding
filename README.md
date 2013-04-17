@@ -2,7 +2,7 @@
 
 ### What is Model-driven Views?
 
-Model-driven Views (or “MDV” for short) is a way to write _dynamic_ HTML _using_ HTML.
+Model-driven Views (or "MDV" for short) is a way to write _dynamic_ HTML _using_ HTML.
 
 ### Status
 
@@ -12,33 +12,31 @@ MDV works best with three new web platform features, all of which aren't impleme
 
 ### An explanatory sample
 
-There’s plenty of detail, but it all hinges on the `<template>` element. Let’s walk through a simple [example](https://github.com/toolkitchen/mdv/blob/master/sample.html) which demonstrates the basics.
+There's plenty of detail, but it all hinges on the `<template>` element. Let’s walk through a simple [example](https://github.com/toolkitchen/mdv/blob/master/sample.html) which demonstrates the basics.
 
-```HTML
-<head>
-  <script src="src/mdv.js"></script>
-</head>
-<body>
-  <h1>Model-driven Views</h1>
-  <ul>
-    <template id="greeting" repeat="{{ salutations }}">
-      <li>{{ what }}: <input type="text" value="{{ who }}"></li>
-    </template>
-  </ul>
-<script>
-var t = document.getElementById('greeting');
-var model = {
-  salutations: [
-    { what: 'Hello', who: 'World' },
-    { what: 'GoodBye', who: 'DOM APIs' },
-    { what: 'Hello', who: 'Declarative' },
-    { what: 'GoodBye', who: 'Imperative' }
-  ]
-};
-HTMLTemplateElement.bindTree(t, model);
-</script>
-<body>
-```
+    <head>
+      <script src="mdv.js"></script>
+    </head>
+    <body>
+      <h1>Model-driven Views</h1>
+      <ul>
+        <template id="greeting" repeat="{{ salutations }}">
+          <li>{{ what }}: <input type="text" value="{{ who }}"></li>
+        </template>
+      </ul>
+    <script>
+    var t = document.getElementById('greeting');
+    var model = {
+      salutations: [
+        { what: 'Hello', who: 'World' },
+        { what: 'GoodBye', who: 'DOM APIs' },
+        { what: 'Hello', who: 'Declarative' },
+        { what: 'GoodBye', who: 'Imperative' }
+      ]
+    };
+    HTMLTemplateElement.bindTree(t, model);
+    </script>
+    </body>
 
 This example should look mostly familiar to anyone who knows HTML, but there are a couple novel things going on:
 
@@ -53,44 +51,38 @@ If you loaded the above example without `<script src="src/mdv.js"></script>`, th
 However, the MDV library teaches `<template>` some new tricks. With MDV, `<template>` knows how to:
 
 * Instruct DOM nodes to derive their value from JavaScript data by binding them to the data provided.
-* Maintain a fragment of DOM (or “instance fragment”) for each item in an array. 
+* Maintain a fragment of DOM (or "instance fragment") for each item in an array. 
 * Conditionally stamp out one or more instance fragments, based on whether  some data value is true or not.
 * ...And lots more.
 
 But back to the example. Our template...
 
-```HTML
-<template id="greeting" repeat="{{ salutations }}">
-  <li>{{ what }}: <input type="text" value="{{ who }}"></li>
-</template>
-```
+    <template id="greeting" repeat="{{ salutations }}">
+      <li>{{ what }}: <input type="text" value="{{ who }}"></li>
+    </template>
 
-...defines what each instance will look like when stamped out. In this case, it contains a `<li>` with a text node and an `<input>` as its children. The mustaches `{{` ... `}}` mean _“bind data here”_. The `repeat=”{{ salutations }}”` tells the template to ensure there is one instance fragment for each element in the salutations array.
+...defines what each instance will look like when stamped out. In this case, it contains a `<li>` with a text node and an `<input>` as its children. The mustaches `{{` ... `}}` mean _"bind data here"_. The `repeat="{{ salutations }}"` tells the template to ensure there is one instance fragment for each element in the salutations array.
 
-In `<script>`, we create a model
+In `<script>`, we create a model:
 
-```JavaScript
-var model = {
-  salutations: [
-    { what: 'Hello', who: 'World' },
-    { what: 'GoodBye', who: 'DOM APIs' },
-    { what: 'Hello', who: 'Declarative' },
-    { what: 'GoodBye', who: 'Imperative' }
-  ]
-};
-```
+    var model = {
+      salutations: [
+        { what: 'Hello', who: 'World' },
+        { what: 'GoodBye', who: 'DOM APIs' },
+        { what: 'Hello', who: 'Declarative' },
+        { what: 'GoodBye', who: 'Imperative' }
+      ]
+    };
 
 Notice that this is just JavaScript data: _there’s no need to import your data into special observable objects_. The template is set in motion by binding the model data to it:
 
-```JavaScript
-HTMLTemplateElement.bindTree(t, model);
-```
+    HTMLTemplateElement.bindTree(t, model);
 
-Now the template is off to the races. Here’s the result:
+Now the template is off to the races. Here's the result:
 
 ![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/output.png)
 
-and here’s what the DOM looks like:
+and here's what the DOM looks like:
 
 ![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/DOM.png)
 
@@ -106,7 +98,7 @@ However, the DOM doesn’t just observe data in the model, if DOM elements which
 
 ![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/input.png)
 
-Lastly, let’s look at what happens when we alter the contents of the `model.salutations` array:
+Lastly, let's look at what happens when we alter the contents of the `model.salutations` array:
 
 ![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/arrayUpdate.png)
 
@@ -114,7 +106,11 @@ The `<template>` is `repeat`ing which means that it ensures there is one instanc
 
 Getting the idea? MDV allows you author your HTML _using_ HTML which contains information about _where data goes_ and directives which _control the document’s structure_ -- all depending on the data you provide it.
 
-### Where to go from here? (IMPORTANT: The documentation and samples below have yet to created)
+### Where to go from here?
+
+<p class="alert">
+  <b>IMPORTANT</b>: The documentation and samples below have yet to created
+</p>
 
 If you are new to MDV, the best to place to go is to the look at the [How-To examples](https://github.com/toolkitchen/mdv/tree/master/examples/how_to). These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
   
@@ -137,7 +133,7 @@ _Using `<template>` to produce DOM structures:_
 
 MDV is designed to as two primitives which could eventually become standardized and implemented natively in browsers. The following two documents specify their behavior, API and use.
 
-* Node.bind: Which describes how DOM nodes are bound to data values
+* `Node.bind`: Which describes how DOM nodes are bound to data values
 * `<template>` instantiation: Which describes how `<template>` manages instance fragments.
   
 ### Extending MDV
