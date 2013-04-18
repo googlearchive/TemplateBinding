@@ -366,6 +366,7 @@
     'TD': true,
     'COLGROUP': true,
     'COL': true,
+    'CAPTION': true,
     'OPTION': true
   };
 
