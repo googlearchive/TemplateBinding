@@ -377,10 +377,6 @@
         return tagName.toLowerCase() + '[template]';
       }).join(', ');
 
-  function getTemplateDescendentsOf(node) {
-    return node.querySelectorAll(allTemplatesSelectors);
-  }
-
   function isAttributeTemplate(el) {
     return semanticTemplateElements[el.tagName] &&
         el.hasAttribute('template');
@@ -437,19 +433,21 @@
     Model.notifyChanges();
   }, false);
 
+  function forAllTemplatesFrom(node, fn) {
+    var subTemplates = node.querySelectorAll(allTemplatesSelectors);
+
+    if (isTemplate(node))
+      fn(node)
+    forEach(subTemplates, fn);
+  }
+
   function bootstrapTemplatesRecursivelyFrom(node) {
     function bootstrap(template) {
       if (!HTMLTemplateElement.decorate(template))
         bootstrapTemplatesRecursivelyFrom(template.content);
     }
 
-    // Need to do this first as the contents may get lifted if |node| is
-    // template.
-    var templateDescendents = getTemplateDescendentsOf(node);
-    if (isTemplate(node))
-      bootstrap(node);
-
-    forEach(templateDescendents, bootstrap);
+    forAllTemplatesFrom(node, bootstrap);
   }
 
   if (!hasTemplateElement) {
@@ -577,8 +575,6 @@
   // Review whether this is the right public API.
   HTMLTemplateElement.bootstrap = bootstrapTemplatesRecursivelyFrom;
 
-  HTMLTemplateElement.bindTree = addBindings;
-
   var htmlElement = global.HTMLUnknownElement || HTMLElement;
 
   var contentDescriptor = {
@@ -620,6 +616,8 @@
     var ref = template.ref;
     return ref ? ref.content : template.content;
   }
+
+  var templateModelTable = new SideTable('templateModel');
 
   mixin(HTMLTemplateElement.prototype, {
     bind: function(name, model, path) {
@@ -677,6 +675,15 @@
         HTMLTemplateElement.__instanceCreated(instance);
       }
       return instance;
+    },
+
+    get model() {
+      return templateModelTable.get(this);
+    },
+
+    set model(model) {
+      templateModelTable.set(this, model);
+      addBindings(this, model);
     },
 
     get ref() {
@@ -1211,7 +1218,7 @@
     enumerable: true
   })
 
-  // Expose for testing
-  HTMLTemplateElement.allTemplatesSelectors = allTemplatesSelectors;
-
+  // Polyfill-specific API.
+  HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
+  HTMLTemplateElement.bindAllMustachesFrom_ = addBindings;
 })(this);

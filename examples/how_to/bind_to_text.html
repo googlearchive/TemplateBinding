@@ -12,7 +12,7 @@
 
 <script>
 var t = document.getElementById('text');
-var model = {
+t.model = {
   text: [
     { value: 'Fee' },
     { value: 'Fi' },
@@ -20,10 +20,13 @@ var model = {
     { value: 'Fum' }
   ]
 };
-HTMLTemplateElement.bindTree(t, model);
+
+var hasObserve = typeof Object.observe === 'function';
 
 var b = document.getElementById('rotateText');
 b.addEventListener('click', function() {
-  model.text.push(model.text.shift());
+  t.model.text.push(t.model.text.shift());
+  if (!hasObserve)
+  	Model.notifyChanges();
 });
 </script>

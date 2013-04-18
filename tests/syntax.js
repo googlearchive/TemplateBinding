@@ -27,14 +27,17 @@ suite('Syntax', function() {
     div.innerHTML = s;
     testDiv.appendChild(div);
 
-    Array.prototype.forEach.call(div.querySelectorAll(
-        HTMLTemplateElement.allTemplatesSelectors),
-      function(t) {
-        HTMLTemplateElement.decorate(t);
-      }
-    );
+    HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
+      HTMLTemplateElement.decorate(template);
+    });
 
     return div;
+  }
+
+  function recursivelySetTemplateModel(node, model) {
+    HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+      template.model = model;
+    });
   }
 
   test('Registration', function() {
@@ -78,7 +81,7 @@ suite('Syntax', function() {
     var div = createTestHtml(
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind>{{ foo }}</template></template>');
-    HTMLTemplateElement.bindTree(div, model);
+    HTMLTemplateElement.bindAllMustachesFrom_(div, model);
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
@@ -112,7 +115,7 @@ suite('Syntax', function() {
     var div = createTestHtml(
         '<template bind syntax="2x">' +
         '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('2 + 8 + ', div.lastChild.textContent);
@@ -182,7 +185,7 @@ suite('Syntax', function() {
     var div = createTestHtml(
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind syntax="Test2">{{ foo }}</template></template>');
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);

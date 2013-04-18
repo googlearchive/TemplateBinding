@@ -34,7 +34,7 @@ There's plenty of detail, but it all hinges on the `<template>` element. Let’s
         { what: 'GoodBye', who: 'Imperative' }
       ]
     };
-    HTMLTemplateElement.bindTree(t, model);
+    t.model = model;
     </script>
     </body>
 
@@ -43,7 +43,7 @@ This example should look mostly familiar to anyone who knows HTML, but there are
 #### The `<template>` element
 
 The [HTML Template element](http://www.w3.org/TR/html-templates/) is new and browsers are in the process of implementing it. It [allows](http://www.html5rocks.com/en/tutorials/webcomponents/template/) you to declare fragments of HTML that may be used at some point. The [Chrome Inspector](https://developers.google.com/chrome-developer-tools/docs/overview) allows you see the [content](http://www.w3.org/TR/html-templates/#api-html-template-element-content) of a template element.
-  
+
 ![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/templateContent.png)
 
 If you loaded the above example without `<script src="src/mdv.js"></script>`, that’s about all `<template>` would do.
@@ -51,7 +51,7 @@ If you loaded the above example without `<script src="src/mdv.js"></script>`, th
 However, the MDV library teaches `<template>` some new tricks. With MDV, `<template>` knows how to:
 
 * Instruct DOM nodes to derive their value from JavaScript data by binding them to the data provided.
-* Maintain a fragment of DOM (or "instance fragment") for each item in an array. 
+* Maintain a fragment of DOM (or "instance fragment") for each item in an array.
 * Conditionally stamp out one or more instance fragments, based on whether  some data value is true or not.
 * ...And lots more.
 
@@ -76,7 +76,7 @@ In `<script>`, we create a model:
 
 Notice that this is just JavaScript data: _there’s no need to import your data into special observable objects_. The template is set in motion by binding the model data to it:
 
-    HTMLTemplateElement.bindTree(t, model);
+    t.model = model;
 
 Now the template is off to the races. Here's the result:
 
@@ -113,7 +113,7 @@ Getting the idea? MDV allows you author your HTML _using_ HTML which contains in
 </p>
 
 If you are new to MDV, the best to place to go is to the look at the [How-To examples](https://github.com/toolkitchen/mdv/tree/master/examples/how_to). These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
-  
+
 _Binding to DOM values:_
 
 * [Binding to text values](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_text.html): How to insert values into the DOM that render as text.
@@ -121,34 +121,34 @@ _Binding to DOM values:_
 * [Conditional attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_attributes.html): How to bind to attributes such that the attribute is only present if the binding value is “truthy”.
 * [Binding to input elements](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_input_elements.html): How to bind bi-directionally with input elements.
 * Custom bindings: How to implement a custom element which has a specialized interpretation of a binding.
-  
+
 _Using `<template>` to produce DOM structures:_
 
 * Conditionals: How to control whether instance fragments are produced based on the value of a binding.
 * Nested templates: How to accomplish nested template production.
 * Re-using templates: How to define a template once and use it in more than one location.
 * Recursive templates: How to produce tree-structure DOM whose depth is dependent on the data to which it is bound.
-  
+
 ### API Reference / Pseudo-specs
 
 MDV is designed to as two primitives which could eventually become standardized and implemented natively in browsers. The following two documents specify their behavior, API and use.
 
 * `Node.bind`: Which describes how DOM nodes are bound to data values
 * `<template>` instantiation: Which describes how `<template>` manages instance fragments.
-  
+
 ### Extending MDV
 
 MDV is mainly concerned with being robust and efficient in interacting with application data and keeping the DOM in sync , but more advanced behaviors can be accomplished via one or both of the following:
 
 * [A Custom Syntax API](https://github.com/toolkitchen/mdv/blob/master/docs/syntax.md)
 * Chained observation
-  
+
 ### Advanced Topics
 
 * DOM Stability: MDV makes every effort to maintain the state of DOM nodes (event listeners, expandos, etc...). Understand why this is important and how it works.
 * Imperative DOM mutation: You should rarely need to directly manipulate the DOM, but if you do, it’s allowed. Learn the simple rules of how MDV will react if you manipulate the DOM it is managing.
 * Asynchronous processing model: MDV responds asynchronously to changes in data and DOM. Learn why this is good and what it means for your application.
-  
+
 ### Deployment
 
 MDV builds upon recently added primitives to the Web Platform:
@@ -156,7 +156,7 @@ MDV builds upon recently added primitives to the Web Platform:
 * [ECMAScript Object.observe](http://updates.html5rocks.com/2012/11/Respond-to-change-with-Object-observe)
 * [The HTML Template Element](http://www.html5rocks.com/en/tutorials/webcomponents/template/)
 * [DOM Mutation Observers](https://developer.mozilla.org/en-US/docs/DOM/MutationObserver)
-  
+
 Not all browsers currently implement all the required primitives. MDV attempts to polyfil their absence, but targeting browsers which do not support all three requires understanding patterns of use which should be prefered or avoided to ensure proper behavior.
 
 * Deploying MDV, supported browsers and rough edges

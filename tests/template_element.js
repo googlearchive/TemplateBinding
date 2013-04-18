@@ -29,14 +29,30 @@ suite('Template Element', function() {
     div.innerHTML = s;
     testDiv.appendChild(div);
 
-    Array.prototype.forEach.call(div.querySelectorAll(
-        HTMLTemplateElement.allTemplatesSelectors),
-      function(t) {
-        HTMLTemplateElement.decorate(t);
-      }
-    );
+    HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
+      HTMLTemplateElement.decorate(template);
+    });
 
     return div;
+  }
+
+  function createShadowTestHtml(s) {
+    var div = document.createElement('div');
+    var root = div.webkitCreateShadowRoot();
+    root.innerHTML = s;
+    testDiv.appendChild(div);
+
+    HTMLTemplateElement.forAllTemplatesFrom_(div, function(node) {
+      HTMLTemplateElement.decorate(node);
+    });
+
+    return root;
+  }
+
+  function recursivelySetTemplateModel(node, model) {
+    HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+      template.model = model;
+    });
   }
 
   function dispatchEvent(type, target) {
@@ -48,7 +64,7 @@ suite('Template Element', function() {
   test('Template', function() {
     var div = createTestHtml(
         '<template bind={{}}>text</template>');
-    HTMLTemplateElement.bindTree(div);
+    recursivelySetTemplateModel(div);
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
@@ -57,7 +73,7 @@ suite('Template Element', function() {
   test('Template-Empty Bind', function() {
     var div = createTestHtml(
         '<template bind>text</template>');
-    HTMLTemplateElement.bindTree(div);
+    recursivelySetTemplateModel(div);
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
@@ -67,7 +83,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind={{}}>a{{b}}c</template>');
     var model =  {b: 'B'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -91,7 +107,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind="{{ data }}">a{{b}}c</template>');
     var model =  { data: {b: 'B'} };
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -114,7 +130,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind="{{}}" if="{{ d }}">a{{b}}c</template>');
     var model =  {b: 'B', d: 1};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -141,7 +157,7 @@ suite('Template Element', function() {
         '<template bind="{{ b }}">a{{value}}c</template>');
     assert.strictEqual(1, div.childNodes.length);
     var model = {b: {value: 'B'}};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -158,7 +174,7 @@ suite('Template Element', function() {
         '<div foo="a{{b}}c"></div>' +
         '</template>');
     var model = {b: 'B'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -179,7 +195,7 @@ suite('Template Element', function() {
         '<div foo?="{{b}}"></div>' +
         '</template>');
     var model = {b: 'b'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -197,7 +213,7 @@ suite('Template Element', function() {
         '<template repeat="{{}}"">text</template>');
 
     var model = [0, 1, 2];
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
@@ -220,7 +236,7 @@ suite('Template Element', function() {
         '<template repeat>text</template>');
 
     var model = [0, 1, 2];
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
@@ -242,7 +258,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template repeat="{{}}"><a>{{v}}</a></template>');
     var model = [{v: 0}, {v: 1}, {v: 2}, {v: 3}, {v: 4}];
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
 
     var as = [];
@@ -273,7 +289,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template repeat="{{}}">{{}}</template>');
     var model = [1, 2, 3, 4, 5];
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     function getInstanceNode(index) {
       var node = div.firstChild.nextSibling;
@@ -342,7 +358,7 @@ suite('Template Element', function() {
       {value: 1},
       {value: 2}
     ];
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
@@ -371,7 +387,7 @@ suite('Template Element', function() {
         '<input value="{{x}}">' +
         '</template>');
     var model = {x: 'hi'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
@@ -403,7 +419,7 @@ suite('Template Element', function() {
       XY: {name: 'Fry', title: 'Delivery boy'},
       XZ: {name: 'Zoidberg', title: 'Doctor'}
     };
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
 
@@ -437,7 +453,7 @@ suite('Template Element', function() {
   test('Bind', function() {
     var div = createTestHtml('<template bind="{{}}">Hi {{ name }}</template>');
     var model = {name: 'Leela'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
@@ -460,7 +476,7 @@ suite('Template Element', function() {
   test('BindPlaceHolderHasNewLine', function() {
     var div = createTestHtml('<template bind="{{}}">Hi {{\nname\n}}</template>');
     var model = {name: 'Leela'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
@@ -480,7 +496,7 @@ suite('Template Element', function() {
     assert.strictEqual(t1, t2.ref);
 
     var model = {name: 'Fry'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
@@ -496,7 +512,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind="{{ XX }}">Hi {{ name }}</template>');
 
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     var t = div.firstChild;
     Model.notifyChanges();
@@ -533,7 +549,7 @@ suite('Template Element', function() {
       ]
     };
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -579,7 +595,7 @@ suite('Template Element', function() {
         {name: 'Neal'}
       ]
     };
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
 
     Model.notifyChanges();
     t = div.firstChild;
@@ -596,7 +612,7 @@ suite('Template Element', function() {
       {name: 'Arv'},
       {name: 'Neal'}
     ];
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
 
     Model.notifyChanges();
 
@@ -633,14 +649,14 @@ suite('Template Element', function() {
     t = div.firstChild;
 
     var m = null;
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
 
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
     t.iterate = '';
     m = {};
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
 
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
@@ -655,7 +671,7 @@ suite('Template Element', function() {
       {name: 'Arv'},
       {name: 'Neal'}
     ];
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -684,7 +700,7 @@ suite('Template Element', function() {
       '<template bind="{{}}"><span><span>{{ foo }}</span></span></template>');
 
     var model = {foo: 'bar'};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
 
     assert.strictEqual('bar',
@@ -723,7 +739,7 @@ suite('Template Element', function() {
       },
     };
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     var i = start;
@@ -775,7 +791,7 @@ suite('Template Element', function() {
       ]
     };
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     var i = start;
@@ -833,7 +849,7 @@ suite('Template Element', function() {
       ]
     };
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     var i = start;
@@ -911,7 +927,7 @@ suite('Template Element', function() {
       },
     ];
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     var i = 1;
@@ -954,7 +970,7 @@ suite('Template Element', function() {
       [{ val: 2 }, { val: 3 }]
     ];
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     var i = 1;
@@ -991,7 +1007,7 @@ suite('Template Element', function() {
       [{ val: 2 }, { val: 3 }]
     ];
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     var i = 1;
@@ -1038,7 +1054,7 @@ suite('Template Element', function() {
       }
     ];
 
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
 
     Model.notifyChanges();
     m.splice(0, 1);
@@ -1062,7 +1078,7 @@ suite('Template Element', function() {
         }
       }
     };
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     assert.strictEqual('P', div.childNodes[1].tagName);
@@ -1074,7 +1090,7 @@ suite('Template Element', function() {
     var div = createTestHtml('<template bind="{{}}">{{ }}</template>');
     var model = 42;
 
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
     assert.strictEqual('', div.childNodes[0].textContent);
@@ -1084,7 +1100,7 @@ suite('Template Element', function() {
     var div = createTestHtml('<template iterate>Remove me</template>');
     var model = [];
 
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
     assert.strictEqual('', div.childNodes[0].textContent);
@@ -1103,7 +1119,7 @@ suite('Template Element', function() {
       a: 1,
       b: 2
     };
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
 
     assert.strictEqual('', div.childNodes[0].textContent);
@@ -1116,17 +1132,17 @@ suite('Template Element', function() {
     var div = createTestHtml('<template bind="{{}}" if="{{}}">{{ a }}</template>');
 
     var model = {a: 42};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
 
     model = undefined;
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
     model = {a: 42};
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
   });
@@ -1149,7 +1165,7 @@ suite('Template Element', function() {
         name: 'LaBarbara'
       }
     };
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     assert.strictEqual(5, div.childNodes.length);
@@ -1180,7 +1196,7 @@ suite('Template Element', function() {
         name: 'Bender'
       }
     };
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     assert.strictEqual(5, div.childNodes.length);
@@ -1215,7 +1231,7 @@ suite('Template Element', function() {
         {length: 2}
       ]
     };
-    HTMLTemplateElement.bindTree(div, m);
+    recursivelySetTemplateModel(div, m);
     Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
@@ -1245,7 +1261,7 @@ suite('Template Element', function() {
           '<template ref="a" bind="{{}}"></template>' +
         '</template>');
     var model = [];
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
 
     assert.strictEqual(3, div.childNodes.length);
@@ -1303,28 +1319,12 @@ suite('Template Element', function() {
                  templateB.content.ownerDocument);
   });
 
-  function createShadowTestHtml(s) {
-    var div = document.createElement('div');
-    var root = div.webkitCreateShadowRoot();
-    root.innerHTML = s;
-    testDiv.appendChild(div);
-
-    Array.prototype.forEach.call(root.querySelectorAll(
-        HTMLTemplateElement.allTemplatesSelectors),
-      function(t) {
-        HTMLTemplateElement.decorate(t);
-      }
-    );
-
-    return root;
-  }
-
   test('BindShadowDOM', function() {
     if (HTMLElement.prototype.webkitCreateShadowRoot) {
       var root = createShadowTestHtml(
           '<template bind="{{}}">Hi {{ name }}</template>');
       var model = {name: 'Leela'};
-      HTMLTemplateElement.bindTree(root, model);
+      recursivelySetTemplateModel(root, model);
       Model.notifyChanges();
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
     }
@@ -1359,7 +1359,7 @@ suite('Template Element', function() {
       }
     };
 
-    HTMLTemplateElement.bindTree(div, model);
+    recursivelySetTemplateModel(div, model);
 
     Model.notifyChanges();
     assert.strictEqual(1, count);
@@ -1386,7 +1386,7 @@ suite('Template Element', function() {
         '<template bind="{{}}">Foo' +
         '</template>' +
       '</template>');
-    HTMLTemplateElement.bindTree(div);
+    recursivelySetTemplateModel(div);
     Model.notifyChanges();
     assert.isFalse(!!ChangeSummary._errorThrownDuringCallback);
   });
@@ -1451,7 +1451,7 @@ suite('Template Element', function() {
     var div = createTestHtml('<template bind="{{}}">Foo</template>');
     assert.isFalse(called);
 
-    HTMLTemplateElement.bindTree(div);
+    recursivelySetTemplateModel(div);
     Model.notifyChanges();
     assert.isTrue(called);
 

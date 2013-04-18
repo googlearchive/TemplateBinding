@@ -34,9 +34,9 @@
 
     var controller = new this[controllerClass](node);
     if (controller.model) {
-      // TODO(rafaelw): This should really only visit template elements
-      // TODO(rafaelw): It's pretty lame you have to set the delegate here.
-      HTMLTemplateElement.bindTree(node, controller.model);
+      HTMLTemplateElement.forAllTemplatesFrom_(node, function(t) {
+        t.model = controller.model;
+      });
     }
     node.controller = controller;
   }

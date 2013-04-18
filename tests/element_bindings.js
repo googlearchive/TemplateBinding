@@ -38,7 +38,7 @@ suite('Element Bindings', function() {
     var text = document.createTextNode('hi');
     var model = {a: 1, b: 2};
     text.textContent = '{{a}} and {{b}}';
-    HTMLTemplateElement.bindTree(text, model);
+    HTMLTemplateElement.bindAllMustachesFrom_(text, model);
     Model.notifyChanges();
 
     assert.strictEqual('1 and 2', text.data);
@@ -110,7 +110,7 @@ suite('Element Bindings', function() {
     var el = document.createElement('div');
     el.textContent = 'dummy';
     el.firstChild.textContent = 'Hello {{ adj }} {{noun}}!';
-    HTMLTemplateElement.bindTree(el, model);
+    HTMLTemplateElement.bindAllMustachesFrom_(el, model);
 
     Model.notifyChanges();
     assert.strictEqual('Hello cruel world!', el.textContent);
@@ -328,7 +328,7 @@ suite('Element Bindings', function() {
     var el = document.createElement('div');
     var model = {foo: 'bar'};
     el.setAttribute('foo', '{{foo}} {{foo}}');
-    HTMLTemplateElement.bindTree(el, model);
+    HTMLTemplateElement.bindAllMustachesFrom_(el, model);
     Model.notifyChanges();
     assert.strictEqual('bar bar', el.getAttribute('foo'));
   });
