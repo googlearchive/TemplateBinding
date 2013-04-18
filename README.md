@@ -120,11 +120,11 @@ _Binding to DOM values:_
 * [Binding to attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_attributes.html): How to insert values into element attributes
 * [Conditional attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_attributes.html): How to bind to attributes such that the attribute is only present if the binding value is “truthy”.
 * [Binding to input elements](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_input_elements.html): How to bind bi-directionally with input elements.
-* Custom bindings: How to implement a custom element which has a specialized interpretation of a binding.
+* [Custom bindings](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/custom_syntax.html): How to implement a custom element which has a specialized interpretation of a binding.
 
 _Using `<template>` to produce DOM structures:_
 
-* Conditionals: How to control whether instance fragments are produced based on the value of a binding.
+* [Conditionals](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_template.html): How to control whether instance fragments are produced based on the value of a binding.
 * Nested templates: How to accomplish nested template production.
 * Re-using templates: How to define a template once and use it in more than one location.
 * Recursive templates: How to produce tree-structure DOM whose depth is dependent on the data to which it is bound.
