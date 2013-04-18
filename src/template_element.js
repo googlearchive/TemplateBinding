@@ -615,14 +615,9 @@
     }
   }
 
-  function createInstance(fragment, syntax) {
-    var instance = createDeepCloneAndDecorateTemplates(fragment, syntax);
-    // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
-    // because custom elements are not upgraded during cloneNode()
-    if (typeof HTMLTemplateElement.__instanceCreated == 'function') {
-      HTMLTemplateElement.__instanceCreated(instance);
-    }
-    return instance;
+  function effectiveContent(template) {
+    var ref = template.ref;
+    return ref ? ref.content : template.content;
   }
 
   mixin(HTMLTemplateElement.prototype, {
@@ -671,13 +666,16 @@
       Element.prototype.unbindAll.call(this);
     },
 
-    createInstance: function(model, syntax) {
-      return createInstance(this.effectiveContent, syntax);
-    },
-
-    get effectiveContent() {
-      var ref = this.ref;
-      return ref ? ref.content : this.content;
+    createInstance: function() {
+      var content = effectiveContent(this);
+      var syntaxString = this.getAttribute(SYNTAX);
+      var instance = createDeepCloneAndDecorateTemplates(content, syntaxString);
+      // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
+      // because custom elements are not upgraded during cloneNode()
+      if (typeof HTMLTemplateElement.__instanceCreated == 'function') {
+        HTMLTemplateElement.__instanceCreated(instance);
+      }
+      return instance;
     },
 
     get ref() {
@@ -1095,14 +1093,13 @@
       return model;
     },
 
-    getInstanceFragment: function(model, syntax, syntaxString) {
-      return createInstance(this.templateElement_.effectiveContent,
-                                   syntaxString);
+    getInstanceFragment: function(syntax) {
+      return this.templateElement_.createInstance();
     },
 
     handleSplices: function(splices) {
-      var syntaxString = this.templateElement_.getAttribute(SYNTAX);
-      var syntax = HTMLTemplateElement.syntax[syntaxString];
+      var syntax =
+          HTMLTemplateElement.syntax[this.templateElement_.getAttribute(SYNTAX)];
 
       splices.forEach(function(splice) {
         splice.removed.forEach(function() {
@@ -1116,7 +1113,7 @@
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
           var model = this.getInstanceModel(this.iteratedValue[addIndex],
                                             syntax);
-          var fragment = this.getInstanceFragment(model, syntax, syntaxString);
+          var fragment = this.getInstanceFragment(syntax);
 
           addBindings(fragment, model, syntax);
           addTemplateInstanceRecord(fragment, model)
