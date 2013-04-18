@@ -81,7 +81,7 @@ suite('Syntax', function() {
     var div = createTestHtml(
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind>{{ foo }}</template></template>');
-    HTMLTemplateElement.bindAllMustachesFrom_(div, model);
+    recursivelySetTemplateModel(div, model);
     Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
