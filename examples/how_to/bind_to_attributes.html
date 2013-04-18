@@ -21,12 +21,11 @@ t.model = {
   ]
 };
 
-var hasObserve = typeof Object.observe === 'function';
-
 var b = document.getElementById('rotateText');
 b.addEventListener('click', function() {
   t.model.colors.push(t.model.colors.shift());
-  if (!hasObserve)
-    Model.notifyChanges();
+
+  // Needed to support browsers that don't support Object.observe.
+  Model.notifyChanges();
 });
 </script>
