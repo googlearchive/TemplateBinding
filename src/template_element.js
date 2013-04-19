@@ -741,10 +741,6 @@
     return result;
   }
 
-  function isCheckBoxOrRadioButton(element) {
-    return element.type === 'radio' || element.type === 'checkbox';
-  }
-
   function bindOrDelegate(node, name, model, path, syntax) {
     var delegateBinding;
     var delegate = syntax && syntax[GET_BINDING];
