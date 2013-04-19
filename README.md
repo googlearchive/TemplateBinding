@@ -125,9 +125,9 @@ _Binding to DOM values:_
 _Using `<template>` to produce DOM structures:_
 
 * [Conditionals](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_template.html): How to control whether instance fragments are produced based on the value of a binding.
-* Nested templates: How to accomplish nested template production.
-* Re-using templates: How to define a template once and use it in more than one location.
-* Recursive templates: How to produce tree-structure DOM whose depth is dependent on the data to which it is bound.
+* [Nested templates](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/nested_templates.html): How to accomplish nested template production.
+* [Re-using templates](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/template_ref.html): How to define a template once and use it in more than one location.
+* [Recursive templates](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/recursive_templates.html): How to produce tree-structure DOM whose depth is dependent on the data to which it is bound.
 
 ### API Reference / Pseudo-specs
 
