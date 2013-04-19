@@ -108,10 +108,6 @@ Getting the idea? MDV allows you author your HTML _using_ HTML which contains in
 
 ### Where to go from here?
 
-<p class="alert">
-  <b>IMPORTANT</b>: The documentation and samples below have yet to created
-</p>
-
 If you are new to MDV, the best to place to go is to the look at the [How-To examples](https://github.com/toolkitchen/mdv/tree/master/examples/how_to). These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
 
 _Binding to DOM values:_
@@ -141,13 +137,17 @@ MDV is designed to as two primitives which could eventually become standardized 
 MDV is mainly concerned with being robust and efficient in interacting with application data and keeping the DOM in sync , but more advanced behaviors can be accomplished via one or both of the following:
 
 * [A Custom Syntax API](https://github.com/toolkitchen/mdv/blob/master/docs/syntax.md)
-* Chained observation
 
 ### Advanced Topics
+
+<p class="alert">
+  <b>IMPORTANT</b>: The advanced topics documentation have yet to be created.
+</p>
 
 * DOM Stability: MDV makes every effort to maintain the state of DOM nodes (event listeners, expandos, etc...). Understand why this is important and how it works.
 * Imperative DOM mutation: You should rarely need to directly manipulate the DOM, but if you do, it’s allowed. Learn the simple rules of how MDV will react if you manipulate the DOM it is managing.
 * Asynchronous processing model: MDV responds asynchronously to changes in data and DOM. Learn why this is good and what it means for your application.
+* Chained observation
 
 ### Deployment
 
@@ -158,6 +158,10 @@ MDV builds upon recently added primitives to the Web Platform:
 * [DOM Mutation Observers](https://developer.mozilla.org/en-US/docs/DOM/MutationObserver)
 
 Not all browsers currently implement all the required primitives. MDV attempts to polyfil their absence, but targeting browsers which do not support all three requires understanding patterns of use which should be prefered or avoided to ensure proper behavior.
+
+<p class="alert">
+  <b>IMPORTANT</b>: The Deploying MDV documentation has yet to be created.
+</p>
 
 * Deploying MDV, supported browsers and rough edges
 
