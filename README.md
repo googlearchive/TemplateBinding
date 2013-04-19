@@ -133,8 +133,8 @@ _Using `<template>` to produce DOM structures:_
 
 MDV is designed to as two primitives which could eventually become standardized and implemented natively in browsers. The following two documents specify their behavior, API and use.
 
-* `Node.bind`: Which describes how DOM nodes are bound to data values
-* `<template>` instantiation: Which describes how `<template>` manages instance fragments.
+* [`Node.bind`](https://github.com/toolkitchen/mdv/blob/master/docs/node_bind.md): Which describes how DOM nodes are bound to data values
+* [`<template>` instantiation](https://github.com/toolkitchen/mdv/blob/master/docs/template.md): Which describes how `<template>` manages instance fragments.
 
 ### Extending MDV
 
