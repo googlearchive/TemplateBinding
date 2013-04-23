@@ -4,51 +4,33 @@
  * license that can be found in the LICENSE file.
  */
 
-// This is originally from Toolkitchen
-// https://github.com/toolkitchen/polyfills/blob/master/ShadowDOM/sidetable.js
-
 // SideTable is a weak map where possible. If WeakMap is not available the
 // association is stored as an expando property.
 var SideTable;
-if (typeof WeakMap !== 'undefined') {
+// TODO(arv): WeakMap does not allow for Node etc to be keys in Firefox
+if (typeof WeakMap !== 'undefined' && navigator.userAgent.indexOf('Firefox/') < 0) {
   SideTable = WeakMap;
 } else {
-  SideTable = function(name) {
-    this.name = '__$' + name + '$__';
-  };
-  SideTable.prototype = {
-    set: function(key, value) {
-      Object.defineProperty(key, this.name, {value: value, writable: true});
-    },
-    get: function(key) {
-      return key[this.name];
-    },
-    delete: function(key) {
-      this.set(key, undefined);
-    }
-  };
-}
+  (function() {
+    var defineProperty = Object.defineProperty;
+    var hasOwnProperty = Object.hasOwnProperty;
+    var counter = new Date().getTime() % 1e9;
 
-/**
- * Version of SideTable that walks the prototype chain for get.
- */
-function SideTableInherit(name) {
-  // V8 does not allow inheriting WeakMap so we use composition instead.
-  this.map = new SideTable(name);
+
+    SideTable = function() {
+      this.name = '__st' + (Math.random() * 1e9 >>> 0) + (counter++ + '__');
+    };
+
+    SideTable.prototype = {
+      set: function(key, value) {
+        defineProperty(key, this.name, {value: value, writable: true});
+      },
+      get: function(key) {
+        return hasOwnProperty.call(key, this.name) ? key[this.name] : undefined;
+      },
+      delete: function(key) {
+        this.set(key, undefined);
+      }
+    }
+  })();
 }
-SideTableInherit.prototype = {
-  set: function(key, value) {
-    this.map.set(key, value);
-  },
-  get: function(key) {
-    if (key === null)
-      return undefined;
-    var value = this.map.get(key);
-    if (value !== undefined)
-      return value;
-    return this.get(Object.getPrototypeOf(key));
-  },
-  delete: function(key) {
-    this.map.delete(key);
-  }
-};
