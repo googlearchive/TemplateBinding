@@ -37,7 +37,7 @@ module.exports = function(grunt) {
         src: [
           'third_party/ChangeSummary/change_summary.js',
           'src/compat.js',
-          'src/side_table.js',
+          'src/sidetable.js',
           'src/model.js',
           'src/script_value_binding.js',
           'src/text_replacements_binding.js',
