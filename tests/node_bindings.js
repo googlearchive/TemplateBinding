@@ -49,6 +49,20 @@ suite('Node Bindings', function() {
     // TODO(rafaelw): Throw on binding to unavailable property?
   });
 
+  test('Text (undefined value)', function() {
+    var text = document.createTextNode('hi');
+    var model = {};
+    text.bind('textContent', model, 'a');
+    assert.strictEqual(text.data, '');
+  });
+
+  test('Text (null value)', function() {
+    var text = document.createTextNode('hi');
+    var model = {a: null};
+    text.bind('textContent', model, 'a');
+    assert.strictEqual(text.data, '');
+  });
+
   test('Element', function() {
     var element = document.createElement('div');
     var model = {a: 1, b: 2};
@@ -69,6 +83,20 @@ suite('Node Bindings', function() {
 	assert.isTrue(element.hasAttribute('hidden'));
     assert.strictEqual('', element.getAttribute('hidden'));
     assert.strictEqual('x', element.id);
+  });
+
+  test('Element (undefined value)', function() {
+    var element = document.createElement('div');
+    var model = {};
+    element.bind('id', model, 'a');
+    assert.strictEqual(element.id, '');
+  });
+
+  test('Element (null value)', function() {
+    var element = document.createElement('div');
+    var model = {a: null};
+    element.bind('id', model, 'a');
+    assert.strictEqual(element.id, '');
   });
 
   test('Text Input', function() {
