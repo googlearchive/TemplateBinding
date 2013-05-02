@@ -56,13 +56,6 @@ suite('Node Bindings', function() {
     assert.strictEqual(text.data, '');
   });
 
-  test('Text (null value)', function() {
-    var text = document.createTextNode('hi');
-    var model = {a: null};
-    text.bind('textContent', model, 'a');
-    assert.strictEqual(text.data, '');
-  });
-
   test('Element', function() {
     var element = document.createElement('div');
     var model = {a: 1, b: 2};
@@ -77,10 +70,10 @@ suite('Node Bindings', function() {
     Model.notifyChanges();
     assert.isFalse(element.hasAttribute('hidden'));
 
-	model.a = 'foo';
+    model.a = 'foo';
     model.b = 'x';
     Model.notifyChanges();
-	assert.isTrue(element.hasAttribute('hidden'));
+  	assert.isTrue(element.hasAttribute('hidden'));
     assert.strictEqual('', element.getAttribute('hidden'));
     assert.strictEqual('x', element.id);
   });
@@ -88,13 +81,6 @@ suite('Node Bindings', function() {
   test('Element (undefined value)', function() {
     var element = document.createElement('div');
     var model = {};
-    element.bind('id', model, 'a');
-    assert.strictEqual(element.id, '');
-  });
-
-  test('Element (null value)', function() {
-    var element = document.createElement('div');
-    var model = {a: null};
     element.bind('id', model, 'a');
     assert.strictEqual(element.id, '');
   });

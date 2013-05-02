@@ -60,7 +60,7 @@
 
   function boundSetTextContent(textNode) {
     return function(value) {
-      textNode.data = value;
+      textNode.data = String(value === undefined ? '' : value);
     };
   }
 
