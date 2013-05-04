@@ -26,6 +26,6 @@ b.addEventListener('click', function() {
   t.model.text.push(t.model.text.shift());
 
   // Needed to support browsers that don't support Object.observe.
-  Model.notifyChanges();
+  Platform.performMicrotaskCheckpoint();
 });
 </script>

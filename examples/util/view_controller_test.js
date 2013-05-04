@@ -66,7 +66,7 @@ suite('View Controller', function() {
                      '</template>' +
                    '</ul>');
 
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     var thirdInstance =
         document.getElementById('testDiv').childNodes[0].childNodes[3];
     expectName = 'three';

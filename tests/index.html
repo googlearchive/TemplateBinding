@@ -24,6 +24,7 @@ limitations under the License.
 <script>
 
 var hasNativeTemplates = typeof HTMLTemplateElement !== 'undefined';
+var forceCollectObservers = true;
 
 </script>
 <script src="../mdv.js"></script>
@@ -38,7 +39,6 @@ mocha.setup({
 
 var assert = chai.assert;
 
-Model.throwFirstException_ = true;
 
 </script>
 <script src="node_bindings.js"></script>

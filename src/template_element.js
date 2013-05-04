@@ -45,16 +45,17 @@
     this.model = model;
     this.path = path;
     this.changed = changed;
-    this.changed(Model.observePath(this.model, this.path, this.changed));
+    this.observer = new PathObserver(this.model, this.path, this.changed);
+    this.changed(this.observer.value);
   }
 
   Binding.prototype = {
     dispose: function() {
-      Model.unobservePath(this.model, this.path, this.changed);
+      this.observer.close();
     },
 
     set value(newValue) {
-      Model.setValueAtPath(this.model, this.path, newValue);
+      PathObserver.setValueAtPath(this.model, this.path, newValue);
     }
   };
 
@@ -216,7 +217,7 @@
       if (this.postUpdateBinding)
         this.postUpdateBinding();
 
-      Model.notifyChanges();
+      Platform.performMicrotaskCheckpoint();
     },
 
     unbind: function() {
@@ -420,7 +421,7 @@
       }
     }
 
-    Model.observePath(obj, 'value', runScheduled);
+    var observer = new PathObserver(obj, 'value', runScheduled);
 
     return ensureScheduled;
   }();
@@ -430,7 +431,8 @@
   // "disconnected tress" (e.g. ShadowRoot)
   document.addEventListener('DOMContentLoaded', function(e) {
     bootstrapTemplatesRecursivelyFrom(document);
-    Model.notifyChanges();
+    // FIXME: Is this needed? Seems like it shouldn't be.
+    Platform.performMicrotaskCheckpoint();
   }, false);
 
   function forAllTemplatesFrom(node, fn) {
@@ -966,7 +968,7 @@
     this.templateElement_ = templateElement;
     this.terminators = [];
     this.iteratedValue = undefined;
-    this.observing = false;
+    this.arrayObserver = undefined;
     this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
     this.valueBinding = new Binding(this.inputs, 'value', this.valueChanged.bind(this));
@@ -990,8 +992,8 @@
         return;
 
       this.iteratedValue = value;
-
-      Model.observeArray(this.iteratedValue, this.boundHandleSplices);
+      this.arrayObserver =
+          new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
       this.observing = true;
 
       this.handleSplices([{
@@ -1089,11 +1091,11 @@
     },
 
     unobserve: function() {
-      if (!this.observing)
+      if (!this.arrayObserver)
         return;
 
-      Model.unobserveArray(this.iteratedValue, this.boundHandleSplices)
-      this.observing = false;
+      this.arrayObserver.close();
+      this.arrayObserver = undefined;
     },
 
     abandon: function() {

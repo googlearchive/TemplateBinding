@@ -81,7 +81,7 @@
     forEach(actionElements, registerAction);
 
     // Controller constructors may have bound data.
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
   }, false);
 
   document.addEventListener('DOMNodeInserted', function(e) {
@@ -117,7 +117,7 @@
     }
 
     if (handled)
-      Model.notifyChanges();
+      Platform.performMicrotaskCheckpoint();
     else
       console.error('Error: unhandled action', action, e);
   }
