@@ -56,6 +56,10 @@
 
     set value(newValue) {
       PathObserver.setValueAtPath(this.model, this.path, newValue);
+    },
+
+    reset: function() {
+      this.observer.reset();
     }
   };
 
@@ -212,8 +216,8 @@
     },
 
     updateBinding: function() {
-      // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
       this.binding.value = this.element[this.valueProperty];
+      this.binding.reset();
       if (this.postUpdateBinding)
         this.postUpdateBinding();
 
