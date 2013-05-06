@@ -761,7 +761,7 @@
     node.bind(name, model, path);
   }
 
-  function parseAndBind(node, text, name, model, syntax) {
+  function parseAndBind(node, name, text, model, syntax) {
     var tokens = parseMustacheTokens(text);
     if (!tokens.length || (tokens.length == 1 && tokens[0].type == TEXT))
       return;
@@ -815,7 +815,7 @@
     }
 
     Object.keys(attrs).forEach(function(attrName) {
-      parseAndBind(element, attrs[attrName], attrName, model, syntax);
+      parseAndBind(element, attrName, attrs[attrName], model, syntax);
     });
   }
 
@@ -825,7 +825,7 @@
     if (node.nodeType === Node.ELEMENT_NODE) {
       addAttributeBindings(node, model, syntax);
     } else if (node.nodeType === Node.TEXT_NODE) {
-      parseAndBind(node, node.data, 'textContent', model, syntax);
+      parseAndBind(node, 'textContent', node.data, model, syntax);
     }
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
@@ -1121,4 +1121,5 @@
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
   HTMLTemplateElement.bindAllMustachesFrom_ = addBindings;
+  HTMLTemplateElement.parseAndBind_ = parseAndBind;
 })(this);
