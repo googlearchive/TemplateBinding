@@ -73,7 +73,7 @@ suite('Node Bindings', function() {
     model.a = 'foo';
     model.b = 'x';
     Platform.performMicrotaskCheckpoint();
-  	assert.isTrue(element.hasAttribute('hidden'));
+    assert.isTrue(element.hasAttribute('hidden'));
     assert.strictEqual('', element.getAttribute('hidden'));
     assert.strictEqual('x', element.id);
   });
