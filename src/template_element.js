@@ -24,6 +24,64 @@
 
   var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
 
+  // JScript does not have __proto__. We wrap all object literals with
+  // createObject which uses Object.create, Object.defineProperty and
+  // Object.getOwnPropertyDescriptor to create a new object that does the exact
+  // same thing. The main downside to this solution is that we have to extract
+  // all those property descriptors for IE.
+  var createObject = ('__proto__' in {}) ?
+      function(obj) { return obj; } :
+      function(obj) {
+        var proto = obj.__proto__;
+        if (!proto)
+          return obj;
+        var newObject = Object.create(proto);
+        Object.getOwnPropertyNames(obj).forEach(function(name) {
+          Object.defineProperty(newObject, name,
+                               Object.getOwnPropertyDescriptor(obj, name));
+        });
+        return newObject;
+      };
+
+  // IE does not support have Document.prototype.contains.
+  if (typeof document.contains != 'function') {
+    Document.prototype.contains = function(node) {
+      if (node === this || node.parentNode === this)
+        return true;
+      return this.documentElement.contains(node);
+    }
+  }
+
+  // SideTable is a weak map where possible. If WeakMap is not available the
+  // association is stored as an expando property.
+  var SideTable;
+  // TODO(arv): WeakMap does not allow for Node etc to be keys in Firefox
+  if (typeof WeakMap !== 'undefined' && navigator.userAgent.indexOf('Firefox/') < 0) {
+    SideTable = WeakMap;
+  } else {
+    (function() {
+      var defineProperty = Object.defineProperty;
+      var hasOwnProperty = Object.hasOwnProperty;
+      var counter = new Date().getTime() % 1e9;
+
+      SideTable = function() {
+        this.name = '__st' + (Math.random() * 1e9 >>> 0) + (counter++ + '__');
+      };
+
+      SideTable.prototype = {
+        set: function(key, value) {
+          defineProperty(key, this.name, {value: value, writable: true});
+        },
+        get: function(key) {
+          return hasOwnProperty.call(key, this.name) ? key[this.name] : undefined;
+        },
+        delete: function(key) {
+          this.set(key, undefined);
+        }
+      }
+    })();
+  }
+
   function isNodeInDocument(node) {
     return node.ownerDocument.contains(node);
   }

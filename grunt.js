@@ -36,16 +36,7 @@ module.exports = function(grunt) {
       modules: {
         src: [
           'third_party/ChangeSummary/change_summary.js',
-          'src/compat.js',
-          'src/sidetable.js',
-          'src/model.js',
-          'src/script_value_binding.js',
-          'src/text_replacements_binding.js',
-          'src/element_attribute_bindings.js',
-          'src/element_bindings.js',
-          'src/input_bindings.js',
           'src/template_element.js',
-          'src/delegates.js'
         ],
         dest: 'src/mdv.combined.js'
       }
