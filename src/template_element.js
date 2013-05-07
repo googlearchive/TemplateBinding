@@ -746,8 +746,9 @@
     },
 
     set model(model) {
+      var syntax = HTMLTemplateElement.syntax[this.getAttribute(SYNTAX)];
       templateModelTable.set(this, model);
-      addBindings(this, model);
+      addBindings(this, model, syntax);
     },
 
     get ref() {

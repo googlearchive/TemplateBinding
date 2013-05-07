@@ -45,6 +45,13 @@ suite('Syntax', function() {
     var testData = [
       {
         model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
         path: 'foo',
         name: 'textContent',
         nodeType: Node.TEXT_NODE,
@@ -132,6 +139,13 @@ suite('Syntax', function() {
     var model = { foo: 'bar'};
 
     var testData = [
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
       {
         model: model,
         path: 'foo',
