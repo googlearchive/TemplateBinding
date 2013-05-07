@@ -2,7 +2,7 @@
 
 ### Why MDV Pluggable Syntax?
 
-MDV's native features enables a wide-range of use cases, but (by design) don't attempt to implement many specialized behaviors that some MV* frameworks suport. For example:
+MDV's native features enables a wide-range of use cases, but (by design) don't attempt to implement a wide array of specialized behaviors. For example:
 
 * Inline-expressions within mustaches, e.g.:
 
@@ -13,14 +13,14 @@ MDV's native features enables a wide-range of use cases, but (by design) don't a
 * "Named scopes" for iterators, e.g.:
 
 ```html
-<template repeat="{{ user in users }}">
+<template repeat="user in users">
   {{ user.name }}
 </template>
 ```
 
 * ... And anything else you'd like.
 
-Enabling these features in MDV is a matter of implementing and registering a Custom Syntax.
+Enabling these features in MDV is a matter of implementing and registering an MDV Custom Syntax.
 
 ### Basic usage
 
@@ -33,25 +33,18 @@ Enabling these features in MDV is a matter of implementing and registering a Cus
 ```JavaScript
 HTMLTemplateElement.syntax['MySyntax'] = {
   getBinding: function(model, path, name, node) {
-    // If this function is defined, the syntax can override
-    // the default binding behavior
-  },
-  getInstanceModel: function(template, model) {
-    // If this function is defined, the syntax can override
-    // what model is used for each template instance which is
-    // produced.
+    // The magic happens here!
   }
 }
 ```
 
 ### Custom Syntax Registration
 
-A Custom Syntax is an object which contains one or more syntax methods which implement specialized behavior. This object is registered with MDV via the HTMLTemplateElement. The syntax need only implement syntax methods it requires to accomplish its goals.
+A Custom Syntax is an object which contains one or more delegation functions which implement specialized behavior. This object is registered with MDV via the HTMLTemplateElement.
 
 ```JavaScript
 var syntax = {
-  getBinding: function(model, path, name, node) {},
-  getInstanceModel: function(template, model) {}
+  getBinding: function() {}
 };
 HTMLTemplateElement.syntax['name'] = syntax;
 ```
@@ -66,7 +59,7 @@ The `<template>` element can declare its intent to use a Custom Syntax by naming
 </template>
 ```
 
-If a `syntax` can be located via the registry by the `<template>`, the syntax's methods will be called to possibly override its default behavior.
+If a `syntax` can be located via the registry by the `<template>`, the syntax's delegate functions will be called to possibly override its default behavior.
 
 When a `<template>` inserts an new instance fragment into the DOM,
 
@@ -87,11 +80,12 @@ When a `<template>` inserts an new instance fragment into the DOM,
   </template>
 </template>
 ```
+
 ### getBinding
 
-The `getBinding` syntax method allows for a custom interpretation of the contents of mustaches (`{{` ... `}}`).
+The `getBinding` delegation function of a custom syntax allows for a custom interpretation of the contents of mustaches (`{{` ... `}}`).
 
-When a template is inserting an instance, it will invoke the `getBinding` method (if it is implemented by the syntax) for each mustache which is encountered. The function is invoked with four arguments:
+When a template is inserting an instance, it will invoke the `getBinding` function of the syntax in use for each mustache which is encountered. The function is invoked with four arguments:
 
 ```JavaScript
 syntax.getBinding = function(model, path, name, node);
@@ -102,7 +96,7 @@ syntax.getBinding = function(model, path, name, node);
 * `name`: The context in which the mustache occurs. Within element attributes, this will be the name of the attribute. Within text, this will be 'textContent'.
 * `node`: A reference to the node to which this binding will be created.
 
-If the `getBinding` syntax method wishes to handle binding, it is required to return an object which has at least a `value` property. If it does, then MDV will call
+If the `getBinding` delegation function wishes to handle binding, it is required to return an object which has at least a `value` property. If it does, then MDV will call
 
 ```JavaScript
 node.bind(name, retval, 'value');
@@ -111,20 +105,6 @@ node.bind(name, retval, 'value');
 ...on the node.
 
 If the 'getBinding' wishes to decline to override, it should not return a value.
-
-### getInstanceModel
-
-The `getInstanceModel` syntax method allows a syntax to provide an alterate model than the one the template would otherwise use when producing an instance.
-
-When a template is about to create an instance, it will invoke the `getInstanceModel` method (if it is implemented by the syntax). The function is invoked with two arguments:
-
-```JavaScript
-syntax.getBinding = function(template, model);
-```
-* `template`: The template element which is about to create and insert an instance.
-* `model`: The data context for which this instance is being created.
-
-The template element will always use the return value of `getInstanceModel` as the model for the new instance. If the syntax does not wish to override the value, it should simply return the `model` value it was passed.
 
 ### CompoundBinding
 
@@ -149,4 +129,5 @@ binding.bind('nameN', objN, pathN);
 
 ## Not-yet-implemented delegation functions
 
+* `getInstanceModel`: used to override the context data for which an instance is about to be created.
 * `getInstanceFragment`: used to override the DOM of the instance fragent which is a produced for a new instance.
