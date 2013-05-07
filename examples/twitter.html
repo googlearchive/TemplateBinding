@@ -144,7 +144,7 @@ var jsonp = function() {
       f.apply(scope||null, arguments);
       script.parentNode.removeChild(script);
       script = null;
-      Platform.performMicrotaskCheckpoint();
+      Model.notifyChanges();
     };
     script.src = url + '&callback=' + name;
     document.head.appendChild(script);

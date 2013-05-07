@@ -22,7 +22,6 @@ suite('Template Element', function() {
 
   teardown(function() {
     document.body.removeChild(testDiv);
-    Platform.clearObservers();
   });
 
   function createTestHtml(s) {
@@ -66,7 +65,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind={{}}>text</template>');
     recursivelySetTemplateModel(div);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
   });
@@ -75,7 +74,7 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind>text</template>');
     recursivelySetTemplateModel(div);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
   });
@@ -86,20 +85,20 @@ suite('Template Element', function() {
     var model =  {b: 'B'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
 
     model.b = 'b';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.textContent);
 
     model.b = undefined;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('ac', div.lastChild.textContent);
 
     model = undefined;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     // setting model isn't observable.
     assert.strictEqual('ac', div.lastChild.textContent);
   });
@@ -110,20 +109,20 @@ suite('Template Element', function() {
     var model =  { data: {b: 'B'} };
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
 
     model.data.b = 'b';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.textContent);
 
     model.data = {b: 'X'};
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('aXc', div.lastChild.textContent);
 
     model.data = undefined;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('ac', div.lastChild.textContent);
   });
 
@@ -133,22 +132,22 @@ suite('Template Element', function() {
     var model =  {b: 'B', d: 1};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
 
     model.b = 'b';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.textContent);
 
     model.d = '';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
     model.d = 'here';
     model.b = 'd';
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('adc', div.lastChild.textContent);
   });
@@ -160,12 +159,12 @@ suite('Template Element', function() {
     var model = {b: {value: 'B'}};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.textContent);
 
     model.b = {value: 'b'};
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.textContent);
   });
 
@@ -177,16 +176,16 @@ suite('Template Element', function() {
     var model = {b: 'B'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('aBc', div.lastChild.getAttribute('foo'));
 
     model.b = 'b';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('abc', div.lastChild.getAttribute('foo'));
 
     model.b = 'X';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('aXc', div.lastChild.getAttribute('foo'));
   });
 
@@ -198,14 +197,14 @@ suite('Template Element', function() {
     var model = {b: 'b'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.isTrue(div.lastChild.hasAttribute('foo'));
     assert.isFalse(div.lastChild.hasAttribute('foo?'));
     assert.strictEqual('', div.lastChild.getAttribute('foo'));
 
     model.b = null;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.isFalse(div.lastChild.hasAttribute('foo'));
   });
 
@@ -216,19 +215,19 @@ suite('Template Element', function() {
     var model = [0, 1, 2];
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
 
     model.length = 1;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
 
     model.push(3, 4);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
 
     model.splice(1, 1);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(3, div.childNodes.length);
   });
 
@@ -239,19 +238,19 @@ suite('Template Element', function() {
     var model = [0, 1, 2];
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
 
     model.length = 1;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
 
     model.push(3, 4);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
 
     model.splice(1, 1);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(3, div.childNodes.length);
   });
 
@@ -260,7 +259,7 @@ suite('Template Element', function() {
         '<template repeat="{{}}"><a>{{v}}</a></template>');
     var model = [{v: 0}, {v: 1}, {v: 2}, {v: 3}, {v: 4}];
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var as = [];
     for (var node = div.firstChild.nextSibling; node; node = node.nextSibling) {
@@ -273,14 +272,14 @@ suite('Template Element', function() {
     }
 
     model.length = 3;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     for (var i = 0; i < 5; i++) {
       assert.equal(as[i].textContent, String(i));
     }
 
     vs[3].v = 33;
     vs[4].v = 44;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     for (var i = 0; i < 5; i++) {
       assert.equal(as[i].textContent, String(i));
     }
@@ -308,7 +307,7 @@ suite('Template Element', function() {
       return getInstanceNode(index)['expando'];
     }
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     setInstanceExpando(0, 0);
     setInstanceExpando(1, 1);
     setInstanceExpando(2, 2);
@@ -318,7 +317,7 @@ suite('Template Element', function() {
     model.shift();
     model.pop();
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, getInstanceExpando(0));
     assert.strictEqual(2, getInstanceExpando(1));
     assert.strictEqual(3, getInstanceExpando(2));
@@ -327,7 +326,7 @@ suite('Template Element', function() {
     model[2] = 6;
     model.push(7);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(undefined, getInstanceExpando(0));
     assert.strictEqual(1, getInstanceExpando(1));
     assert.strictEqual(undefined, getInstanceExpando(2));
@@ -340,7 +339,7 @@ suite('Template Element', function() {
 
     model.splice(2, 0, 8);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(5, getInstanceExpando(0));
     assert.strictEqual(1, getInstanceExpando(1));
     assert.strictEqual(undefined, getInstanceExpando(2));
@@ -361,21 +360,21 @@ suite('Template Element', function() {
     ];
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
     assert.strictEqual('1', div.childNodes[2].textContent);
     assert.strictEqual('2', div.childNodes[3].textContent);
 
     model[1].value = 'One';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
     assert.strictEqual('One', div.childNodes[2].textContent);
     assert.strictEqual('2', div.childNodes[3].textContent);
 
     model.splice(0, 1, {value: 'Zero'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('Zero', div.childNodes[1].textContent);
     assert.strictEqual('One', div.childNodes[2].textContent);
@@ -390,19 +389,19 @@ suite('Template Element', function() {
     var model = {x: 'hi'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('hi', div.lastChild.value);
 
     model.x = 'bye';
     assert.strictEqual('hi', div.lastChild.value);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('bye', div.lastChild.value);
 
     div.lastChild.value = 'hello';
     dispatchEvent('input', div.lastChild);
     assert.strictEqual('hello', model.x);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('hello', div.lastChild.value);
   });
 
@@ -422,7 +421,7 @@ suite('Template Element', function() {
     };
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var t1 = document.getElementById('t1');
     var instance = t1.nextElementSibling;
@@ -456,7 +455,7 @@ suite('Template Element', function() {
     var model = {name: 'Leela'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
@@ -470,7 +469,7 @@ suite('Template Element', function() {
     var model = {name: 'Leela'};
     t.bind('bind', model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
@@ -479,7 +478,7 @@ suite('Template Element', function() {
     var model = {name: 'Leela'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
@@ -499,7 +498,7 @@ suite('Template Element', function() {
     var model = {name: 'Fry'};
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
   });
 
@@ -516,13 +515,13 @@ suite('Template Element', function() {
     recursivelySetTemplateModel(div, model);
 
     var t = div.firstChild;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('Hi Leela', t.nextSibling.textContent);
 
     t.bind('bind', model, 'XZ');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('Hi Zoidberg', t.nextSibling.textContent);
@@ -551,36 +550,36 @@ suite('Template Element', function() {
     };
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
     m.contacts.push({name: 'Alex'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
 
     m.contacts.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
 
     m.contacts.splice(1, 2);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Rafael', 'Hi Alex');
 
     m.contacts.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
     m.contacts.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
     m.contacts = [{name: 'Alex'}];
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Alex');
 
     m.contacts.length = 0;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre();
   });
 
@@ -598,7 +597,7 @@ suite('Template Element', function() {
     };
     recursivelySetTemplateModel(div, m);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     t = div.firstChild;
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -615,33 +614,33 @@ suite('Template Element', function() {
     ];
     recursivelySetTemplateModel(div, m);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
     m.push({name: 'Alex'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal', 'Hi Alex');
 
     m.splice(0, 2, {name: 'Rafael'}, {name: 'Erik'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Neal', 'Hi Alex');
 
     m.splice(1, 2);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Rafael', 'Hi Alex');
 
     m.splice(1, 0, {name: 'Erik'}, {name: 'Dimitri'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Rafael', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
     m.splice(0, 1, {name: 'Tab'}, {name: 'Neal'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Tab', 'Hi Neal', 'Hi Erik', 'Hi Dimitri', 'Hi Alex');
 
     m.length = 0;
     m.push({name: 'Alex'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Alex');
   });
 
@@ -652,14 +651,14 @@ suite('Template Element', function() {
     var m = null;
     recursivelySetTemplateModel(div, m);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
     t.iterate = '';
     m = {};
     recursivelySetTemplateModel(div, m);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
   });
 
@@ -673,7 +672,7 @@ suite('Template Element', function() {
       {name: 'Neal'}
     ];
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
     var node1 = div.childNodes[1];
@@ -681,7 +680,7 @@ suite('Template Element', function() {
     var node3 = div.childNodes[3];
 
     m.splice(1, 1, {name: 'Erik'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Raf', 'Hi Erik', 'Hi Neal');
     assert.strictEqual(node1, div.childNodes[1],
         'model[0] did not change so the node should not have changed');
@@ -692,7 +691,7 @@ suite('Template Element', function() {
 
     node2 = div.childNodes[2];
     m.splice(0, 0, {name: 'Alex'});
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assertNodesAre('Hi Alex', 'Hi Raf', 'Hi Erik', 'Hi Neal');
   });
 
@@ -702,7 +701,7 @@ suite('Template Element', function() {
 
     var model = {foo: 'bar'};
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual('bar',
                  div.childNodes[1].childNodes[0].childNodes[0].textContent);
@@ -718,7 +717,7 @@ suite('Template Element', function() {
       a: true
     };
     t.bind('bind', m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var instanceInput = t.nextSibling;
     assert.isTrue(instanceInput.checked);
@@ -741,7 +740,7 @@ suite('Template Element', function() {
     };
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var i = start;
     assert.strictEqual('1', div.childNodes[i++].textContent);
@@ -749,11 +748,11 @@ suite('Template Element', function() {
     assert.strictEqual('2', div.childNodes[i++].textContent);
 
     m.a.b = 11;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('11', div.childNodes[start].textContent);
 
     m.a.c = {d: 22};
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('22', div.childNodes[start + 2].textContent);
   }
 
@@ -793,7 +792,7 @@ suite('Template Element', function() {
     };
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var i = start;
     assert.strictEqual('1', div.childNodes[i++].textContent);
@@ -808,7 +807,7 @@ suite('Template Element', function() {
       c: {d: 33}
     };
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('3', div.childNodes[start + 3].textContent);
     assert.strictEqual('33', div.childNodes[start + 5].textContent);
   }
@@ -851,7 +850,7 @@ suite('Template Element', function() {
     };
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var i = start;
     assert.strictEqual('1', div.childNodes[i++].textContent);
@@ -869,7 +868,7 @@ suite('Template Element', function() {
     };
 
     i = start + 4;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('3', div.childNodes[start + 4].textContent);
     assert.strictEqual('31', div.childNodes[start + 6].textContent);
     assert.strictEqual('32', div.childNodes[start + 7].textContent);
@@ -929,7 +928,7 @@ suite('Template Element', function() {
     ];
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var i = 1;
     assert.strictEqual('Item 1', div.childNodes[i++].textContent);
@@ -947,7 +946,7 @@ suite('Template Element', function() {
     };
 
     i = 1;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Item 1 changed', div.childNodes[i++].textContent);
     assert.strictEqual('TEMPLATE', div.childNodes[i++].tagName);
     assert.strictEqual('Item 2', div.childNodes[i++].textContent);
@@ -972,7 +971,7 @@ suite('Template Element', function() {
     ];
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var i = 1;
     var tbody = div.childNodes[0].childNodes[0];
@@ -1009,7 +1008,7 @@ suite('Template Element', function() {
     ];
 
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     var i = 1;
     var tbody = div.childNodes[0].childNodes[0];
@@ -1057,9 +1056,9 @@ suite('Template Element', function() {
 
     recursivelySetTemplateModel(div, m);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     m.splice(0, 1);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
   });
 
   test('DeepNested', function() {
@@ -1080,7 +1079,7 @@ suite('Template Element', function() {
       }
     };
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual('P', div.childNodes[1].tagName);
     assert.strictEqual('TEMPLATE', div.childNodes[1].firstChild.tagName);
@@ -1092,7 +1091,7 @@ suite('Template Element', function() {
     var model = 42;
 
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
     assert.strictEqual('', div.childNodes[0].textContent);
   });
@@ -1102,7 +1101,7 @@ suite('Template Element', function() {
     var model = [];
 
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
     assert.strictEqual('', div.childNodes[0].textContent);
   });
@@ -1121,7 +1120,7 @@ suite('Template Element', function() {
       b: 2
     };
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual('', div.childNodes[0].textContent);
     assert.strictEqual('1', div.childNodes[1].textContent);
@@ -1134,17 +1133,17 @@ suite('Template Element', function() {
 
     var model = {a: 42};
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
 
     model = undefined;
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, div.childNodes.length);
 
     model = {a: 42};
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('42', div.childNodes[1].textContent);
   });
 
@@ -1167,19 +1166,19 @@ suite('Template Element', function() {
       }
     };
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(5, div.childNodes.length);
     assert.strictEqual('Name: Hermes', div.childNodes[1].textContent);
     assert.strictEqual('Wife: LaBarbara', div.childNodes[3].textContent);
 
     m.child = {name: 'Dwight'};
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(6, div.childNodes.length);
     assert.strictEqual('Child: Dwight', div.childNodes[5].textContent);
 
     delete m.wife;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(5, div.childNodes.length);
     assert.strictEqual('Child: Dwight', div.childNodes[4].textContent);
   });
@@ -1198,19 +1197,19 @@ suite('Template Element', function() {
       }
     };
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(5, div.childNodes.length);
     assert.strictEqual('Name: Fry', div.childNodes[1].textContent);
     assert.strictEqual('Name: Bender', div.childNodes[3].textContent);
 
     m.friend.friend = {name: 'Leela'};
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(7, div.childNodes.length);
     assert.strictEqual('Name: Leela', div.childNodes[5].textContent);
 
     m.friend = {name: 'Leela'};
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(5, div.childNodes.length);
     assert.strictEqual('Name: Leela', div.childNodes[3].textContent);
   });
@@ -1233,14 +1232,14 @@ suite('Template Element', function() {
       ]
     };
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('3', div.childNodes[1].textContent);
 
     template.unbind('bind');
     template.bind('repeat', m, 'a');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
     assert.strictEqual('1', div.childNodes[2].textContent);
@@ -1249,7 +1248,7 @@ suite('Template Element', function() {
     template.unbind('repeat');
     template.bind('bind', m, 'a.1.b')
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('4', div.childNodes[1].textContent);
   });
@@ -1263,7 +1262,7 @@ suite('Template Element', function() {
         '</template>');
     var model = [];
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(3, div.childNodes.length);
 
@@ -1271,7 +1270,7 @@ suite('Template Element', function() {
     document.getElementById('b').id = 'a';
 
     model.push(1, 2);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual(7, div.childNodes.length);
     assert.strictEqual('b:1', div.childNodes[4].textContent);
@@ -1326,7 +1325,7 @@ suite('Template Element', function() {
           '<template bind="{{}}">Hi {{ name }}</template>');
       var model = {name: 'Leela'};
       recursivelySetTemplateModel(root, model);
-      Platform.performMicrotaskCheckpoint();
+      Model.notifyChanges();
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
     }
   });
@@ -1362,25 +1361,24 @@ suite('Template Element', function() {
 
     recursivelySetTemplateModel(div, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, count);
 
     var inner = model.outer.inner;
     model.outer = null;
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(1, count);
 
     model.outer = {inner: {age: 2}};
     expectedAge = 2;
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, count);
 
     testHelper = undefined;
   });
 
-/*
   // https://github.com/toolkitchen/mdv/issues/8
   test('DontCreateInstancesForAbandonedIterators', function() {
     var div = createTestHtml(
@@ -1389,10 +1387,10 @@ suite('Template Element', function() {
         '</template>' +
       '</template>');
     recursivelySetTemplateModel(div);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.isFalse(!!ChangeSummary._errorThrownDuringCallback);
   });
-*/
+
   test('CreateIntance', function() {
     var div = createTestHtml(
       '<template bind="{{a}}">' +
@@ -1454,7 +1452,7 @@ suite('Template Element', function() {
     assert.isFalse(called);
 
     recursivelySetTemplateModel(div);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.isTrue(called);
 
     HTMLTemplateElement.__instanceCreated = undefined;

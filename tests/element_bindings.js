@@ -31,7 +31,7 @@ suite('Element Bindings', function() {
     var event = document.createEvent('Event');
     event.initEvent(type, true, false);
     target.dispatchEvent(event);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
   }
 
   test('Text', function() {
@@ -39,12 +39,12 @@ suite('Element Bindings', function() {
     var model = {a: 1, b: 2};
     text.textContent = '{{a}} and {{b}}';
     HTMLTemplateElement.bindAllMustachesFrom_(text, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     assert.strictEqual('1 and 2', text.data);
 
     model.a = 3;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('3 and 2', text.data);
   });
 
@@ -52,27 +52,27 @@ suite('Element Bindings', function() {
     var el = document.createElement('div');
     var model = {a: '1'};
     el.bind('foo', model, 'a');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('1', el.getAttribute('foo'));
 
     model.a = '2';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('2', el.getAttribute('foo'));
 
     model.a = 232.2;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('232.2', el.getAttribute('foo'));
 
     model.a = 232;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('232', el.getAttribute('foo'));
 
     model.a = null;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('null', el.getAttribute('foo'));
 
     model.a = undefined;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('', el.getAttribute('foo'));
   });
 
@@ -80,11 +80,11 @@ suite('Element Bindings', function() {
     var el = document.createElement('div');
     var model = {a: '1'};
     el.bind('foo-bar', model, 'a');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('1', el.getAttribute('foo-bar'));
 
     model.a = '2';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('2', el.getAttribute('foo-bar'));
   });
 
@@ -93,11 +93,11 @@ suite('Element Bindings', function() {
     el.innerHTML = '<!-- Comment -->';
     var model = {a: '1'};
     el.bind('foo-bar', model, 'a');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('1', el.getAttribute('foo-bar'));
 
     model.a = '2';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('2', el.getAttribute('foo-bar'));
   });
 
@@ -112,11 +112,11 @@ suite('Element Bindings', function() {
     el.firstChild.textContent = 'Hello {{ adj }} {{noun}}!';
     HTMLTemplateElement.bindAllMustachesFrom_(el, model);
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hello cruel world!', el.textContent);
 
     model.adj = 'happy';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hello happy world!', el.textContent);
   });
 
@@ -125,7 +125,7 @@ suite('Element Bindings', function() {
 
     var el = document.createElement('input');
     el.bind('value', model, 'val');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('ping', el.value);
 
     el.value = 'pong';
@@ -142,31 +142,31 @@ suite('Element Bindings', function() {
     };
 
     el.bind('value', model, 'a.b.c');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('ping', el.value);
 
     el.value = 'pong';
     dispatchEvent('input', el);
-    assert.strictEqual('pong', PathObserver.getValueAtPath(model, 'a.b.c'));
+    assert.strictEqual('pong', Model.getValueAtPath(model, 'a.b.c'));
 
     // Start with the model property being absent.
     delete model.a.b.c;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('', el.value);
 
     el.value = 'pong';
     dispatchEvent('input', el);
-    assert.strictEqual('pong', PathObserver.getValueAtPath(model, 'a.b.c'));
-    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('pong', Model.getValueAtPath(model, 'a.b.c'));
+    Model.notifyChanges();
 
     // Model property unreachable (and unsettable).
     delete model.a.b;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('', el.value);
 
     el.value = 'pong';
     dispatchEvent('input', el);
-    assert.strictEqual(undefined, PathObserver.getValueAtPath(model, 'a.b.c'));
+    assert.strictEqual(undefined, Model.getValueAtPath(model, 'a.b.c'));
   });
 
   test('InputElementCheckbox', function() {
@@ -176,11 +176,11 @@ suite('Element Bindings', function() {
     testDiv.appendChild(el);
     el.type = 'checkbox';
     el.bind('checked', model, 'val');
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(true, el.checked);
 
     model.val = false;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(false, el.checked);
 
     el.click();
@@ -216,7 +216,7 @@ suite('Element Bindings', function() {
     el4.name = 'othergroup';
     el4.bind('checked', model, 'val4');
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(true, el1.checked);
     assert.strictEqual(false, el2.checked);
     assert.strictEqual(false, el3.checked);
@@ -224,7 +224,7 @@ suite('Element Bindings', function() {
 
     model.val1 = false;
     model.val2 = true;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(false, el1.checked);
     assert.strictEqual(true, el2.checked);
     assert.strictEqual(false, el3.checked);
@@ -275,7 +275,7 @@ suite('Element Bindings', function() {
     el4.name = RADIO_GROUP_NAME;
     el4.bind('checked', model, 'val4');
 
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(true, el1.checked);
     assert.strictEqual(false, el2.checked);
     assert.strictEqual(false, el3.checked);
@@ -329,7 +329,7 @@ suite('Element Bindings', function() {
     var model = {foo: 'bar'};
     el.setAttribute('foo', '{{foo}} {{foo}}');
     HTMLTemplateElement.bindAllMustachesFrom_(el, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('bar bar', el.getAttribute('foo'));
   });
 });

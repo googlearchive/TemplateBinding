@@ -31,6 +31,7 @@
     'third_party/ChangeSummary/change_summary.js',
     'src/compat.js',
     'src/sidetable.js',
+    'src/model.js',
     'src/template_element.js',
   ].forEach(write);
 })();

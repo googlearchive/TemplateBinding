@@ -82,7 +82,7 @@ suite('Syntax', function() {
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind>{{ foo }}</template></template>');
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
     assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
@@ -116,13 +116,13 @@ suite('Syntax', function() {
         '<template bind syntax="2x">' +
         '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('2 + 8 + ', div.lastChild.textContent);
 
     model.foo = 4;
     model.bar = 8;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('4 + 16 + ', div.lastChild.textContent);
 
     delete HTMLTemplateElement.syntax['2x'];
@@ -186,7 +186,7 @@ suite('Syntax', function() {
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind syntax="Test2">{{ foo }}</template></template>');
     recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
     assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)

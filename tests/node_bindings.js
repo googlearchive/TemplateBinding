@@ -28,7 +28,7 @@ suite('Node Bindings', function() {
     var event = document.createEvent('Event');
     event.initEvent(type, true, false);
     target.dispatchEvent(event);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
   }
 
   test('Text', function() {
@@ -38,12 +38,12 @@ suite('Node Bindings', function() {
     assert.strictEqual('1', text.data);
 
     model.a = 2;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('2', text.data);
 
     text.unbind('textContent');
     model.a = 3;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('2', text.data);
 
     // TODO(rafaelw): Throw on binding to unavailable property?
@@ -67,12 +67,12 @@ suite('Node Bindings', function() {
     assert.strictEqual('2', element.id);
 
     model.a = null;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.isFalse(element.hasAttribute('hidden'));
 
     model.a = 'foo';
     model.b = 'x';
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
   	assert.isTrue(element.hasAttribute('hidden'));
     assert.strictEqual('', element.getAttribute('hidden'));
     assert.strictEqual('x', element.id);
@@ -93,7 +93,7 @@ suite('Node Bindings', function() {
 
     model.x = 'Hi';
     assert.strictEqual('42', input.value);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('Hi', input.value);
 
     input.value = 'changed';
@@ -108,7 +108,7 @@ suite('Node Bindings', function() {
 
     input.bind('value', model, 'x');
     model.x = null;
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.strictEqual('', input.value);
   });
 
@@ -121,7 +121,7 @@ suite('Node Bindings', function() {
 
     model.x = false;
     assert.isTrue(input.checked);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.isFalse(input.checked);
 
     input.checked = true;
@@ -145,12 +145,12 @@ suite('Node Bindings', function() {
 
     model.x = false;
     assert.isTrue(input.checked);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
     assert.isFalse(input.checked);
 
     input.click();
     assert.isTrue(model.x);
-    Platform.performMicrotaskCheckpoint();
+    Model.notifyChanges();
 
     input.click();
     assert.isFalse(model.x);
