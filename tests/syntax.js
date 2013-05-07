@@ -100,6 +100,55 @@ suite('Syntax', function() {
     delete HTMLTemplateElement.syntax['Test'];
   });
 
+  test('getInstanceModel', function() {
+    var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
+
+    var div = createTestHtml(
+        '<template repeat syntax="Test">' +
+        '{{ foo }}</template>');
+    var template = div.firstChild;
+
+    var testData = [
+      {
+        template: template,
+        model: model[0],
+        altModel: { foo: 'a' }
+      },
+      {
+        template: template,
+        model: model[1],
+        altModel: { foo: 'b' }
+      },
+      {
+        template: template,
+        model: model[2],
+        altModel: { foo: 'c' }
+      }
+    ];
+
+    HTMLTemplateElement.syntax['Test'] = {
+      getInstanceModel: function(template, model) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.template, template);
+        assert.strictEqual(data.model, model);
+        return data.altModel;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('TEMPLATE', div.childNodes[0].tagName);
+    assert.strictEqual('a', div.childNodes[1].textContent);
+    assert.strictEqual('b', div.childNodes[2].textContent);
+    assert.strictEqual('c', div.childNodes[3].textContent);
+
+    assert.strictEqual(0, testData.length);
+
+    delete HTMLTemplateElement.syntax['Test'];
+  });
+
   test('Basic', function() {
     var model = { foo: 2, bar: 4 };
 

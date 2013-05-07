@@ -412,6 +412,7 @@
   var IF = 'if';
   var SYNTAX = 'syntax';
   var GET_BINDING = 'getBinding';
+  var GET_INSTANCE_MODEL = 'getInstanceModel';
 
   var templateAttributeDirectives = {
     'template': true,
@@ -1123,8 +1124,13 @@
       this.iteratedValue = undefined;
     },
 
-    getInstanceModel: function(model, syntax) {
-      return model;
+    getInstanceModel: function(template, model, syntax) {
+      var delegateModel;
+      var delegate = syntax && syntax[GET_INSTANCE_MODEL];
+      if (delegate && typeof delegate == 'function')
+        return delegate(template, model);
+      else
+        return model;
     },
 
     getInstanceFragment: function(syntax) {
@@ -1142,7 +1148,8 @@
 
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
-          var model = this.getInstanceModel(this.iteratedValue[addIndex],
+          var model = this.getInstanceModel(this.templateElement_,
+                                            this.iteratedValue[addIndex],
                                             syntax);
           var fragment = this.getInstanceFragment(syntax);
 
