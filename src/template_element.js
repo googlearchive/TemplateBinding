@@ -24,6 +24,64 @@
 
   var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
 
+  // JScript does not have __proto__. We wrap all object literals with
+  // createObject which uses Object.create, Object.defineProperty and
+  // Object.getOwnPropertyDescriptor to create a new object that does the exact
+  // same thing. The main downside to this solution is that we have to extract
+  // all those property descriptors for IE.
+  var createObject = ('__proto__' in {}) ?
+      function(obj) { return obj; } :
+      function(obj) {
+        var proto = obj.__proto__;
+        if (!proto)
+          return obj;
+        var newObject = Object.create(proto);
+        Object.getOwnPropertyNames(obj).forEach(function(name) {
+          Object.defineProperty(newObject, name,
+                               Object.getOwnPropertyDescriptor(obj, name));
+        });
+        return newObject;
+      };
+
+  // IE does not support have Document.prototype.contains.
+  if (typeof document.contains != 'function') {
+    Document.prototype.contains = function(node) {
+      if (node === this || node.parentNode === this)
+        return true;
+      return this.documentElement.contains(node);
+    }
+  }
+
+  // SideTable is a weak map where possible. If WeakMap is not available the
+  // association is stored as an expando property.
+  var SideTable;
+  // TODO(arv): WeakMap does not allow for Node etc to be keys in Firefox
+  if (typeof WeakMap !== 'undefined' && navigator.userAgent.indexOf('Firefox/') < 0) {
+    SideTable = WeakMap;
+  } else {
+    (function() {
+      var defineProperty = Object.defineProperty;
+      var hasOwnProperty = Object.hasOwnProperty;
+      var counter = new Date().getTime() % 1e9;
+
+      SideTable = function() {
+        this.name = '__st' + (Math.random() * 1e9 >>> 0) + (counter++ + '__');
+      };
+
+      SideTable.prototype = {
+        set: function(key, value) {
+          defineProperty(key, this.name, {value: value, writable: true});
+        },
+        get: function(key) {
+          return hasOwnProperty.call(key, this.name) ? key[this.name] : undefined;
+        },
+        delete: function(key) {
+          this.set(key, undefined);
+        }
+      }
+    })();
+  }
+
   function isNodeInDocument(node) {
     return node.ownerDocument.contains(node);
   }
@@ -45,22 +103,27 @@
     this.model = model;
     this.path = path;
     this.changed = changed;
-    this.changed(Model.observePath(this.model, this.path, this.changed));
+    this.observer = new PathObserver(this.model, this.path, this.changed);
+    this.changed(this.observer.value);
   }
 
   Binding.prototype = {
     dispose: function() {
-      Model.unobservePath(this.model, this.path, this.changed);
+      this.observer.close();
     },
 
     set value(newValue) {
-      Model.setValueAtPath(this.model, this.path, newValue);
+      PathObserver.setValueAtPath(this.model, this.path, newValue);
+    },
+
+    reset: function() {
+      this.observer.reset();
     }
   };
 
   function boundSetTextContent(textNode) {
     return function(value) {
-      textNode.data = String(value === undefined ? '' : value);
+      textNode.data = value == undefined ? '' : String(value);
     };
   }
 
@@ -211,12 +274,12 @@
     },
 
     updateBinding: function() {
-      // TODO(arv): https://code.google.com/p/mdv/issues/detail?id=30
       this.binding.value = this.element[this.valueProperty];
+      this.binding.reset();
       if (this.postUpdateBinding)
         this.postUpdateBinding();
 
-      Model.notifyChanges();
+      Platform.performMicrotaskCheckpoint();
     },
 
     unbind: function() {
@@ -349,6 +412,7 @@
   var IF = 'if';
   var SYNTAX = 'syntax';
   var GET_BINDING = 'getBinding';
+  var GET_INSTANCE_MODEL = 'getInstanceModel';
 
   var templateAttributeDirectives = {
     'template': true,
@@ -420,7 +484,7 @@
       }
     }
 
-    Model.observePath(obj, 'value', runScheduled);
+    var observer = new PathObserver(obj, 'value', runScheduled);
 
     return ensureScheduled;
   }();
@@ -430,7 +494,8 @@
   // "disconnected tress" (e.g. ShadowRoot)
   document.addEventListener('DOMContentLoaded', function(e) {
     bootstrapTemplatesRecursivelyFrom(document);
-    Model.notifyChanges();
+    // FIXME: Is this needed? Seems like it shouldn't be.
+    Platform.performMicrotaskCheckpoint();
   }, false);
 
   function forAllTemplatesFrom(node, fn) {
@@ -682,8 +747,9 @@
     },
 
     set model(model) {
+      var syntax = HTMLTemplateElement.syntax[this.getAttribute(SYNTAX)];
       templateModelTable.set(this, model);
-      addBindings(this, model);
+      addBindings(this, model, syntax);
     },
 
     get ref() {
@@ -755,7 +821,7 @@
     node.bind(name, model, path);
   }
 
-  function parseAndBind(node, text, name, model, syntax) {
+  function parseAndBind(node, name, text, model, syntax) {
     var tokens = parseMustacheTokens(text);
     if (!tokens.length || (tokens.length == 1 && tokens[0].type == TEXT))
       return;
@@ -809,7 +875,7 @@
     }
 
     Object.keys(attrs).forEach(function(attrName) {
-      parseAndBind(element, attrs[attrName], attrName, model, syntax);
+      parseAndBind(element, attrName, attrs[attrName], model, syntax);
     });
   }
 
@@ -819,7 +885,7 @@
     if (node.nodeType === Node.ELEMENT_NODE) {
       addAttributeBindings(node, model, syntax);
     } else if (node.nodeType === Node.TEXT_NODE) {
-      parseAndBind(node, node.data, 'textContent', model, syntax);
+      parseAndBind(node, 'textContent', node.data, model, syntax);
     }
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
@@ -966,7 +1032,7 @@
     this.templateElement_ = templateElement;
     this.terminators = [];
     this.iteratedValue = undefined;
-    this.observing = false;
+    this.arrayObserver = undefined;
     this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
     this.valueBinding = new Binding(this.inputs, 'value', this.valueChanged.bind(this));
@@ -990,8 +1056,8 @@
         return;
 
       this.iteratedValue = value;
-
-      Model.observeArray(this.iteratedValue, this.boundHandleSplices);
+      this.arrayObserver =
+          new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
       this.observing = true;
 
       this.handleSplices([{
@@ -1058,8 +1124,13 @@
       this.iteratedValue = undefined;
     },
 
-    getInstanceModel: function(model, syntax) {
-      return model;
+    getInstanceModel: function(template, model, syntax) {
+      var delegateModel;
+      var delegate = syntax && syntax[GET_INSTANCE_MODEL];
+      if (delegate && typeof delegate == 'function')
+        return delegate(template, model);
+      else
+        return model;
     },
 
     getInstanceFragment: function(syntax) {
@@ -1077,7 +1148,8 @@
 
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
-          var model = this.getInstanceModel(this.iteratedValue[addIndex],
+          var model = this.getInstanceModel(this.templateElement_,
+                                            this.iteratedValue[addIndex],
                                             syntax);
           var fragment = this.getInstanceFragment(syntax);
 
@@ -1089,11 +1161,11 @@
     },
 
     unobserve: function() {
-      if (!this.observing)
+      if (!this.arrayObserver)
         return;
 
-      Model.unobserveArray(this.iteratedValue, this.boundHandleSplices)
-      this.observing = false;
+      this.arrayObserver.close();
+      this.arrayObserver = undefined;
     },
 
     abandon: function() {
@@ -1115,4 +1187,5 @@
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
   HTMLTemplateElement.bindAllMustachesFrom_ = addBindings;
+  HTMLTemplateElement.parseAndBind_ = parseAndBind;
 })(this);

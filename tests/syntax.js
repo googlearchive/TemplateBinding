@@ -45,6 +45,13 @@ suite('Syntax', function() {
     var testData = [
       {
         model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
         path: 'foo',
         name: 'textContent',
         nodeType: Node.TEXT_NODE,
@@ -82,11 +89,60 @@ suite('Syntax', function() {
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind>{{ foo }}</template></template>');
     recursivelySetTemplateModel(div, model);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
     assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
     assert.strictEqual('Test', div.childNodes[2].getAttribute('syntax'))
+
+    assert.strictEqual(0, testData.length);
+
+    delete HTMLTemplateElement.syntax['Test'];
+  });
+
+  test('getInstanceModel', function() {
+    var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
+
+    var div = createTestHtml(
+        '<template repeat syntax="Test">' +
+        '{{ foo }}</template>');
+    var template = div.firstChild;
+
+    var testData = [
+      {
+        template: template,
+        model: model[0],
+        altModel: { foo: 'a' }
+      },
+      {
+        template: template,
+        model: model[1],
+        altModel: { foo: 'b' }
+      },
+      {
+        template: template,
+        model: model[2],
+        altModel: { foo: 'c' }
+      }
+    ];
+
+    HTMLTemplateElement.syntax['Test'] = {
+      getInstanceModel: function(template, model) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.template, template);
+        assert.strictEqual(data.model, model);
+        return data.altModel;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('TEMPLATE', div.childNodes[0].tagName);
+    assert.strictEqual('a', div.childNodes[1].textContent);
+    assert.strictEqual('b', div.childNodes[2].textContent);
+    assert.strictEqual('c', div.childNodes[3].textContent);
 
     assert.strictEqual(0, testData.length);
 
@@ -116,13 +172,13 @@ suite('Syntax', function() {
         '<template bind syntax="2x">' +
         '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
     recursivelySetTemplateModel(div, model);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('2 + 8 + ', div.lastChild.textContent);
 
     model.foo = 4;
     model.bar = 8;
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual('4 + 16 + ', div.lastChild.textContent);
 
     delete HTMLTemplateElement.syntax['2x'];
@@ -132,6 +188,13 @@ suite('Syntax', function() {
     var model = { foo: 'bar'};
 
     var testData = [
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
       {
         model: model,
         path: 'foo',
@@ -186,7 +249,7 @@ suite('Syntax', function() {
         '<template bind syntax="Test">{{ foo }}' +
         '<template bind syntax="Test2">{{ foo }}</template></template>');
     recursivelySetTemplateModel(div, model);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
     assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
