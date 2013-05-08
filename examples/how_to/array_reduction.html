@@ -1,0 +1,30 @@
+<script src="../../mdv.js"></script>
+<script src="../../third_party/ChangeSummary/util/array_reduction.js"></script>
+<h1>Reduction</h1>
+
+<form>
+<template id="reduction" bind>
+  <template repeat="{{ items }}">
+    <div>{{ name }}: <input type="checkbox" checked="{{ selected }}"><input type="number" value="{{ amount }}"></div>
+  </template>
+  Sum: <input disabled value="{{ sum.value }}"><button disabled?="{{ noneSelected.value }}">Only Enable If Any Selected</button>
+</template>
+</form>
+
+<script>
+var t = document.getElementById('reduction');
+t.model = {
+  items: [
+    { name: 'One', amount: 1, selected: false },
+    { name: 'Two', amount: 2, selected: false },
+    { name: 'Three', amount: 3, selected: false }
+  ]
+};
+t.model.noneSelected = new ArrayReduction(t.model.items, 'selected', function(prev, current) {
+  return prev && !current;
+}, true);
+
+t.model.sum = new ArrayReduction(t.model.items, 'amount', function(prev, current) {
+  return Number(prev) + Number(current);
+});
+</script>
