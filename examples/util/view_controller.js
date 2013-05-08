@@ -43,7 +43,7 @@
 
   var registeredEvents = {};
 
-  var actionPattern = /([\w]*)[\s]*:[\s]*([\w]*)(\(([\w\.\$]*)\)){0,1}/;
+  var actionPattern = /(\w*)[\s]*:[\s]*(\w*)(\(([\w\.\$]*)\)){0,1}/;
 
   function getAction(node) {
     if (node.nodeType !== Node.ELEMENT_NODE)
@@ -111,7 +111,7 @@
       }
 
       var func = currentTarget.controller[action.name];
-      var model = undefined;
+      var model;
       var templateInstance = e.target.templateInstance;
       if (templateInstance) {
         model = templateInstance.model;

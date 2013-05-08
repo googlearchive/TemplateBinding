@@ -91,7 +91,7 @@ suite('View Controller', function() {
 
     function Controller(root) {
       ctorCount++;
-      this.model = { foo: 1, bar: 2 };
+      this.model = {foo: 1, bar: 2};
     }
     Controller.prototype = {
       handleClick: function(value) {
@@ -103,7 +103,8 @@ suite('View Controller', function() {
 
     createTestHtml('<ul data-controller="Controller">' +
                      '<template bind>' +
-                       '<li data-action="click:handleClick(bar)">{{ foo }}</li>' +
+                       '<li data-action="click:handleClick(bar)">' +
+                           '{{ foo }}</li>' +
                      '</template>' +
                    '</ul>');
 
