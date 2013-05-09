@@ -28,7 +28,7 @@ suite('Node Bindings', function() {
     var event = document.createEvent('Event');
     event.initEvent(type, true, false);
     target.dispatchEvent(event);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
   }
 
   test('Text', function() {
@@ -38,15 +38,22 @@ suite('Node Bindings', function() {
     assert.strictEqual('1', text.data);
 
     model.a = 2;
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual('2', text.data);
 
     text.unbind('textContent');
     model.a = 3;
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual('2', text.data);
 
     // TODO(rafaelw): Throw on binding to unavailable property?
+  });
+
+  test('Text (undefined value)', function() {
+    var text = document.createTextNode('hi');
+    var model = {};
+    text.bind('textContent', model, 'a');
+    assert.strictEqual(text.data, '');
   });
 
   test('Element', function() {
@@ -60,15 +67,22 @@ suite('Node Bindings', function() {
     assert.strictEqual('2', element.id);
 
     model.a = null;
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.isFalse(element.hasAttribute('hidden'));
 
-	model.a = 'foo';
+    model.a = 'foo';
     model.b = 'x';
-    Model.notifyChanges();
-	assert.isTrue(element.hasAttribute('hidden'));
+    Platform.performMicrotaskCheckpoint();
+    assert.isTrue(element.hasAttribute('hidden'));
     assert.strictEqual('', element.getAttribute('hidden'));
     assert.strictEqual('x', element.id);
+  });
+
+  test('Element (undefined value)', function() {
+    var element = document.createElement('div');
+    var model = {};
+    element.bind('id', model, 'a');
+    assert.strictEqual(element.id, '');
   });
 
   test('Text Input', function() {
@@ -79,7 +93,7 @@ suite('Node Bindings', function() {
 
     model.x = 'Hi';
     assert.strictEqual('42', input.value);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual('Hi', input.value);
 
     input.value = 'changed';
@@ -94,7 +108,7 @@ suite('Node Bindings', function() {
 
     input.bind('value', model, 'x');
     model.x = null;
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.strictEqual('', input.value);
   });
 
@@ -107,7 +121,7 @@ suite('Node Bindings', function() {
 
     model.x = false;
     assert.isTrue(input.checked);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.isFalse(input.checked);
 
     input.checked = true;
@@ -131,12 +145,12 @@ suite('Node Bindings', function() {
 
     model.x = false;
     assert.isTrue(input.checked);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     assert.isFalse(input.checked);
 
     input.click();
     assert.isTrue(model.x);
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
 
     input.click();
     assert.isFalse(model.x);

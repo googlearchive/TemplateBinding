@@ -61,12 +61,12 @@ suite('View Controller', function() {
     window.Controller = Controller;
 
     createTestHtml('<ul data-controller="Controller">' +
-                     '<template repeat="{{}}">' +
+                     '<template repeat>' +
                        '<li data-action="click:handleClick">{{ name }}</li>' +
                      '</template>' +
                    '</ul>');
 
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
     var thirdInstance =
         document.getElementById('testDiv').childNodes[0].childNodes[3];
     expectName = 'three';
@@ -84,4 +84,36 @@ suite('View Controller', function() {
     assert.strictEqual(1, ctorCount);
   });
 
+  test('Named argument', function() {
+    var ctorCount = 0;
+    var clickCount = 0;
+    var expectName = '';
+
+    function Controller(root) {
+      ctorCount++;
+      this.model = {foo: 1, bar: 2};
+    }
+    Controller.prototype = {
+      handleClick: function(value) {
+        assert.strictEqual(2, value);
+        clickCount++;
+      }
+    }
+    window.Controller = Controller;
+
+    createTestHtml('<ul data-controller="Controller">' +
+                     '<template bind>' +
+                       '<li data-action="click:handleClick(bar)">' +
+                           '{{ foo }}</li>' +
+                     '</template>' +
+                   '</ul>');
+
+    Platform.performMicrotaskCheckpoint();
+    var firstInstance =
+        document.getElementById('testDiv').firstChild.firstChild.nextSibling;
+    expectName = 'three';
+    assert.strictEqual('1', firstInstance.textContent);
+    dispatchEvent('click', firstInstance);
+    assert.strictEqual(1, clickCount);
+  });
 });

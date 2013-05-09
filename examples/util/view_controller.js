@@ -34,14 +34,16 @@
 
     var controller = new this[controllerClass](node);
     if (controller.model) {
-      // TODO(rafaelw): This should really only visit template elements
-      // TODO(rafaelw): It's pretty lame you have to set the delegate here.
-      HTMLTemplateElement.bindTree(node, controller.model);
+      HTMLTemplateElement.forAllTemplatesFrom_(node, function(t) {
+        t.model = controller.model;
+      });
     }
     node.controller = controller;
   }
 
   var registeredEvents = {};
+
+  var actionPattern = /(\w*)\s*:\s*(\w*)(\(([\w\.\$]*)\)){0,1}/;
 
   function getAction(node) {
     if (node.nodeType !== Node.ELEMENT_NODE)
@@ -50,15 +52,14 @@
     var actionText = node.getAttribute(ACTION_ATTRIBUTE);
     if (!actionText)
       return;
-    var tokens = actionText.split(':');
-    if (tokens.length != 2) {
-      console.error('Invalid action: ' + actionText);
+    var match = actionText.match(actionPattern);
+    if (!match)
       return;
-    }
 
     return {
-      eventType: tokens[0],
-      name: tokens[1]
+      eventType: match[1],
+      name: match[2],
+      path: match[4]
     }
   }
 
@@ -81,7 +82,7 @@
     forEach(actionElements, registerAction);
 
     // Controller constructors may have bound data.
-    Model.notifyChanges();
+    Platform.performMicrotaskCheckpoint();
   }, false);
 
   document.addEventListener('DOMNodeInserted', function(e) {
@@ -110,14 +111,20 @@
       }
 
       var func = currentTarget.controller[action.name];
+      var model;
       var templateInstance = e.target.templateInstance;
-      func.call(currentTarget.controller,
-          templateInstance ? templateInstance.model : undefined, e);
+      if (templateInstance) {
+        model = templateInstance.model;
+        if (action.path)
+          model = PathObserver.getValueAtPath(model, action.path);
+      }
+
+      func.call(currentTarget.controller, model, e);
       handled = true;
     }
 
     if (handled)
-      Model.notifyChanges();
+      Platform.performMicrotaskCheckpoint();
     else
       console.error('Error: unhandled action', action, e);
   }
