@@ -43,7 +43,7 @@
 
   var registeredEvents = {};
 
-  var actionPattern = /(\w*)[\s]*:[\s]*(\w*)(\(([\w\.\$]*)\)){0,1}/;
+  var actionPattern = /(\w*)\s*:\s*(\w*)(\(([\w\.\$]*)\)){0,1}/;
 
   function getAction(node) {
     if (node.nodeType !== Node.ELEMENT_NODE)
