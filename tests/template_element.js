@@ -18,9 +18,11 @@ suite('Template Element', function() {
 
   setup(function() {
     testDiv = document.body.appendChild(document.createElement('div'));
+    Observer._errorThrownDuringCallback = false;
   })
 
   teardown(function() {
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
     document.body.removeChild(testDiv);
   });
 
@@ -68,6 +70,31 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
+  });
+
+  test('Template bind, no parent', function() {
+    var div = createTestHtml(
+      '<template bind>text</template>');
+    var template = div.firstChild;
+    div.removeChild(template);
+
+    recursivelySetTemplateModel(template, {});
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(0, template.childNodes.length);
+    assert.strictEqual(null, template.nextSibling);
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
+  });
+
+  test('Template bind, no defaultView', function() {
+    var div = createTestHtml(
+      '<template bind>text</template>');
+    var template = div.firstChild;
+    var doc = document.implementation.createHTMLDocument('');
+    doc.adoptNode(div);
+    recursivelySetTemplateModel(template, {});
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
   });
 
   test('Template-Empty Bind', function() {
@@ -950,6 +977,30 @@ suite('Template Element', function() {
     assert.strictEqual('Item 1 changed', div.childNodes[i++].textContent);
     assert.strictEqual('TEMPLATE', div.childNodes[i++].tagName);
     assert.strictEqual('Item 2', div.childNodes[i++].textContent);
+  });
+
+  test('Attribute Template Option', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<select>' +
+            '<option template repeat>{{ val }}</option>' +
+          '</select>' +
+        '</template>');
+
+    var m = [{ val: 0 }, { val: 1 }];
+
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    var select = div.firstChild.nextSibling;
+    assert.strictEqual(3, select.childNodes.length);
+    assert.strictEqual('TEMPLATE', select.childNodes[0].tagName);
+    assert.strictEqual('OPTION',
+                       select.childNodes[0].ref.content.firstChild.tagName);
+    assert.strictEqual('OPTION', select.childNodes[1].tagName);
+    assert.strictEqual('0', select.childNodes[1].textContent);
+    assert.strictEqual('OPTION', select.childNodes[2].tagName);
+    assert.strictEqual('1', select.childNodes[2].textContent);
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {

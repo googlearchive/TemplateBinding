@@ -556,49 +556,48 @@
     return d;
   }
 
-  function cloneAndSeperateAttributeTemplate(templateElement) {
-    var clone = templateElement.cloneNode(false);
-    var attribs = templateElement.attributes;
+  // For non-template browsers, the parser will disallow <template> in certain
+  // locations, so we allow "attribute templates" which combine the template
+  // element with the top-level container node of the content, e.g.
+  //
+  //   <tr template repeat="{{ foo }}"" class="bar"><td>Bar</td></tr>
+  //
+  // becomes
+  //
+  //   <template repeat="{{ foo }}">
+  //   + #document-fragment
+  //     + <tr class="bar">
+  //       + <td>Bar</td>
+  //
+  function extractTemplateFromAttributeTemplate(el) {
+    var template = el.ownerDocument.createElement('template');
+    el.parentNode.insertBefore(template, el);
+
+    var attribs = el.attributes;
     var count = attribs.length;
     while (count-- > 0) {
       var attrib = attribs[count];
-      if (templateAttributeDirectives[attrib.name])
-        clone.removeAttribute(attrib.name);
-      else
-        templateElement.removeAttribute(attrib.name);
+      if (templateAttributeDirectives[attrib.name]) {
+        if (attrib.name !== 'template')
+          template.setAttribute(attrib.name, attrib.value);
+        el.removeAttribute(attrib.name);
+      }
     }
 
-    return clone;
+    return template;
   }
 
-  function liftNonNativeTemplateChildrenIntoContent(templateElement) {
-    var content = templateElement.content;
-
-    if (!isAttributeTemplate(templateElement)) {
-      var child;
-      while (child = templateElement.firstChild) {
-        content.appendChild(child);
-      }
+  function liftNonNativeTemplateChildrenIntoContent(template, el, useRoot) {
+    var content = template.content;
+    if (useRoot) {
+      content.appendChild(el);
       return;
     }
 
-    // For attribute templates we copy the whole thing into the content and
-    // we move the non template attributes into the content.
-    //
-    //   <tr foo template>
-    //
-    // becomes
-    //
-    //   <tr template>
-    //   + #document-fragment
-    //     + <tr foo>
-    //
-    var newRoot = cloneAndSeperateAttributeTemplate(templateElement);
     var child;
-    while (child = templateElement.firstChild) {
-      newRoot.appendChild(child);
+    while (child = el.firstChild) {
+      content.appendChild(child);
     }
-    content.appendChild(newRoot);
   }
 
   /**
@@ -610,25 +609,38 @@
   HTMLTemplateElement.decorate = function(el, opt_instanceRef) {
     if (el.templateIsDecorated_)
       return false;
-    el.templateIsDecorated_ = true;
 
-    fixTemplateElementPrototype(el);
+    var templateElement = el;
+    var isNative = isNativeTemplate(templateElement);
+    var bootstrapContents = isNative;
+    var liftContents = !isNative;
+    var liftRoot = false;
 
-    // Create content
-    if (!isNativeTemplate(el)) {
-      var doc = getTemplateContentsOwner(el.ownerDocument);
-      templateContentsTable.set(el, doc.createDocumentFragment());
+    if (!isNative && isAttributeTemplate(templateElement)) {
+      assert(!opt_instanceRef);
+      templateElement = extractTemplateFromAttributeTemplate(el);
+      isNative = isNativeTemplate(templateElement);
+      liftRoot = true;
+    }
+
+    templateElement.templateIsDecorated_ = true;
+
+    if (!isNative) {
+      fixTemplateElementPrototype(templateElement);
+      var doc = getTemplateContentsOwner(templateElement.ownerDocument);
+      templateContentsTable.set(templateElement, doc.createDocumentFragment());
     }
 
     if (opt_instanceRef) {
-      templateInstanceRefTable.set(el, opt_instanceRef);
-      return true; // content is empty.
-    }
-
-    if (isNativeTemplate(el)) {
-      bootstrapTemplatesRecursivelyFrom(el.content);
-    } else {
-      liftNonNativeTemplateChildrenIntoContent(el);
+      // template is contained within an instance, its direct content must be
+      // empty
+      templateInstanceRefTable.set(templateElement, opt_instanceRef);
+    } else if (liftContents) {
+      liftNonNativeTemplateChildrenIntoContent(templateElement,
+                                               el,
+                                               liftRoot);
+    } else if (bootstrapContents) {
+      bootstrapTemplatesRecursivelyFrom(templateElement.content);
     }
 
     return true;
@@ -1138,7 +1150,14 @@
     },
 
     handleSplices: function(splices) {
-      var syntaxString = this.templateElement_.getAttribute(SYNTAX);
+      var template = this.templateElement_;
+      if (!template.parentNode || !template.ownerDocument.defaultView) {
+        this.abandon();
+        templateIteratorTable.delete(this);
+        return;
+      }
+
+      var syntaxString = template.getAttribute(SYNTAX);
       var syntax = HTMLTemplateElement.syntax[syntaxString];
 
       splices.forEach(function(splice) {
@@ -1148,7 +1167,7 @@
 
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
-          var model = this.getInstanceModel(this.templateElement_,
+          var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
                                             syntax);
           var fragment = this.getInstanceFragment(syntax);
@@ -1171,6 +1190,7 @@
     abandon: function() {
       this.unobserve();
       this.valueBinding.dispose();
+      this.terminators.length = 0;
       this.inputs.dispose();
     }
   };
