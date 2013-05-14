@@ -18,9 +18,11 @@ suite('Template Element', function() {
 
   setup(function() {
     testDiv = document.body.appendChild(document.createElement('div'));
+    Observer._errorThrownDuringCallback = false;
   })
 
   teardown(function() {
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
     document.body.removeChild(testDiv);
   });
 
@@ -68,6 +70,31 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
+  });
+
+  test('Template bind, no parent', function() {
+    var div = createTestHtml(
+      '<template bind>text</template>');
+    var template = div.firstChild;
+    div.removeChild(template);
+
+    recursivelySetTemplateModel(template, {});
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(0, template.childNodes.length);
+    assert.strictEqual(null, template.nextSibling);
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
+  });
+
+  test('Template bind, no defaultView', function() {
+    var div = createTestHtml(
+      '<template bind>text</template>');
+    var template = div.firstChild;
+    var doc = document.implementation.createHTMLDocument('');
+    doc.adoptNode(div);
+    recursivelySetTemplateModel(template, {});
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
   });
 
   test('Template-Empty Bind', function() {

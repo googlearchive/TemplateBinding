@@ -1150,7 +1150,14 @@
     },
 
     handleSplices: function(splices) {
-      var syntaxString = this.templateElement_.getAttribute(SYNTAX);
+      var template = this.templateElement_;
+      if (!template.parentNode || !template.ownerDocument.defaultView) {
+        this.abandon();
+        templateIteratorTable.delete(this);
+        return;
+      }
+
+      var syntaxString = template.getAttribute(SYNTAX);
       var syntax = HTMLTemplateElement.syntax[syntaxString];
 
       splices.forEach(function(splice) {
@@ -1160,7 +1167,7 @@
 
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
-          var model = this.getInstanceModel(this.templateElement_,
+          var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
                                             syntax);
           var fragment = this.getInstanceFragment(syntax);
@@ -1183,6 +1190,7 @@
     abandon: function() {
       this.unobserve();
       this.valueBinding.dispose();
+      this.terminators.length = 0;
       this.inputs.dispose();
     }
   };
