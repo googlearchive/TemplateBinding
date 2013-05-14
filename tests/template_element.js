@@ -1456,7 +1456,7 @@ suite('Template Element', function() {
     }
   });
 
-  // https://github.com/polymer-project/mdv/issues/8
+  // https://github.com/Polymer/mdv/issues/8
   test('UnbindingInNestedBind', function() {
     var div = createTestHtml(
       '<template bind="{{outer}}" if="{{outer}}" syntax="testHelper">' +
@@ -1505,7 +1505,7 @@ suite('Template Element', function() {
     testHelper = undefined;
   });
 
-  // https://github.com/polymer-project/mdv/issues/8
+  // https://github.com/Polymer/mdv/issues/8
   test('DontCreateInstancesForAbandonedIterators', function() {
     var div = createTestHtml(
       '<template bind="{{}} {{}}">' +

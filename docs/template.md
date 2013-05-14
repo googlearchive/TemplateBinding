@@ -53,9 +53,9 @@ document.getElementById('myTemplate').model = jsData;
 
 ### API
 
-Note yet written. Please refer to the [HowTo examples](https://github.com/polymer-project/mdv/tree/master/examples/how_to).
+Note yet written. Please refer to the [HowTo examples](https://github.com/Polymer/mdv/tree/master/examples/how_to).
 
 ### Specification
 
-Note yet written. Please refer to the [HowTo examples](https://github.com/polymer-project/mdv/tree/master/examples/how_to).
+Note yet written. Please refer to the [HowTo examples](https://github.com/Polymer/mdv/tree/master/examples/how_to).
 
