@@ -12,7 +12,7 @@ MDV works best with three new web platform features, all of which aren't impleme
 
 ### An explanatory sample
 
-There's plenty of detail, but it all hinges on the `<template>` element. Let’s walk through a simple [example](https://github.com/toolkitchen/mdv/blob/master/sample.html) which demonstrates the basics.
+There's plenty of detail, but it all hinges on the `<template>` element. Let’s walk through a simple [example](https://github.com/Polymer/mdv/blob/master/sample.html) which demonstrates the basics.
 
     <head>
       <script src="mdv.js"></script>
@@ -44,7 +44,7 @@ This example should look mostly familiar to anyone who knows HTML, but there are
 
 The [HTML Template element](http://www.w3.org/TR/html-templates/) is new and browsers are in the process of implementing it. It [allows](http://www.html5rocks.com/en/tutorials/webcomponents/template/) you to declare fragments of HTML that may be used at some point. The [Chrome Inspector](https://developers.google.com/chrome-developer-tools/docs/overview) allows you see the [content](http://www.w3.org/TR/html-templates/#api-html-template-element-content) of a template element.
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/templateContent.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/templateContent.png)
 
 If you loaded the above example without `<script src="src/mdv.js"></script>`, that’s about all `<template>` would do.
 
@@ -80,27 +80,27 @@ Notice that this is just JavaScript data: _there’s no need to import your data
 
 Now the template is off to the races. Here's the result:
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/output.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/output.png)
 
 and here's what the DOM looks like:
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/DOM.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/DOM.png)
 
 You can see that the template stamped out four instances immediately following its position in the document. All nodes within an instance have a property called `templateInstance` which points to an instance descriptor. The descriptor indicates the extent (first and last nodes) of the instance, as well as the `model` data for which the instance was produced:
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/templateInstance.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/templateInstance.png)
 
 Now, remember we said MDV teaches the DOM to derive its values from JavaScript data? If we change a value in our model, the DOM observes the change and updates accordingly:
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/updateData.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/updateData.png)
 
 However, the DOM doesn’t just observe data in the model, if DOM elements which collect user input are bound, they _push_ the collected value into the model:
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/input.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/input.png)
 
 Lastly, let's look at what happens when we alter the contents of the `model.salutations` array:
 
-![ScreenShot](https://raw.github.com/toolkitchen/mdv/master/docs/images/README/arrayUpdate.png)
+![ScreenShot](https://raw.github.com/Polymer/mdv/master/docs/images/README/arrayUpdate.png)
 
 The `<template>` is `repeat`ing which means that it ensures there is one instance for each item in the array. We removed two elements from the middle of salutations and inserted one in their place. The `<template>` responded by removing the two corresponding instances and creating a new one in the right location.
 
@@ -108,35 +108,35 @@ Getting the idea? MDV allows you author your HTML _using_ HTML which contains in
 
 ### Where to go from here?
 
-If you are new to MDV, the best to place to go is to the look at the [How-To examples](https://github.com/toolkitchen/mdv/tree/master/examples/how_to). These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
+If you are new to MDV, the best to place to go is to the look at the [How-To examples](https://github.com/Polymer/mdv/tree/master/examples/how_to). These are little examples which succinctly demonstrate how to use MDV to accomplish things that frequently are required for real web apps:
 
 _Binding to DOM values:_
 
-* [Binding to text values](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_text.html): How to insert values into the DOM that render as text.
-* [Binding to attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_attributes.html): How to insert values into element attributes
-* [Conditional attributes](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_attributes.html): How to bind to attributes such that the attribute is only present if the binding value is “truthy”.
-* [Binding to input elements](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/bind_to_input_elements.html): How to bind bi-directionally with input elements.
-* [Custom bindings](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/custom_syntax.html): How to implement a custom element which has a specialized interpretation of a binding.
-  
+* [Binding to text values](https://github.com/Polymer/mdv/blob/master/examples/how_to/bind_to_text.html): How to insert values into the DOM that render as text.
+* [Binding to attributes](https://github.com/Polymer/mdv/blob/master/examples/how_to/bind_to_attributes.html): How to insert values into element attributes
+* [Conditional attributes](https://github.com/Polymer/mdv/blob/master/examples/how_to/conditional_attributes.html): How to bind to attributes such that the attribute is only present if the binding value is “truthy”.
+* [Binding to input elements](https://github.com/Polymer/mdv/blob/master/examples/how_to/bind_to_input_elements.html): How to bind bi-directionally with input elements.
+* [Custom bindings](https://github.com/Polymer/mdv/blob/master/examples/how_to/custom_syntax.html): How to implement a custom element which has a specialized interpretation of a binding.
+
 _Using `<template>` to produce DOM structures:_
 
-* [Conditionals](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/conditional_template.html): How to control whether instance fragments are produced based on the value of a binding.
-* [Nested templates](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/nested_templates.html): How to accomplish nested template production.
-* [Re-using templates](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/template_ref.html): How to define a template once and use it in more than one location.
-* [Recursive templates](https://github.com/toolkitchen/mdv/blob/master/examples/how_to/recursive_templates.html): How to produce tree-structure DOM whose depth is dependent on the data to which it is bound.
-  
+* [Conditionals](https://github.com/Polymer/mdv/blob/master/examples/how_to/conditional_template.html): How to control whether instance fragments are produced based on the value of a binding.
+* [Nested templates](https://github.com/Polymer/mdv/blob/master/examples/how_to/nested_templates.html): How to accomplish nested template production.
+* [Re-using templates](https://github.com/Polymer/mdv/blob/master/examples/how_to/template_ref.html): How to define a template once and use it in more than one location.
+* [Recursive templates](https://github.com/Polymer/mdv/blob/master/examples/how_to/recursive_templates.html): How to produce tree-structure DOM whose depth is dependent on the data to which it is bound.
+
 ### API Reference / Pseudo-specs
 
 MDV is designed to as two primitives which could eventually become standardized and implemented natively in browsers. The following two documents specify their behavior, API and use.
 
-* [`Node.bind`](https://github.com/toolkitchen/mdv/blob/master/docs/node_bind.md): Which describes how DOM nodes are bound to data values
-* [`<template>` instantiation](https://github.com/toolkitchen/mdv/blob/master/docs/template.md): Which describes how `<template>` manages instance fragments.
-  
+* [`Node.bind`](https://github.com/Polymer/mdv/blob/master/docs/node_bind.md): Which describes how DOM nodes are bound to data values
+* [`<template>` instantiation](https://github.com/Polymer/mdv/blob/master/docs/template.md): Which describes how `<template>` manages instance fragments.
+
 ### Extending MDV
 
 MDV is mainly concerned with being robust and efficient in interacting with application data and keeping the DOM in sync , but more advanced behaviors can be accomplished via one or both of the following:
 
-* [A Custom Syntax API](https://github.com/toolkitchen/mdv/blob/master/docs/syntax.md)
+* [A Custom Syntax API](https://github.com/Polymer/mdv/blob/master/docs/syntax.md)
 
 ### Advanced Topics
 
