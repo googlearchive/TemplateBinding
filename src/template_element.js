@@ -24,6 +24,51 @@
 
   var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
 
+  var Map;
+  if (global.Map && typeof global.Map.prototype.forEach === 'function') {
+    Map = global.Map;
+  } else {
+    Map = function() {
+      this.keys = [];
+      this.values = [];
+    };
+
+    Map.prototype = {
+      set: function(key, value) {
+        var index = this.keys.indexOf(key);
+        if (index < 0) {
+          this.keys.push(key);
+          this.values.push(value);
+        } else {
+          this.values[index] = value;
+        }
+      },
+
+      get: function(key) {
+        var index = this.keys.indexOf(key);
+        if (index < 0)
+          return;
+
+        return this.values[index];
+      },
+
+      delete: function(key, value) {
+        var index = this.keys.indexOf(key);
+        if (index < 0)
+          return false;
+
+        this.keys.splice(index, 1);
+        this.values.splice(index, 1);
+        return true;
+      },
+
+      forEach: function(f, opt_this) {
+        for (var i = 0; i < this.keys.length; i++)
+          f.call(opt_this || this, this.values[i], this.keys[i], this);
+      }
+    };
+  }
+
   // JScript does not have __proto__. We wrap all object literals with
   // createObject which uses Object.create, Object.defineProperty and
   // Object.getOwnPropertyDescriptor to create a new object that does the exact
@@ -904,10 +949,20 @@
       addBindings(child, model, syntax);
   }
 
-  function removeAllBindingsRecursively(node) {
+  function unbindAllRecursively(node) {
+    templateInstanceTable.delete(node);
+    if (isTemplate(node)) {
+      // Make sure we stop observing when we remove an element.
+      var templateIterator = templateIteratorTable.get(node);
+      if (templateIterator) {
+        templateIterator.abandon();
+        templateIteratorTable.delete(node);
+      }
+    }
+
     node.unbindAll();
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      removeAllBindingsRecursively(child);
+      unbindAllRecursively(child);
     }
   }
 
@@ -923,20 +978,6 @@
       clone.appendChild(createDeepCloneAndDecorateTemplates(child, syntax))
     }
     return clone;
-  }
-
-  function removeChild(parent, child) {
-    removeTemplateInstanceRecord(child);
-    if (isTemplate(child)) {
-      // Make sure we stop observing when we remove an element.
-      var templateIterator = templateIteratorTable.get(child);
-      if (templateIterator) {
-        templateIterator.abandon();
-        templateIteratorTable.delete(child);
-      }
-    }
-    parent.removeChild(child);
-    removeAllBindingsRecursively(child);
   }
 
   function TemplateInstance(firstNode, lastNode, model) {
@@ -959,10 +1000,6 @@
       templateInstanceTable.set(node, instanceRecord);
       node = node.nextSibling;
     }
-  }
-
-  function removeTemplateInstanceRecord(node) {
-    templateInstanceTable.delete(node);
   }
 
   var templateInstanceTable = new SideTable('templateInstance');
@@ -1062,21 +1099,25 @@
         return [values[BIND]];
     },
 
-    valueChanged: function(value) {
-      this.clear();
+    valueChanged: function(value, oldValue) {
       if (!Array.isArray(value))
-        return;
+        value = [];
 
+      this.unobserve();
       this.iteratedValue = value;
       this.arrayObserver =
           new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
-      this.observing = true;
 
-      this.handleSplices([{
+      var splice = {
         index: 0,
         addedCount: this.iteratedValue.length,
-        removed: []
-      }]);
+        removed: Array.isArray(oldValue) ? oldValue : []
+      };
+
+      if (!splice.addedCount && !splice.removed.length)
+        return; // nothing to do.
+
+      this.handleSplices([splice]);
     },
 
     getTerminatorAt: function(index) {
@@ -1093,15 +1134,19 @@
       return subIterator.getTerminatorAt(subIterator.terminators.length - 1);
     },
 
-    insertInstanceAt: function(index, fragment) {
+    insertInstanceAt: function(index, instanceNodes) {
       var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator = fragment.lastChild || previousTerminator;
+      var terminator =
+        instanceNodes[instanceNodes.length - 1] || previousTerminator;
       this.terminators.splice(index, 0, terminator);
       var parent = this.templateElement_.parentNode;
-      parent.insertBefore(fragment, previousTerminator.nextSibling);
+      var insertBeforeNode = previousTerminator.nextSibling;
+      for (var i = 0; i < instanceNodes.length; i++)
+        parent.insertBefore(instanceNodes[i], insertBeforeNode);
     },
 
-    removeInstanceAt: function(index) {
+    extractInstanceAt: function(index) {
+      var instanceNodes = [];
       var previousTerminator = this.getTerminatorAt(index - 1);
       var terminator = this.getTerminatorAt(index);
       this.terminators.splice(index, 1);
@@ -1110,30 +1155,11 @@
       while (terminator !== previousTerminator) {
         var node = terminator;
         terminator = node.previousSibling;
-        removeChild(parent, node);
+        parent.removeChild(node);
+        instanceNodes.push(node);
       }
-    },
 
-    removeAllInstances: function() {
-      if (!this.terminators.length)
-        return;
-
-      var previousTerminator = this.templateElement_;
-      var terminator = this.getTerminatorAt(this.terminators.length - 1);
-      this.terminators.length = 0;
-
-      var parent = this.templateElement_.parentNode;
-      while (terminator !== previousTerminator) {
-        var node = terminator;
-        terminator = node.previousSibling;
-        removeChild(parent, node);
-      }
-    },
-
-    clear: function() {
-      this.unobserve();
-      this.removeAllInstances();
-      this.iteratedValue = undefined;
+      return instanceNodes;
     },
 
     getInstanceModel: function(template, model, syntax) {
@@ -1145,8 +1171,15 @@
         return model;
     },
 
-    getInstanceFragment: function(syntax) {
-      return this.templateElement_.createInstance();
+    getInstanceNodes: function(model, syntax) {
+      var instanceNodes = [];
+      var fragment = this.templateElement_.createInstance();
+      addBindings(fragment, model, syntax);
+      addTemplateInstanceRecord(fragment, model);
+      while (fragment.firstChild)
+        instanceNodes.push(fragment.removeChild(fragment.firstChild));
+
+      return instanceNodes;
     },
 
     handleSplices: function(splices) {
@@ -1160,23 +1193,34 @@
       var syntaxString = template.getAttribute(SYNTAX);
       var syntax = HTMLTemplateElement.syntax[syntaxString];
 
+      var instanceCache = new Map;
+      var removeDelta = 0;
       splices.forEach(function(splice) {
-        splice.removed.forEach(function() {
-          this.removeInstanceAt(splice.index);
+        splice.removed.forEach(function(model) {
+          var instanceNodes =
+              this.extractInstanceAt(splice.index + removeDelta, instanceNodes);
+          instanceCache.set(model, instanceNodes);
         }, this);
 
+        removeDelta -= splice.addedCount;
+      }, this);
+
+      splices.forEach(function(splice) {
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
           var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
                                             syntax);
-          var fragment = this.getInstanceFragment(syntax);
-
-          addBindings(fragment, model, syntax);
-          addTemplateInstanceRecord(fragment, model)
-          this.insertInstanceAt(addIndex, fragment);
+          var instanceNodes =
+              instanceCache.get(model) || this.getInstanceNodes(model, syntax);
+          this.insertInstanceAt(addIndex, instanceNodes);
         }
       }, this);
+
+      instanceCache.forEach(function(instanceNodes) {
+        for (var i = 0; i < instanceNodes.length; i++)
+          unbindAllRecursively(instanceNodes[i]);
+      });
     },
 
     unobserve: function() {

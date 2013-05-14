@@ -258,6 +258,81 @@ suite('Template Element', function() {
     assert.strictEqual(3, div.childNodes.length);
   });
 
+  test('Repeat - Reuse Instances', function() {
+    function addExpandos(node) {
+      while (node) {
+        node.expando = Number(node.textContent);
+        node = node.nextSibling;
+      }
+    }
+
+    function checkExpandos(node) {
+      assert.isDefined(node);
+      while (node) {
+        assert.strictEqual(node.expando, Number(node.textContent));
+        node = node.nextSibling;
+      }
+    }
+
+    var div = createTestHtml(
+        '<template repeat>{{ val }}</template>');
+
+    var model = [{val: 10},{val: 5},{val: 2},{val: 8},{val: 1}];
+    recursivelySetTemplateModel(div, model);
+
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(6, div.childNodes.length);
+    var template = div.firstChild;
+
+    addExpandos(template.nextSibling);
+    checkExpandos(template.nextSibling);
+
+    model.sort(function(a, b) { return a.val - b.val; });
+    Platform.performMicrotaskCheckpoint();
+    checkExpandos(template.nextSibling);
+
+    model = model.slice();
+    model.reverse();
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    checkExpandos(template.nextSibling);
+  });
+
+  test('Bind - Reuse Instance', function() {
+    function addExpandos(node) {
+      while (node) {
+        node.expando = Number(node.textContent);
+        node = node.nextSibling;
+      }
+    }
+
+    function checkExpandos(node) {
+      assert.isDefined(node);
+      while (node) {
+        assert.strictEqual(node.expando, Number(node.textContent));
+        node = node.nextSibling;
+      }
+    }
+
+    var div = createTestHtml(
+        '<template bind="{{ foo }}">{{ bar }}</template>');
+
+    var model = { foo: { bar: 5 }};
+    recursivelySetTemplateModel(div, model);
+
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    var template = div.firstChild;
+
+    addExpandos(template.nextSibling);
+    checkExpandos(template.nextSibling);
+
+    model = {foo: model.foo};
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    checkExpandos(template.nextSibling);
+  });
+
   test('Repeat-Empty', function() {
     var div = createTestHtml(
         '<template repeat>text</template>');
