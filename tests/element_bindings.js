@@ -188,6 +188,58 @@ suite('Element Bindings', function() {
 
     el.click();
     assert.strictEqual(false, model.val);
+
+    el.addEventListener('click', function() {
+      assert.strictEqual(true, model.val);
+    });
+    el.addEventListener('change', function() {
+      assert.strictEqual(true, model.val);
+    });
+
+    var event = document.createEvent('MouseEvent');
+    event.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false,
+        false, false, false, 0, null);
+    el.dispatchEvent(event);
+  });
+
+  test('InputElementCheckbox - binding updated on click', function() {
+    var model = {val: true};
+
+    var el = document.createElement('input');
+    testDiv.appendChild(el);
+    el.type = 'checkbox';
+    el.bind('checked', model, 'val');
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(true, el.checked);
+
+    el.addEventListener('click', function() {
+      assert.strictEqual(false, model.val);
+    });
+
+    var event = document.createEvent('MouseEvent');
+    event.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false,
+        false, false, false, 0, null);
+    el.dispatchEvent(event);
+  });
+
+  test('InputElementCheckbox - binding updated on change', function() {
+    var model = {val: true};
+
+    var el = document.createElement('input');
+    testDiv.appendChild(el);
+    el.type = 'checkbox';
+    el.bind('checked', model, 'val');
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(true, el.checked);
+
+    el.addEventListener('change', function() {
+      assert.strictEqual(false, model.val);
+    });
+
+    var event = document.createEvent('MouseEvent');
+    event.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false,
+        false, false, false, 0, null);
+    el.dispatchEvent(event);
   });
 
   test('InputElementRadio', function() {
