@@ -289,10 +289,37 @@
   var valueBindingTable = new SideTable('valueBinding');
   var checkedBindingTable = new SideTable('checkedBinding');
 
+  var checkboxEventType;
+  (function() {
+    // Attempt to feature-detect which event (change or click) is fired first
+    // for checkboxes.
+    var div = document.createElement('div');
+    var checkbox = div.appendChild(document.createElement('input'));
+    checkbox.setAttribute('type', 'checkbox');
+    var first;
+    var count = 0;
+    checkbox.addEventListener('click', function(e) {
+      count++;
+      first = first || 'click';
+    });
+    checkbox.addEventListener('change', function() {
+      count++;
+      first = first || 'change';
+    });
+
+    var event = document.createEvent('MouseEvent');
+    event.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false,
+        false, false, false, 0, null);
+    checkbox.dispatchEvent(event);
+    // WebKit/Blink don't fire the change event if the element is outside the
+    // document, so assume 'change' for that case.
+    checkboxEventType = count == 1 ? 'change' : first;
+  })();
+
   function getEventForInputType(element) {
     switch (element.type) {
       case 'checkbox':
-        return 'click';
+        return checkboxEventType;
       case 'radio':
       case 'select-multiple':
       case 'select-one':
