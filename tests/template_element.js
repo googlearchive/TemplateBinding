@@ -1456,6 +1456,16 @@ suite('Template Element', function() {
     }
   });
 
+  test('BindShadowDOM Template Ref', function() {
+    if (HTMLElement.prototype.webkitCreateShadowRoot) {
+      var root = createShadowTestHtml(
+          '<template id=foo>Hi</template><template bind ref=foo></template>');
+      recursivelySetTemplateModel(root, {});
+      Platform.performMicrotaskCheckpoint();
+      assert.strictEqual(3, root.childNodes.length);
+    }
+  });
+
   // https://github.com/Polymer/mdv/issues/8
   test('UnbindingInNestedBind', function() {
     var div = createTestHtml(
