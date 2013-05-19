@@ -24,6 +24,14 @@
 
   var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
 
+  function getTreeScope(node) {
+    while (node.parentNode) {
+      node = node.parentNode;
+    }
+
+    return typeof node.getElementById === 'function' ? node : null;
+  }
+
   var Map;
   if (global.Map && typeof global.Map.prototype.forEach === 'function') {
     Map = global.Map;
@@ -839,8 +847,11 @@
     get ref() {
       var ref;
       var refId = this.getAttribute('ref');
-      if (refId)
-        ref = this.ownerDocument.getElementById(refId);
+      if (refId) {
+        var treeScope = getTreeScope(this);
+        if (treeScope)
+          ref = treeScope.getElementById(refId);
+      }
 
       if (!ref)
         ref = templateInstanceRefTable.get(this);
