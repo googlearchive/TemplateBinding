@@ -1249,8 +1249,11 @@
           var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
                                             syntax);
-          var instanceNodes =
-              instanceCache.get(model) || this.getInstanceNodes(model, syntax);
+          var instanceNodes = instanceCache.get(model);
+          if (instanceNodes)
+            instanceCache.delete(model);
+          else
+            instanceNodes = this.getInstanceNodes(model, syntax);
           this.insertInstanceAt(addIndex, instanceNodes);
         }
       }, this);

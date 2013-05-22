@@ -296,6 +296,17 @@ suite('Template Element', function() {
     recursivelySetTemplateModel(div, model);
     Platform.performMicrotaskCheckpoint();
     checkExpandos(template.nextSibling);
+
+    model.forEach(function(item) {
+      item.val = item.val + 1;
+    });
+
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual("11", div.childNodes[1].textContent);
+    assert.strictEqual("9", div.childNodes[2].textContent);
+    assert.strictEqual("6", div.childNodes[3].textContent);
+    assert.strictEqual("3", div.childNodes[4].textContent);
+    assert.strictEqual("2", div.childNodes[5].textContent);
   });
 
   test('Bind - Reuse Instance', function() {
