@@ -511,7 +511,8 @@
     'COLGROUP': true,
     'COL': true,
     'CAPTION': true,
-    'OPTION': true
+    'OPTION': true,
+    'OPTGROUP': true
   };
 
   var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';

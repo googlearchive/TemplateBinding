@@ -1065,28 +1065,38 @@ suite('Template Element', function() {
     assert.strictEqual('Item 2', div.childNodes[i++].textContent);
   });
 
-  test('Attribute Template Option', function() {
+  test('Attribute Template Optgroup/Option', function() {
     var div = createTestHtml(
         '<template bind>' +
-          '<select>' +
-            '<option template repeat>{{ val }}</option>' +
+          '<select">' +
+            '<optgroup template repeat="{{ groups }}" label="{{ name }}">' +
+              '<option template repeat="{{ items }}">{{ val }}</option>' +
+            '</optgroup>' +
           '</select>' +
         '</template>');
 
-    var m = [{ val: 0 }, { val: 1 }];
+    var m = {
+      selected: 1,
+      groups: [
+        {
+          name: "one", items: [{ val: 0 }, { val: 1 }]
+        }
+      ],
+    };
 
     recursivelySetTemplateModel(div, m);
     Platform.performMicrotaskCheckpoint();
 
     var select = div.firstChild.nextSibling;
-    assert.strictEqual(3, select.childNodes.length);
+    assert.strictEqual(2, select.childNodes.length);
     assert.strictEqual('TEMPLATE', select.childNodes[0].tagName);
-    assert.strictEqual('OPTION',
-                       select.childNodes[0].ref.content.firstChild.tagName);
-    assert.strictEqual('OPTION', select.childNodes[1].tagName);
-    assert.strictEqual('0', select.childNodes[1].textContent);
-    assert.strictEqual('OPTION', select.childNodes[2].tagName);
-    assert.strictEqual('1', select.childNodes[2].textContent);
+    assert.strictEqual('OPTGROUP', select.childNodes[0].ref.content.firstChild.tagName);
+    var optgroup = select.childNodes[1];
+    assert.strictEqual('TEMPLATE', optgroup.childNodes[0].tagName);
+    assert.strictEqual('OPTION', optgroup.childNodes[1].tagName);
+    assert.strictEqual('0', optgroup.childNodes[1].textContent);
+    assert.strictEqual('OPTION', optgroup.childNodes[2].tagName);
+    assert.strictEqual('1', optgroup.childNodes[2].textContent);
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {
