@@ -1068,7 +1068,7 @@ suite('Template Element', function() {
   test('Attribute Template Optgroup/Option', function() {
     var div = createTestHtml(
         '<template bind>' +
-          '<select">' +
+          '<select selectedIndex="{{ selected }}">' +
             '<optgroup template repeat="{{ groups }}" label="{{ name }}">' +
               '<option template repeat="{{ items }}">{{ val }}</option>' +
             '</optgroup>' +
@@ -1089,6 +1089,7 @@ suite('Template Element', function() {
 
     var select = div.firstChild.nextSibling;
     assert.strictEqual(2, select.childNodes.length);
+    assert.strictEqual(1, select.selectedIndex);
     assert.strictEqual('TEMPLATE', select.childNodes[0].tagName);
     assert.strictEqual('OPTGROUP', select.childNodes[0].ref.content.firstChild.tagName);
     var optgroup = select.childNodes[1];

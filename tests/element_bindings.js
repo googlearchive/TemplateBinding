@@ -376,6 +376,26 @@ suite('Element Bindings', function() {
     assert.isFalse(model.a.b);
   });
 
+  test('Select selectedIndex', function() {
+    var select = document.createElement('select');
+    testDiv.appendChild(select);
+    var option0 = select.appendChild(document.createElement('option'));
+    var option1 = select.appendChild(document.createElement('option'));
+    var option2 = select.appendChild(document.createElement('option'));
+
+    var model = {
+      val: 2
+    };
+
+    select.bind('selectedIndex', model, 'val');
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, select.selectedIndex);
+
+    select.selectedIndex = 1;
+    dispatchEvent('change', select);
+    assert.strictEqual(1, model.val);
+  });
+
   test('MultipleReferences', function() {
     var el = document.createElement('div');
     var model = {foo: 'bar'};

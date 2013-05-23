@@ -487,6 +487,76 @@
   HTMLInputElement.prototype.unbind = unbindInput;
   HTMLInputElement.prototype.unbindAll = unbindAllInput;
 
+  function SelectedIndexBinding(element, model, path) {
+    InputBinding.call(this, element, 'selectedIndex', model, path);
+  }
+
+  SelectedIndexBinding.prototype = createObject({
+    __proto__: InputBinding.prototype,
+
+    valueChanged: function(newValue) {
+      var newValue = this.produceElementValue(newValue);
+      if (newValue <= this.element.length) {
+        this.element[this.valueProperty] = newValue;
+        return;
+      }
+
+      // The binding may wish to bind to an <option> which has not yet been
+      // produced by a child <template>. Delay a maximum of twice -- once for
+      // iterating <optgroup> and once for <option>.
+      var maxRetries = 2;
+      var self = this;
+      function delaySetSelectedIndex() {
+        if (newValue > self.element.length && maxRetries--)
+          ensureScheduled(delaySetSelectedIndex);
+        else
+          self.element[self.valueProperty] = newValue;
+      }
+      ensureScheduled(delaySetSelectedIndex);
+    },
+
+    produceElementValue: function(value) {
+      return Number(value);
+    }
+  });
+
+  function bindSelect(name, model, path) {
+    switch(name.toLowerCase()) {
+      case 'selectedindex':
+        this.unbind('selectedindex');
+        this.removeAttribute('selectedindex');
+        valueBindingTable.set(this, new SelectedIndexBinding(this, model, path));
+        break;
+      default:
+        return Element.prototype.bind.call(this, name, model, path);
+        break;
+    }
+  }
+
+  function unbindSelect(name) {
+    switch(name.toLowerCase()) {
+      case 'selectedindex':
+        var valueBinding = valueBindingTable.get(this);
+        if (valueBinding) {
+          valueBinding.unbind();
+          valueBindingTable.delete(this);
+        }
+        break;
+      default:
+        return Element.prototype.unbind.call(this, name);
+        break;
+    }
+  }
+
+  function unbindAllSelect(name) {
+    this.unbind('selectedindex');
+    Element.prototype.unbindAll.call(this);
+  }
+
+  HTMLSelectElement.prototype.bind = bindSelect;
+  HTMLSelectElement.prototype.unbind = unbindSelect;
+  HTMLSelectElement.prototype.unbindAll = unbindAllSelect;
+
   var BIND = 'bind';
   var REPEAT = 'repeat';
   var IF = 'if';
