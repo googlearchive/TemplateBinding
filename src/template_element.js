@@ -502,9 +502,11 @@
       }
 
       // The binding may wish to bind to an <option> which has not yet been
-      // produced by a child <template>. Delay a maximum of twice -- once for
-      // iterating <optgroup> and once for <option>.
-      var maxRetries = 2;
+      // produced by a child <template>. Delay a maximum of four times:
+      //   -Conceptually: once for each of <optgroup> and <option>
+      //   -But 4x, because each repeat, itself, delays because of compound
+      //    bindings.
+      var maxRetries = 4;
       var self = this;
       function delaySetSelectedIndex() {
         if (newValue > self.element.length && maxRetries--)
@@ -606,36 +608,59 @@
   }
 
   var ensureScheduled = function() {
-    var scheduled = [];
-    var delivering = [];
-    var obj = {
-      value: 0
-    };
+    // We need to ping-pong between two Runners in order for the tests to simulate
+    // proper end-of-microtask behavior for Object.observe. Without this,
+    // we'll continue delivering to a single observer without allowing other observers
+    // in the same microtask to make progress.
+    var current;
+    var next;
 
-    var lastScheduled = obj.value;
+    function Runner() {
+      var self = this;
+      this.value = false;
+      var lastValue = this.value;
+
+      var scheduled = [];
+      var running = false;
+
+      this.schedule = function(fn) {
+        if (scheduled.indexOf(fn) >= 0)
+          return true;
+        if (running)
+          return false;
+
+        scheduled.push(fn);
+        if (lastValue === self.value)
+          self.value = !self.value;
+
+        return true;
+      }
+
+      var observer = new PathObserver(this, 'value', function() {
+        running = true;
+
+        for (var i = 0; i < scheduled.length; i++) {
+          var fn = scheduled[i];
+          scheduled[i] = undefined;
+          fn();
+        }
+
+        scheduled = [];
+        lastValue = self.value;
+
+        current = next;
+        next = self;
+
+        running = false;
+      });
+    }
+
+    current = new Runner();
+    next = new Runner();
 
     function ensureScheduled(fn) {
-      if (delivering.indexOf(fn) >= 0 || scheduled.indexOf(fn) >= 0)
-        return;
-
-      scheduled.push(fn);
-
-      if (lastScheduled == obj.value)
-        obj.value = !obj.value;
+      current.schedule(fn) || next.schedule(fn);
     }
-
-    function runScheduled() {
-      lastScheduled = obj.value;
-
-      delivering = scheduled;
-      scheduled = [];
-      while (delivering.length) {
-        var nextFn = delivering.shift();
-        nextFn();
-      }
-    }
-
-    var observer = new PathObserver(obj, 'value', runScheduled);
 
     return ensureScheduled;
   }();
