@@ -918,15 +918,16 @@
       Element.prototype.unbindAll.call(this);
     },
 
-    createInstance: function() {
+    createInstance: function(model, syntax) {
       var content = effectiveContent(this);
-      var syntaxString = this.getAttribute(SYNTAX);
-      var instance = createDeepCloneAndDecorateTemplates(content, syntaxString);
+      var instance = createDeepCloneAndDecorateTemplates(content, syntax);
       // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
       // because custom elements are not upgraded during cloneNode()
-      if (typeof HTMLTemplateElement.__instanceCreated == 'function') {
+      if (typeof HTMLTemplateElement.__instanceCreated == 'function')
         HTMLTemplateElement.__instanceCreated(instance);
-      }
+
+      addBindings(instance, model, HTMLTemplateElement.syntax[syntax]);
+      addTemplateInstanceRecord(instance, model);
       return instance;
     },
 
@@ -998,11 +999,11 @@
     return result;
   }
 
-  function bindOrDelegate(node, name, model, path, syntax) {
+  function bindOrDelegate(node, name, model, path, delegate) {
     var delegateBinding;
-    var delegate = syntax && syntax[GET_BINDING];
-    if (delegate && typeof delegate == 'function') {
-      delegateBinding = delegate(model, path, name, node);
+    var delegateFunction = delegate && delegate[GET_BINDING];
+    if (delegateFunction && typeof delegateFunction == 'function') {
+      delegateBinding = delegateFunction(model, path, name, node);
       if (delegateBinding) {
         model = delegateBinding;
         path = 'value';
@@ -1012,13 +1013,13 @@
     node.bind(name, model, path);
   }
 
-  function parseAndBind(node, name, text, model, syntax) {
+  function parseAndBind(node, name, text, model, delegate) {
     var tokens = parseMustacheTokens(text);
     if (!tokens.length || (tokens.length == 1 && tokens[0].type == TEXT))
       return;
 
     if (tokens.length == 1 && tokens[0].type == BINDING) {
-      bindOrDelegate(node, name, model, tokens[0].value, syntax);
+      bindOrDelegate(node, name, model, tokens[0].value, delegate);
       return;
     }
 
@@ -1026,7 +1027,7 @@
     for (var i = 0; i < tokens.length; i++) {
       var token = tokens[i];
       if (token.type == BINDING)
-        bindOrDelegate(replacementBinding, i, model, token.value, syntax);
+        bindOrDelegate(replacementBinding, i, model, token.value, delegate);
     }
 
     replacementBinding.combinator = function(values) {
@@ -1049,7 +1050,7 @@
     node.bind(name, replacementBinding, 'value');
   }
 
-  function addAttributeBindings(element, model, syntax) {
+  function addAttributeBindings(element, model, delegate) {
     assert(element);
 
     var attrs = {};
@@ -1066,21 +1067,21 @@
     }
 
     Object.keys(attrs).forEach(function(attrName) {
-      parseAndBind(element, attrName, attrs[attrName], model, syntax);
+      parseAndBind(element, attrName, attrs[attrName], model, delegate);
     });
   }
 
-  function addBindings(node, model, syntax) {
+  function addBindings(node, model, delegate) {
     assert(node);
 
     if (node.nodeType === Node.ELEMENT_NODE) {
-      addAttributeBindings(node, model, syntax);
+      addAttributeBindings(node, model, delegate);
     } else if (node.nodeType === Node.TEXT_NODE) {
-      parseAndBind(node, 'textContent', node.data, model, syntax);
+      parseAndBind(node, 'textContent', node.data, model, delegate);
     }
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
-      addBindings(child, model, syntax);
+      addBindings(child, model, delegate);
   }
 
   function unbindAllRecursively(node) {
@@ -1297,19 +1298,23 @@
     },
 
     getInstanceModel: function(template, model, syntax) {
-      var delegateModel;
-      var delegate = syntax && syntax[GET_INSTANCE_MODEL];
-      if (delegate && typeof delegate == 'function')
-        return delegate(template, model);
+      var delegate = HTMLTemplateElement.syntax[syntax];
+      var delegateFunction = delegate && delegate[GET_INSTANCE_MODEL];
+      if (delegateFunction && typeof delegateFunction == 'function')
+        return delegateFunction(template, model);
       else
         return model;
     },
 
-    getInstanceNodes: function(model, syntax) {
-      var instanceNodes = [];
-      var fragment = this.templateElement_.createInstance();
-      addBindings(fragment, model, syntax);
-      addTemplateInstanceRecord(fragment, model);
+    getInstanceNodes: function(model, syntax, instanceCache) {
+      var instanceNodes = instanceCache.get(model);
+      if (instanceNodes) {
+        instanceCache.delete(model);
+        return instanceNodes;
+      }
+
+      instanceNodes = [];
+      var fragment = this.templateElement_.createInstance(model, syntax);
       while (fragment.firstChild)
         instanceNodes.push(fragment.removeChild(fragment.firstChild));
 
@@ -1324,8 +1329,7 @@
         return;
       }
 
-      var syntaxString = template.getAttribute(SYNTAX);
-      var syntax = HTMLTemplateElement.syntax[syntaxString];
+      var syntax = template.getAttribute(SYNTAX);
 
       var instanceCache = new Map;
       var removeDelta = 0;
@@ -1345,11 +1349,7 @@
           var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
                                             syntax);
-          var instanceNodes = instanceCache.get(model);
-          if (instanceNodes)
-            instanceCache.delete(model);
-          else
-            instanceNodes = this.getInstanceNodes(model, syntax);
+          var instanceNodes = this.getInstanceNodes(model, syntax, instanceCache);
           this.insertInstanceAt(addIndex, instanceNodes);
         }
       }, this);

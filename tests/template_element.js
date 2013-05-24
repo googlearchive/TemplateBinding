@@ -1550,20 +1550,35 @@ suite('Template Element', function() {
     assert.isFalse(!!Observer._errorThrownDuringCallback);
   });
 
-  test('CreateIntance', function() {
+  test('CreateInstance', function() {
+    HTMLTemplateElement.syntax['Test'] = {
+      getBinding: function(model, path, name, node) {
+        if (path.trim() == 'replaceme')
+          return { value: "replaced" };
+      }
+    };
+
     var div = createTestHtml(
       '<template bind="{{a}}">' +
         '<template bind="{{b}}">' +
-          '{{text}}' +
+          '{{ foo }}:{{ replaceme }}' +
         '</template>' +
       '</template>');
     var outer = div.firstChild;
+    var model = {
+      b: {
+        foo: 'bar'
+      }
+    };
 
-    var instance = outer.createInstance(null, null);
+    var host = document.createElement('div');
+    var instance = outer.createInstance(model, 'Test');
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
+    assert.strictEqual('Test', instance.firstChild.getAttribute('syntax'));
 
-    var instance2 =  outer.createInstance(null, null);
-    assert.strictEqual(instance.firstChild.ref, instance2.firstChild.ref);
+    host.appendChild(instance);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('bar:replaced', host.firstChild.nextSibling.textContent);
   });
 
   test('Bootstrap', function() {
