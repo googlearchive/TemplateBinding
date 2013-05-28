@@ -162,6 +162,9 @@
 
   Binding.prototype = {
     dispose: function() {
+      if (this.model && typeof this.model.dispose == 'function')
+        this.model.dispose();
+
       this.observer.close();
     },
 
@@ -901,8 +904,8 @@
           if (!templateIterator)
             break;
 
-          // the template iterator will clear() and unobserve() if
-          // its resolveInputs() is called and its inputs.size is 0.
+          // the template iterator will remove its instances and
+          // abandon() itself if its inputs.size is 0.
           templateIterator.inputs.unbind(name);
           break;
         default:
@@ -1213,13 +1216,16 @@
   };
 
   function TemplateIterator(templateElement) {
+    this.constructing = true;
     this.templateElement_ = templateElement;
     this.terminators = [];
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
     this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
-    this.valueBinding = new Binding(this.inputs, 'value', this.valueChanged.bind(this));
+    this.valueBinding = new Binding(this.inputs, 'value',
+                                    this.valueChanged.bind(this));
+    this.constructing = false;
   }
 
   TemplateIterator.prototype = {
@@ -1249,10 +1255,14 @@
         removed: Array.isArray(oldValue) ? oldValue : []
       };
 
-      if (!splice.addedCount && !splice.removed.length)
-        return; // nothing to do.
+      if (splice.addedCount || splice.removed.length)
+        this.handleSplices([splice]);
 
-      this.handleSplices([splice]);
+      if (!this.constructing && !this.inputs.size) {
+        // End iteration
+        templateIteratorTable.delete(this);
+        this.abandon();
+      }
     },
 
     getTerminatorAt: function(index) {

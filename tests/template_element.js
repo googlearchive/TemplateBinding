@@ -16,6 +16,12 @@ suite('Template Element', function() {
 
   var testDiv;
 
+  function unbindAll(node) {
+    node.unbindAll();
+    for (var child = node.firstChild; child; child = child.nextSibling)
+      unbindAll(child);
+  }
+
   setup(function() {
     testDiv = document.body.appendChild(document.createElement('div'));
     Observer._errorThrownDuringCallback = false;
@@ -24,6 +30,9 @@ suite('Template Element', function() {
   teardown(function() {
     assert.isFalse(!!Observer._errorThrownDuringCallback);
     document.body.removeChild(testDiv);
+    unbindAll(testDiv);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, Observer._allObserversCount);
   });
 
   function createTestHtml(s) {
@@ -1476,6 +1485,7 @@ suite('Template Element', function() {
       recursivelySetTemplateModel(root, model);
       Platform.performMicrotaskCheckpoint();
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
+      unbindAll(root);
     }
   });
 
@@ -1486,6 +1496,7 @@ suite('Template Element', function() {
       recursivelySetTemplateModel(root, {});
       Platform.performMicrotaskCheckpoint();
       assert.strictEqual(3, root.childNodes.length);
+      unbindAll(root);
     }
   });
 
@@ -1571,7 +1582,7 @@ suite('Template Element', function() {
       }
     };
 
-    var host = document.createElement('div');
+    var host = testDiv.appendChild(document.createElement('div'));
     var instance = outer.createInstance(model, 'Test');
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
     assert.strictEqual('Test', instance.firstChild.getAttribute('syntax'));

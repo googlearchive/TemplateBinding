@@ -14,12 +14,23 @@
 
 suite('Syntax', function() {
 
+  function unbindAll(node) {
+    node.unbindAll();
+    for (var child = node.firstChild; child; child = child.nextSibling)
+      unbindAll(child);
+  }
+
   setup(function() {
     testDiv = document.body.appendChild(document.createElement('div'));
+    Observer._errorThrownDuringCallback = false;
   })
 
   teardown(function() {
+    assert.isFalse(!!Observer._errorThrownDuringCallback);
     document.body.removeChild(testDiv);
+    unbindAll(testDiv);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, Observer._allObserversCount);
   });
 
   function createTestHtml(s) {

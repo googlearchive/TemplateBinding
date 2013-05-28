@@ -17,12 +17,22 @@
 // webkit.
 var testDiv;
 
+function unbindAll(node) {
+node.unbindAll();
+for (var child = node.firstChild; child; child = child.nextSibling)
+  unbindAll(child);
+}
+
 function doSetup() {
   testDiv = document.body.appendChild(document.createElement('div'));
 }
 
 function doTeardown() {
+  assert.isFalse(!!Observer._errorThrownDuringCallback);
   document.body.removeChild(testDiv);
+  unbindAll(testDiv);
+  Platform.performMicrotaskCheckpoint();
+  assert.strictEqual(2, Observer._allObserversCount);
 }
 
 function dispatchEvent(type, target) {
@@ -56,14 +66,14 @@ suite('Text bindings', function() {
   });
 
   test('Path unreachable', function() {
-    var text = document.createTextNode('hi');
+    var text = testDiv.appendChild(document.createTextNode('hi'));
     var model = {};
     text.bind('textContent', model, 'a');
     assert.strictEqual(text.data, '');
   });
 
   test('Compound Binding', function() {
-    var text = document.createTextNode('hi');
+    var text = testDiv.appendChild(document.createTextNode('hi'));
     var model = {a: 1, b: 2};
     text.textContent = '{{a}} and {{b}}';
     HTMLTemplateElement.bindAllMustachesFrom_(text, model);
@@ -83,7 +93,7 @@ suite('Element attribute bindings', function() {
   teardown(doTeardown);
 
   test('Basic', function() {
-    var el = document.createElement('div');
+    var el = testDiv.appendChild(document.createElement('div'));
     var model = {a: '1'};
     el.bind('foo', model, 'a');
     Platform.performMicrotaskCheckpoint();
@@ -111,7 +121,7 @@ suite('Element attribute bindings', function() {
   });
 
   test('Dashes', function() {
-    var el = document.createElement('div');
+    var el = testDiv.appendChild(document.createElement('div'));
     var model = {a: '1'};
     el.bind('foo-bar', model, 'a');
     Platform.performMicrotaskCheckpoint();
@@ -123,7 +133,7 @@ suite('Element attribute bindings', function() {
   });
 
   test('Element.id, Element.hidden?', function() {
-    var element = document.createElement('div');
+    var element = testDiv.appendChild(document.createElement('div'));
     var model = {a: 1, b: 2};
     element.bind('hidden?', model, 'a');
     element.bind('id', model, 'b');
@@ -145,14 +155,14 @@ suite('Element attribute bindings', function() {
   });
 
   test('Element.id - path unreachable', function() {
-    var element = document.createElement('div');
+    var element = testDiv.appendChild(document.createElement('div'));
     var model = {};
     element.bind('id', model, 'a');
     assert.strictEqual(element.id, '');
   });
 
   test('MultipleReferences', function() {
-    var el = document.createElement('div');
+    var el = testDiv.appendChild(document.createElement('div'));
     var model = {foo: 'bar'};
     el.setAttribute('foo', '{{foo}} {{foo}}');
     HTMLTemplateElement.bindAllMustachesFrom_(el, model);
@@ -167,7 +177,7 @@ suite('Form Element Bindings', function() {
   teardown(doTeardown);
 
   test('Input.value', function() {
-    var input = document.createElement('input');
+    var input = testDiv.appendChild(document.createElement('input'));
     var model = {x: 42};
     input.bind('value', model, 'x');
     assert.strictEqual('42', input.value);
@@ -196,7 +206,7 @@ suite('Form Element Bindings', function() {
   test('Input.value - user value rejected', function() {
     var model = {val: 'ping'};
 
-    var el = document.createElement('input');
+    var el = testDiv.appendChild(document.createElement('input'));
     el.bind('value', model, 'val');
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('ping', el.value);
@@ -243,7 +253,7 @@ suite('Form Element Bindings', function() {
   });
 
   test('(Checkbox)Input.checked', function() {
-    var input = document.createElement('input');
+    var input = testDiv.appendChild(document.createElement('input'));
     testDiv.appendChild(input);
     input.type = 'checkbox';
     var model = {x: true};
@@ -266,7 +276,7 @@ suite('Form Element Bindings', function() {
   test('(Checkbox)Input.checked 2', function() {
     var model = {val: true};
 
-    var el = document.createElement('input');
+    var el = testDiv.appendChild(document.createElement('input'));
     testDiv.appendChild(el);
     el.type = 'checkbox';
     el.bind('checked', model, 'val');
@@ -299,7 +309,7 @@ suite('Form Element Bindings', function() {
   test('(Checkbox)Input.checked - binding updated on click', function() {
     var model = {val: true};
 
-    var el = document.createElement('input');
+    var el = testDiv.appendChild(document.createElement('input'));
     testDiv.appendChild(el);
     el.type = 'checkbox';
     el.bind('checked', model, 'val');
@@ -319,7 +329,7 @@ suite('Form Element Bindings', function() {
   test('(Checkbox)Input.checked - binding updated on change', function() {
     var model = {val: true};
 
-    var el = document.createElement('input');
+    var el = testDiv.appendChild(document.createElement('input'));
     testDiv.appendChild(el);
     el.type = 'checkbox';
     el.bind('checked', model, 'val');
@@ -337,7 +347,7 @@ suite('Form Element Bindings', function() {
   });
 
   test('(Radio)Input.checked', function() {
-    var input = document.createElement('input');
+    var input = testDiv.appendChild(document.createElement('input'));
     input.type = 'radio';
     var model = {x: true};
     input.bind('checked', model, 'x');
@@ -363,7 +373,7 @@ suite('Form Element Bindings', function() {
     var model = {val1: true, val2: false, val3: false, val4: true};
     var RADIO_GROUP_NAME = 'test';
 
-    var container = document.body.appendChild(document.createElement('div'));
+    var container = testDiv.appendChild(document.createElement('div'));
 
     var el1 = container.appendChild(document.createElement('input'));
     el1.type = 'radio';
@@ -412,15 +422,13 @@ suite('Form Element Bindings', function() {
     assert.strictEqual(false, model.val2);
     assert.strictEqual(true, model.val3);
     assert.strictEqual(true, model.val4);
-
-    document.body.removeChild(container);
   });
 
   test('(Radio)Input.checked - multiple forms', function() {
     var model = {val1: true, val2: false, val3: false, val4: true};
     var RADIO_GROUP_NAME = 'test';
 
-    var container = document.body.appendChild(document.createElement('div'));
+    var container = testDiv.appendChild(document.createElement('div'));
     var form1 = container.appendChild(document.createElement('form'));
     var form2 = container.appendChild(document.createElement('form'));
 
@@ -467,12 +475,10 @@ suite('Form Element Bindings', function() {
     // Radio buttons in form1 should be unaffected
     assert.strictEqual(false, model.val1);
     assert.strictEqual(true, model.val2);
-
-    document.body.removeChild(container);
   });
 
   test('Select.selectedIndex', function() {
-    var select = document.createElement('select');
+    var select = testDiv.appendChild(document.createElement('select'));
     testDiv.appendChild(select);
     var option0 = select.appendChild(document.createElement('option'));
     var option1 = select.appendChild(document.createElement('option'));
