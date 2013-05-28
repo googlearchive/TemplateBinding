@@ -505,11 +505,9 @@
       }
 
       // The binding may wish to bind to an <option> which has not yet been
-      // produced by a child <template>. Delay a maximum of four times:
-      //   -Conceptually: once for each of <optgroup> and <option>
-      //   -But 4x, because each repeat, itself, delays because of compound
-      //    bindings.
-      var maxRetries = 4;
+      // produced by a child <template>. Delay a maximum of two times: once for
+      // each of <optgroup> and <option>
+      var maxRetries = 2;
       var self = this;
       function delaySetSelectedIndex() {
         if (newValue > self.element.length && maxRetries--)
@@ -1216,16 +1214,18 @@
   };
 
   function TemplateIterator(templateElement) {
-    this.constructing = true;
     this.templateElement_ = templateElement;
     this.terminators = [];
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
     this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
-    this.valueBinding = new Binding(this.inputs, 'value',
-                                    this.valueChanged.bind(this));
-    this.constructing = false;
+    var boundValueChanged = this.valueChanged.bind(this);
+
+    Object.defineProperty(this.inputs, 'value', {
+      configurable: true,
+      set: boundValueChanged
+    });
   }
 
   TemplateIterator.prototype = {
@@ -1240,7 +1240,8 @@
         return [values[BIND]];
     },
 
-    valueChanged: function(value, oldValue) {
+    valueChanged: function(value) {
+      var oldValue = this.iteratedValue;
       if (!Array.isArray(value))
         value = [];
 
@@ -1258,7 +1259,7 @@
       if (splice.addedCount || splice.removed.length)
         this.handleSplices([splice]);
 
-      if (!this.constructing && !this.inputs.size) {
+      if (!this.inputs.size) {
         // End iteration
         templateIteratorTable.delete(this);
         this.abandon();
@@ -1380,8 +1381,12 @@
 
     abandon: function() {
       this.unobserve();
-      this.valueBinding.dispose();
       this.terminators.length = 0;
+      Object.defineProperty(this.inputs, 'value', {
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
       this.inputs.dispose();
     }
   };
