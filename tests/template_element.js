@@ -1389,6 +1389,25 @@ suite('Template Element', function() {
     assert.strictEqual('bar', div.childNodes[3].textContent);
   });
 
+  test('Template - Self is terminator', function() {
+    var div = createTestHtml(
+        '<template repeat>{{ foo }}' +
+          '<template bind></template>' +
+        '</template>');
+
+    var m = [{ foo: 'bar' }];
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    m.push({ foo: 'baz' });
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual(5, div.childNodes.length);
+    assert.strictEqual('bar', div.childNodes[2].textContent);
+    assert.strictEqual('baz', div.childNodes[4].textContent);
+  });
+
   test('ChangeFromBindToRepeat', function() {
     var div = createTestHtml(
         '<template bind="{{a}}">' +

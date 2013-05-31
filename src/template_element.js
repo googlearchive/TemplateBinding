@@ -1269,7 +1269,8 @@
       if (index == -1)
         return this.templateElement_;
       var terminator = this.terminators[index];
-      if (terminator.nodeType !== Node.ELEMENT_NODE)
+      if (terminator.nodeType !== Node.ELEMENT_NODE ||
+          this.templateElement_ === terminator)
         return terminator;
 
       var subIterator = templateIteratorTable.get(terminator);
