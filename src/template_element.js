@@ -866,11 +866,6 @@
     }
   }
 
-  function effectiveContent(template) {
-    var ref = template.ref;
-    return ref ? ref.content : template.content;
-  }
-
   var templateModelTable = new SideTable('templateModel');
 
   mixin(HTMLTemplateElement.prototype, {
@@ -920,8 +915,8 @@
     },
 
     createInstance: function(model, syntax) {
-      var content = effectiveContent(this);
-      var instance = createDeepCloneAndDecorateTemplates(content, syntax);
+      var instance = createDeepCloneAndDecorateTemplates(this.ref.content,
+                                                         syntax);
       // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
       // because custom elements are not upgraded during cloneNode()
       if (typeof HTMLTemplateElement.__instanceCreated == 'function')
@@ -954,7 +949,11 @@
       if (!ref)
         ref = templateInstanceRefTable.get(this);
 
-      return ref || null;
+      if (!ref)
+        return this;
+
+      var nextRef = ref.ref;
+      return nextRef ? nextRef : ref;
     }
   });
 

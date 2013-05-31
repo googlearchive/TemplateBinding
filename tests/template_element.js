@@ -1372,6 +1372,23 @@ suite('Template Element', function() {
     assert.strictEqual('Name: Leela', div.childNodes[3].textContent);
   });
 
+  test('RecursiveRef', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<template id=src>{{ foo }}</template>' +
+          '<template bind ref=src></template>' +
+        '</template>');
+
+    var m = {
+      foo: 'bar'
+    };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('bar', div.childNodes[3].textContent);
+  });
+
   test('ChangeFromBindToRepeat', function() {
     var div = createTestHtml(
         '<template bind="{{a}}">' +
