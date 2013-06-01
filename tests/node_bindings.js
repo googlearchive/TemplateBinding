@@ -176,31 +176,39 @@ suite('Form Element Bindings', function() {
   setup(doSetup);
   teardown(doTeardown);
 
-  test('Input.value', function() {
-    var input = testDiv.appendChild(document.createElement('input'));
+  function inputTextAreaValueTest(type) {
+    var el = testDiv.appendChild(document.createElement(type));
     var model = {x: 42};
-    input.bind('value', model, 'x');
-    assert.strictEqual('42', input.value);
+    el.bind('value', model, 'x');
+    assert.strictEqual('42', el.value);
 
     model.x = 'Hi';
-    assert.strictEqual('42', input.value);
+    assert.strictEqual('42', el.value);
     Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('Hi', input.value);
+    assert.strictEqual('Hi', el.value);
 
-    input.value = 'changed';
-    dispatchEvent('input', input);
+    el.value = 'changed';
+    dispatchEvent('input', el);
     assert.strictEqual('changed', model.x);
 
-    input.unbind('value');
+    el.unbind('value');
 
-    input.value = 'changed again';
-    dispatchEvent('input', input);
+    el.value = 'changed again';
+    dispatchEvent('input', el);
     assert.strictEqual('changed', model.x);
 
-    input.bind('value', model, 'x');
+    el.bind('value', model, 'x');
     model.x = null;
     Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('', input.value);
+    assert.strictEqual('', el.value);
+  }
+
+  test('Input.value', function() {
+    inputTextAreaValueTest('input');
+  });
+
+  test('TextArea.value', function() {
+    inputTextAreaValueTest('textarea');
   });
 
   test('Input.value - user value rejected', function() {

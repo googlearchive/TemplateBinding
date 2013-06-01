@@ -441,16 +441,22 @@
   });
 
   function bindInput(name, model, path) {
-    switch(name) {
-      case 'value':
+    switch(this.tagName + '.' + name.toLowerCase()) {
+      case 'INPUT.value':
+      case 'TEXTAREA.value':
         this.unbind('value');
         this.removeAttribute('value');
         valueBindingTable.set(this, new ValueBinding(this, model, path));
         break;
-      case 'checked':
+      case 'INPUT.checked':
         this.unbind('checked');
         this.removeAttribute('checked');
         checkedBindingTable.set(this, new CheckedBinding(this, model, path));
+        break;
+      case 'SELECT.selectedindex':
+        this.unbind('selectedindex');
+        this.removeAttribute('selectedindex');
+        valueBindingTable.set(this, new SelectedIndexBinding(this, model, path));
         break;
       default:
         return Element.prototype.bind.call(this, name, model, path);
@@ -459,19 +465,27 @@
   }
 
   function unbindInput(name) {
-    switch(name) {
-      case 'value':
+    switch(this.tagName + '.' + name.toLowerCase()) {
+      case 'INPUT.value':
+      case 'TEXTAREA.value':
         var valueBinding = valueBindingTable.get(this);
         if (valueBinding) {
           valueBinding.unbind();
           valueBindingTable.delete(this);
         }
         break;
-      case 'checked':
+      case 'INPUT.checked':
         var checkedBinding = checkedBindingTable.get(this);
         if (checkedBinding) {
           checkedBinding.unbind();
           checkedBindingTable.delete(this)
+        }
+        break;
+      case 'SELECT.selectedindex':
+        var valueBinding = valueBindingTable.get(this);
+        if (valueBinding) {
+          valueBinding.unbind();
+          valueBindingTable.delete(this);
         }
         break;
       default:
@@ -481,8 +495,18 @@
   }
 
   function unbindAllInput(name) {
-    this.unbind('value');
-    this.unbind('checked');
+    switch (this.tagName) {
+      case 'INPUT':
+        this.unbind('checked');
+        // fallthrough
+      case 'TEXTAREA':
+        this.unbind('value');
+        break;
+      case 'SELECT':
+        this.unbind('selectedindex');
+        break;
+    }
+
     Element.prototype.unbindAll.call(this);
   }
 
@@ -523,42 +547,13 @@
     }
   });
 
-  function bindSelect(name, model, path) {
-    switch(name.toLowerCase()) {
-      case 'selectedindex':
-        this.unbind('selectedindex');
-        this.removeAttribute('selectedindex');
-        valueBindingTable.set(this, new SelectedIndexBinding(this, model, path));
-        break;
-      default:
-        return Element.prototype.bind.call(this, name, model, path);
-        break;
-    }
-  }
+  HTMLSelectElement.prototype.bind = bindInput;
+  HTMLSelectElement.prototype.unbind = unbindInput;
+  HTMLSelectElement.prototype.unbindAll = unbindAllInput;
 
-  function unbindSelect(name) {
-    switch(name.toLowerCase()) {
-      case 'selectedindex':
-        var valueBinding = valueBindingTable.get(this);
-        if (valueBinding) {
-          valueBinding.unbind();
-          valueBindingTable.delete(this);
-        }
-        break;
-      default:
-        return Element.prototype.unbind.call(this, name);
-        break;
-    }
-  }
-
-  function unbindAllSelect(name) {
-    this.unbind('selectedindex');
-    Element.prototype.unbindAll.call(this);
-  }
-
-  HTMLSelectElement.prototype.bind = bindSelect;
-  HTMLSelectElement.prototype.unbind = unbindSelect;
-  HTMLSelectElement.prototype.unbindAll = unbindAllSelect;
+  HTMLTextAreaElement.prototype.bind = bindInput;
+  HTMLTextAreaElement.prototype.unbind = unbindInput;
+  HTMLTextAreaElement.prototype.unbindAll = unbindAllInput;
 
   var BIND = 'bind';
   var REPEAT = 'repeat';
