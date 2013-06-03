@@ -30,5 +30,6 @@
   [
     'third_party/ChangeSummary/change_summary.js',
     'src/template_element.js',
+    'src/mdv_syntax.js'
   ].forEach(write);
 })();
