@@ -17,13 +17,18 @@
 
   var pathIndent = '[\$a-z0-9_]+[\$a-z0-9_\\d]*';
   var path = '(?:' + pathIndent + ')(?:\\.' + pathIndent + ')*';
+  var pathPattern = new RegExp('^(' + path + ')$');
   var classPattern = new RegExp('^([\\w]+)[\\s]*:[\\s]*(' + path + '){1}$');
 
-  function getClassBinding(model, path, name, node) {
+  function getClassBinding(model, pathString, name, node) {
+    pathString = pathString.trim();
+    if (pathString.match(pathPattern))
+      return; // bail out early if pathString is really just a path.
+
     if (node.nodeType !== Node.ELEMENT_NODE || name.toLowerCase() !== 'class')
       return;
 
-    var tokens = path.split(';');
+    var tokens = pathString.split(';');
     var tuples = [];
     for (var i = 0; i < tokens.length; i++) {
       var match = tokens[i].trim().match(classPattern);
