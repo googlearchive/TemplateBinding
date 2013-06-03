@@ -12,40 +12,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-suite('Template Element', function() {
+var testDiv;
 
-  var testDiv;
+function unbindAll(node) {
+  node.unbindAll();
+  for (var child = node.firstChild; child; child = child.nextSibling)
+    unbindAll(child);
+}
 
-  function unbindAll(node) {
-    node.unbindAll();
-    for (var child = node.firstChild; child; child = child.nextSibling)
-      unbindAll(child);
-  }
+function doSetup() {
+  testDiv = document.body.appendChild(document.createElement('div'));
+  Observer._errorThrownDuringCallback = false;
+}
 
-  setup(function() {
-    testDiv = document.body.appendChild(document.createElement('div'));
-    Observer._errorThrownDuringCallback = false;
-  })
+function doTeardown() {
+  assert.isFalse(!!Observer._errorThrownDuringCallback);
+  document.body.removeChild(testDiv);
+  unbindAll(testDiv);
+  Platform.performMicrotaskCheckpoint();
+  assert.strictEqual(2, Observer._allObserversCount);
+}
 
-  teardown(function() {
-    assert.isFalse(!!Observer._errorThrownDuringCallback);
-    document.body.removeChild(testDiv);
-    unbindAll(testDiv);
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(2, Observer._allObserversCount);
+function createTestHtml(s) {
+  var div = document.createElement('div');
+  div.innerHTML = s;
+  testDiv.appendChild(div);
+
+  HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
+    HTMLTemplateElement.decorate(template);
   });
 
-  function createTestHtml(s) {
-    var div = document.createElement('div');
-    div.innerHTML = s;
-    testDiv.appendChild(div);
+  return div;
+}
 
-    HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
-      HTMLTemplateElement.decorate(template);
-    });
+function recursivelySetTemplateModel(node, model) {
+  HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+    template.model = model;
+  });
+}
 
-    return div;
-  }
+suite('Template Element', function() {
+
+  setup(doSetup)
+
+  teardown(doTeardown);
 
   function createShadowTestHtml(s) {
     var div = document.createElement('div');
@@ -58,12 +68,6 @@ suite('Template Element', function() {
     });
 
     return root;
-  }
-
-  function recursivelySetTemplateModel(node, model) {
-    HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
-      template.model = model;
-    });
   }
 
   function dispatchEvent(type, target) {
@@ -1677,5 +1681,235 @@ suite('Template Element', function() {
     assert.isTrue(called);
 
     HTMLTemplateElement.__instanceCreated = undefined;
+  });
+});
+
+
+suite('Template Syntax', function() {
+
+  setup(doSetup)
+
+  teardown(doTeardown);
+
+  test('Registration', function() {
+    var model = { foo: 'bar'};
+    var testData = [
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+    ];
+
+    HTMLTemplateElement.syntax['Test'] = {
+      getBinding: function(model, path, name, node) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.model, model);
+        assert.strictEqual(data.path, path);
+        assert.strictEqual(data.name, name);
+        assert.strictEqual(data.nodeType, node.nodeType);
+        assert.strictEqual(data.tagName, node.tagName);
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind syntax="Test">{{ foo }}' +
+        '<template bind>{{ foo }}</template></template>');
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('bar', div.lastChild.textContent);
+    assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
+    assert.strictEqual('Test', div.childNodes[2].getAttribute('syntax'))
+
+    assert.strictEqual(0, testData.length);
+
+    delete HTMLTemplateElement.syntax['Test'];
+  });
+
+  test('getInstanceModel', function() {
+    var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
+
+    var div = createTestHtml(
+        '<template repeat syntax="Test">' +
+        '{{ foo }}</template>');
+    var template = div.firstChild;
+
+    var testData = [
+      {
+        template: template,
+        model: model[0],
+        altModel: { foo: 'a' }
+      },
+      {
+        template: template,
+        model: model[1],
+        altModel: { foo: 'b' }
+      },
+      {
+        template: template,
+        model: model[2],
+        altModel: { foo: 'c' }
+      }
+    ];
+
+    HTMLTemplateElement.syntax['Test'] = {
+      getInstanceModel: function(template, model) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.template, template);
+        assert.strictEqual(data.model, model);
+        return data.altModel;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('TEMPLATE', div.childNodes[0].tagName);
+    assert.strictEqual('a', div.childNodes[1].textContent);
+    assert.strictEqual('b', div.childNodes[2].textContent);
+    assert.strictEqual('c', div.childNodes[3].textContent);
+
+    assert.strictEqual(0, testData.length);
+
+    delete HTMLTemplateElement.syntax['Test'];
+  });
+
+  test('Basic', function() {
+    var model = { foo: 2, bar: 4 };
+
+    HTMLTemplateElement.syntax['2x'] = {
+      getBinding: function(model, path, name, node) {
+        var match = path.match(/2x:(.*)/);
+        if (match == null)
+          return;
+
+        path = match[1].trim();
+        var binding = new CompoundBinding(function(values) {
+          return values['value'] * 2;
+        });
+
+        binding.bind('value', model, path);
+        return binding;
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind syntax="2x">' +
+        '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('2 + 8 + ', div.lastChild.textContent);
+
+    model.foo = 4;
+    model.bar = 8;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('4 + 16 + ', div.lastChild.textContent);
+
+    delete HTMLTemplateElement.syntax['2x'];
+  });
+
+  test('Different Sub-Template Syntax', function() {
+    var model = { foo: 'bar'};
+
+    var testData = [
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      }
+    ];
+
+    HTMLTemplateElement.syntax['Test'] = {
+      getBinding: function(model, path, name, node) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.model, model);
+        assert.strictEqual(data.path, path);
+        assert.strictEqual(data.name, name);
+        assert.strictEqual(data.nodeType, node.nodeType);
+        assert.strictEqual(data.tagName, node.tagName);
+      }
+    };
+
+    var test2Data = [
+      {
+        model: model,
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+    ];
+
+    HTMLTemplateElement.syntax['Test2'] = {
+      getBinding: function(model, path, name, node) {
+        var data = test2Data.shift();
+
+        assert.strictEqual(data.model, model);
+        assert.strictEqual(data.path, path);
+        assert.strictEqual(data.name, name);
+        assert.strictEqual(data.nodeType, node.nodeType);
+        assert.strictEqual(data.tagName, node.tagName);
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind syntax="Test">{{ foo }}' +
+        '<template bind syntax="Test2">{{ foo }}</template></template>');
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('bar', div.lastChild.textContent);
+    assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
+    assert.strictEqual('Test2', div.childNodes[2].getAttribute('syntax'))
+
+    assert.strictEqual(0, testData.length);
+    assert.strictEqual(0, test2Data.length);
+
+    delete HTMLTemplateElement.syntax['Test'];
+    delete HTMLTemplateElement.syntax['Test2'];
   });
 });
