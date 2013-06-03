@@ -31,10 +31,6 @@
                                 '$');
 
   function getClassBinding(model, pathString, name, node) {
-    pathString = pathString.trim();
-    if (pathString.match(pathPattern))
-      return; // bail out early if pathString is really just a path.
-
     if (node.nodeType !== Node.ELEMENT_NODE || name.toLowerCase() !== 'class')
       return;
 
@@ -70,6 +66,10 @@
 
   MDVSyntax.prototype = {
     getBinding: function(model, path, name, node) {
+      path = path.trim();
+      if (path.match(pathPattern))
+        return; // bail out early if pathString is really just a path.
+
       var binding;
       binding = getClassBinding(model, path, name, node);
       if (binding)
