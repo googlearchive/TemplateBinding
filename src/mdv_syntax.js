@@ -12,13 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
 (function (global) {
+  'use strict';
 
-  var pathIndent = '[\$a-z0-9_]+[\$a-z0-9_\\d]*';
-  var path = '(?:' + pathIndent + ')(?:\\.' + pathIndent + ')*';
-  var pathPattern = new RegExp('^(' + path + ')$');
-  var classPattern = new RegExp('^([\\w]+)[\\s]*:[\\s]*(' + path + '){1}$');
+  var ident = '[\$a-z0-9_]+[\$a-z0-9_\\d]*';
+  var path = '(?:' + ident + ')(?:\\.' + ident + ')*';
+
+  var capturedIdent = '(' + ident + ')';
+  var capturedPath = '(' + path + ')';
+  var anyWhitespace = '[\\s]*';
+
+  var pathPattern = new RegExp('^' + capturedPath + '$');
+
+  var classPattern = new RegExp('^' +
+                                  capturedIdent + anyWhitespace +
+                                  ':' + anyWhitespace +
+                                  capturedPath +
+                                '$');
 
   function getClassBinding(model, pathString, name, node) {
     pathString = pathString.trim();
