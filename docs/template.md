@@ -17,7 +17,7 @@ MDV extends the capabilities of the [HTML Template Element](http://www.w3.org/TR
 #### repeat
 
 ```html
-<template repeat="{{ colleciton }}">
+<template repeat="{{ collection }}">
   Will create maintain exactly instance with {{ bindings }} for every element in the array collection, when it is provided.
 </template>
 ```
