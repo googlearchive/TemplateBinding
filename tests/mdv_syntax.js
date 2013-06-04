@@ -108,4 +108,92 @@ suite('MDV Syntax', function() {
     assertHasClass(target, 'baz');
     assertHasClass(target, 'boo');
   });
+
+  test('Named Scope Bind', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+          '<template bind="{{ foo.bar as baz }}">' +
+            '{{ id }}:{{ baz.bat }}' +
+          '</template>' +
+        '</template>');
+    var model = { id: 'id', foo: { bar: { bat: 'boo' }}};
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual('id:boo', div.childNodes[2].textContent);
+  });
+
+  test('Named Scope Repeat', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+          '<template repeat="{{ user in users }}">' +
+            '{{ id }}:{{ user.name }}' +
+          '</template>' +
+        '</template>');
+    var model = {
+      id: 'id',
+      users: [
+        { name: 'Tim' },
+        { name: 'Sally'}
+      ]
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual('id:Tim', div.childNodes[2].textContent);
+    assert.strictEqual('id:Sally', div.childNodes[3].textContent);
+  });
+
+  test('Named Scope Deep Nesting', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+          '<template repeat="{{ user in users }}">' +
+            '{{ id }}:{{ user.name }}' +
+            '<template repeat="{{ employee in user.employees }}">' +
+              '{{ id }}:{{ user.name }}:{{ employee.name }}' +
+            '</template>' +
+          '</template>' +
+        '</template>');
+    var model = {
+      id: 'id',
+      users: [
+        { name: 'Tim', employees: [{ name: 'Bob'}, { name: 'Sam'}]},
+        { name: 'Sally', employees: [{ name: 'Steve' }]}
+      ]
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual('id:Tim', div.childNodes[2].textContent);
+    assert.strictEqual('id:Tim:Bob', div.childNodes[4].textContent);
+    assert.strictEqual('id:Tim:Sam', div.childNodes[5].textContent);
+
+    assert.strictEqual('id:Sally', div.childNodes[6].textContent);
+    assert.strictEqual('id:Sally:Steve', div.childNodes[8].textContent);
+  });
+
+  test('Named Scope Unnamed resets', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+          '<template bind="{{ foo as bar }}">' +
+            '{{ bar.id }}' +
+            '<template bind="{{ bar.bat }}">' +
+              '{{ boo }}:{{ bar.id }}' +
+            '</template>' +
+          '</template>' +
+        '</template>');
+    var model = {
+      foo: {
+        id: 2,
+        bat: {
+          boo: 'bot'
+        }
+      },
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual('2', div.childNodes[2].textContent);
+    assert.strictEqual('bot:', div.childNodes[4].textContent);
+  });
 });
