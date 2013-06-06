@@ -5,7 +5,7 @@ MDV now includes an experimental (and optional) syntax (using the template eleme
  * Include the implementation:
 
 ```HTML
-<script src="src/mdv_syntax.js></script>
+<script src="src/mdv_syntax.js"></script>
 ```
 
  * Register the syntax:
