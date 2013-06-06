@@ -53,7 +53,7 @@ When an expression is used within a mustach (`{{` `}}`), it is parsed. The expre
 * If the result is a single unlabeled statement, whenever the value of one or more paths in the expression change, the value of the expression re-evaluated and the result inserted as the value of the mustache. e.g.
 
 ```HTML
-<div hidden?="{{ !visible }}">Jill has {{ daughter.children.length + son.children.length }} grandchildren</div>
+<div>Jill has {{ daughter.children.length + son.children.length }} grandchildren</div>
 ```
 
 * If the result is one or more labeled statements, the value of the mustache will include the set of space-separated label idenitifiers whose corresponding expressions are truthy. e.g.
