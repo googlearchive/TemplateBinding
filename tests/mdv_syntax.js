@@ -88,9 +88,9 @@ suite('MDV Syntax', function() {
   test('ClassName Multiple', function() {
     var div = createTestHtml(
         '<template bind syntax="MDV">' +
-        '<div class="{{ foo: bar; baz: bat; boo: bot.bam }}">' +
+        '<div class="{{ foo: bar; baz: bat > 1; boo: bot.bam }}">' +
         '</div></template>');
-    var model = {bar: 1, bat: 0, bot: { bam: 1 }};
+    var model = {bar: 1, bat: 1, bot: { bam: 1 }};
     recursivelySetTemplateModel(div, model);
     Platform.performMicrotaskCheckpoint();
 
@@ -101,7 +101,7 @@ suite('MDV Syntax', function() {
     assertHasClass(target, 'boo');
 
     model.bar = 0;
-    model.bat = 1;
+    model.bat = 2;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('baz boo', target.className);
     assertLacksClass(target, 'foo');
@@ -195,5 +195,331 @@ suite('MDV Syntax', function() {
 
     assert.strictEqual('2', div.childNodes[2].textContent);
     assert.strictEqual('bot:', div.childNodes[4].textContent);
+  });
+
+  test('Expressions Arithmetic, + - / *', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ (a.b + c.d)/e - (f * g.h) }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: {
+        d: 5
+      },
+      e: 2,
+      f: 3,
+      g: {
+        h: 2
+      }
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('-1', div.childNodes[1].textContent);
+
+    model.a.b = 11;
+    model.f = -2;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('12', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Unary - +', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ (-a.b) - (+c) }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: 3
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('-8', div.childNodes[1].textContent);
+
+    model.a.b = -1;
+    model.c = -4;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('5', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Logical !', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ !a.b }}:{{ !c }}:{{ !d }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: '',
+      d: false
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('false:true:true', div.childNodes[1].textContent);
+
+    model.a.b = 0;
+    model.c = 'foo'
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('true:false:true', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Arithmetic, Additive', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ (a.b + c.d) - (f + g.h) }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: {
+        d: 5
+      },
+      e: 2,
+      f: 3,
+      g: {
+        h: 2
+      }
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('5', div.childNodes[1].textContent);
+
+    model.a.b = 7;
+    model.g.h = -5;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('14', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Arithmetic, Multiplicative', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ (a.b * c.d) / (f % g.h) }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: {
+        d: 6
+      },
+      e: 2,
+      f: 8,
+      g: {
+        h: 5
+      }
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('10', div.childNodes[1].textContent);
+
+    model.a.b = 10;
+    model.f = 16;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('60', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Relational', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ a.b > c }}:{{ a.b < c }}:{{ c >= d }}:{{ d <= e }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: 3,
+      d: 3,
+      e: 2
+    };
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('true:false:true:false', div.childNodes[1].textContent);
+
+    model.a.b = 1;
+    model.d = -5;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('false:true:true:true', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Equality', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ a.b == c }}:{{ a.b != c }}:{{ c === d }}:{{ d !== e }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 5
+      },
+      c: '5',
+      d: {}
+    };
+    model.e = model.d;
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('true:false:false:false', div.childNodes[1].textContent);
+
+    model.a.b = 3;
+    model.e = {};
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('false:true:false:true', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Binary Logical', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ a.b && c }}:{{ a.b || c }}:{{ c && d }}:{{ d || e }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 0
+      },
+      c: 5,
+      d: true,
+      e: ''
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('0:5:true:true', div.childNodes[1].textContent);
+
+    model.a.b = true;
+    model.d = 0;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('5:true:0:', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Conditional', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ a.b ? c : d.e }}:{{ f ? g.h : i }}' +
+        '</template>');
+    var model = {
+      a: {
+        b: 1
+      },
+      c: 5,
+      d: {
+        e: 2
+      },
+      f: 0,
+      g: {
+        h: 'foo'
+      },
+      i: 'bar'
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('5:bar', div.childNodes[1].textContent);
+
+    model.c = 6;
+    model.f = '';
+    model.i = 'bat'
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('6:bat', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Literals', function() {
+    var div = createTestHtml(
+        '<template bind syntax="MDV">' +
+            '{{ +1 }}:{{ "foo" }}:{{ true ? true : false }}:' +
+            '{{ true ? null : false}}' +
+        '</template>');
+    var model = {};
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('1:foo:true:null', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Array Literals', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ [foo, bar] }}" syntax="MDV">' +
+            '{{}}' +
+        '</template>');
+
+    var model = {
+      foo: 'bar',
+      bar: 'bat'
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('bar', div.childNodes[1].textContent);
+    assert.strictEqual('bat', div.childNodes[2].textContent);
+
+    model.foo = 'boo';
+    model.bar = 'blat';
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('boo', div.childNodes[1].textContent);
+    assert.strictEqual('blat', div.childNodes[2].textContent);
+  });
+
+  test('Expressions Object Literals', function() {
+    var div = createTestHtml(
+        '<template bind="{{ { \'id\': 1, foo: bar } }}" syntax="MDV">' +
+            '{{id}}:{{foo}}' +
+        '</template>');
+
+    var model = {
+      bar: 'bat'
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('1:bat', div.childNodes[1].textContent);
+
+    model.bar = 'blat';
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('1:blat', div.childNodes[1].textContent);
+  });
+
+  test('Expressions Array Literals, Named Scope', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ user in [foo, bar] }}" syntax="MDV">' +
+            '{{ user }}' +
+        '</template>');
+
+    var model = {
+      foo: 'bar',
+      bar: 'bat'
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('bar', div.childNodes[1].textContent);
+    assert.strictEqual('bat', div.childNodes[2].textContent);
+
+    model.foo = 'boo';
+    model.bar = 'blat';
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('boo', div.childNodes[1].textContent);
+    assert.strictEqual('blat', div.childNodes[2].textContent);
+  });
+
+  test('Expressions Object Literals, Named Scope', function() {
+    var div = createTestHtml(
+        '<template bind="{{ { \'id\': 1, foo: bar } as t }}" syntax="MDV">' +
+            '{{t.id}}:{{t.foo}}' +
+        '</template>');
+
+    var model = {
+      bar: 'bat'
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('1:bat', div.childNodes[1].textContent);
+
+    model.bar = 'blat';
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('1:blat', div.childNodes[1].textContent);
   });
 });

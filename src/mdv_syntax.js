@@ -73,64 +73,21 @@
     }
   }
 
-  var ident = '[\$a-z0-9_]+[\$a-z0-9_\\d]*';
-  var path = '(?:' + ident + ')(?:\\.' + ident + ')*';
-
+  var identStart = '[\$_a-zA-Z]';
+  var identPart = '[\$_a-zA-Z0-9]';
+  var ident = identStart + '+' + identPart + '*';
   var capturedIdent = '(' + ident + ')';
-  var capturedPath = '(' + path + ')';
-  var anyWhitespace = '[\\s]*';
+  var elementIndex = '(?:[0-9]|[1-9]+[0-9]+)';
+  var identOrElementIndex = '(?:' + ident + '|' + elementIndex + ')';
+  var path = '(?:' +
+                identOrElementIndex +
+              ')(?:\\.' +
+                identOrElementIndex +
+              ')*';
 
-  var pathPattern = new RegExp('^' + capturedPath + '$');
-
-  var classPattern = new RegExp('^' +
-                                  capturedIdent + anyWhitespace +
-                                  ':' + anyWhitespace +
-                                  capturedPath +
-                                '$');
-
-  function getClassBinding(model, pathString, name, node) {
-    if (node.nodeType !== Node.ELEMENT_NODE || name.toLowerCase() !== 'class')
-      return;
-
-    var tokens = pathString.split(';');
-    var tuples = [];
-    for (var i = 0; i < tokens.length; i++) {
-      var match = tokens[i].trim().match(classPattern);
-      if (!match)
-        return;
-      tuples.push(match[1], match[2]);
-    }
-
-    if (!tuples.length)
-      return;
-
-    var binding = new CompoundBinding(function(values) {
-      var strings = [];
-      for (var i = 0; i < tuples.length; i = i + 2) {
-        if (values[tuples[i+1]])
-          strings.push(tuples[i]);
-      }
-
-      return strings.join(' ');
-    });
-
-    for (var i = 0; i < tuples.length; i = i + 2)
-      binding.bind(tuples[i+1], model, tuples[i+1]);
-
-    return binding;
-  }
-
-  var bindPattern = new RegExp('^' +
-                                 capturedPath + anyWhitespace +
-                                 ' as ' + anyWhitespace +
-                                 capturedIdent +
-                               '$');
-
-  var repeatPattern = new RegExp('^' +
-                                 capturedIdent + anyWhitespace +
-                                 ' in ' + anyWhitespace +
-                                 capturedPath +
-                               '$');
+  var pathPattern = new RegExp('^' + path + '$');
+  var repeatPattern = new RegExp('^' + capturedIdent + '[\\s]* in (.*)$');
+  var bindPattern = new RegExp('^(.*) as [\\s]*' + capturedIdent + '$');
 
   var templateScopeTable = new SideTable;
 
@@ -139,26 +96,247 @@
        (name !== 'bind' && name !== 'repeat'))
       return;
 
-    var scopeName, path;
+    var ident, expressionText;
     var match = pathString.match(repeatPattern);
     if (match) {
-      scopeName = match[1];
-      path = match[2];
+      ident = match[1];
+      expressionText = match[2];
     } else {
       match = pathString.match(bindPattern);
-      scopeName = match[2];
-      path = match[1];
+      if (match) {
+        ident = match[2];
+        expressionText = match[1];
+      }
     }
     if (!match)
       return;
 
-    var binding = new CompoundBinding(function(values) {
-      return values['value'];
-    });
+    var binding;
+    expressionText = expressionText.trim();
+    if (expressionText.match(pathPattern)) {
+      binding = new CompoundBinding(function(values) {
+        return values['value'];
+      });
+      binding.bind('value', model, expressionText);
+    } else {
+      try {
+        binding = getExpressionBinding(model, expressionText);
+      } catch (ex) {
+        console.error('Invalid expression syntax: ' + expressionText, ex);
+      }
+    }
 
-    binding.bind('value', model, path);
-    templateScopeTable.set(node, scopeName);
+    if (!binding)
+      return;
+
+    templateScopeTable.set(node, ident);
     return binding;
+  }
+
+  function getExpressionBinding(model, expressionText) {
+    try {
+      // TODO(rafaelw): Cache expressions.
+      var delegate = new ASTDelegate();
+      esprima.parse(expressionText, delegate);
+
+      if (!delegate.statements.length && !delegate.labeledStatements.length)
+        return;
+
+      if (!delegate.labeledStatements.length && delegate.statements.length > 1)
+        throw Error('Expression must be a single statement');
+
+      var resolveFn = delegate.labeledStatements.length ?
+          newLabeledResolve(delegate.labeledStatements) :
+          resolveFn = delegate.statements[0];
+
+      var paths = [];
+      for (var prop in delegate.deps) {
+        paths.push(prop);
+      }
+
+      if (!paths.length)
+        return { value: resolveFn({}) }; // only literals in expression.
+
+      var binding = new CompoundBinding(resolveFn);
+      for (var i = 0; i < paths.length; i++)
+        binding.bind(paths[i], model, paths[i]);
+
+      return binding;
+    } catch (ex) {
+      console.error('Invalid expression syntax: ' + expressionText, ex);
+    }
+  }
+
+  function newLabeledResolve(labeledStatements) {
+    return function(values) {
+      var labels = [];
+      for (var i = 0; i < labeledStatements.length; i++) {
+        if (labeledStatements[i].body(values))
+          labels.push(labeledStatements[i].label);
+      }
+
+      return labels.join(' ');
+    }
+  }
+
+  function IdentPath(deps, name, last) {
+    this.deps = deps;
+    this.name = name;
+    this.last = last;
+  }
+
+  IdentPath.prototype = {
+    getPath: function() {
+      if (!this.last)
+        return this.name;
+
+      return this.last.getPath() + '.' + this.name;
+    },
+
+    valueFn: function() {
+      var path = this.getPath();
+      this.deps[path] = true;
+      return function(values) {
+        return values[path];
+      };
+    }
+  }
+
+  function ASTDelegate() {
+    this.statements = [];
+    this.labeledStatements = [];
+    this.deps = {};
+    this.currentPath = undefined;
+  }
+
+  function notImplemented() { throw Error('Not Implemented'); }
+
+  var unaryOperators = {
+    '+': function(v) { return +v; },
+    '-': function(v) { return -v; },
+    '!': function(v) { return !v; }
+  };
+
+  var binaryOperators = {
+    '+': function(l, r) { return l+r; },
+    '-': function(l, r) { return l-r; },
+    '*': function(l, r) { return l*r; },
+    '/': function(l, r) { return l/r; },
+    '%': function(l, r) { return l%r; },
+    '<': function(l, r) { return l<r; },
+    '>': function(l, r) { return l>r; },
+    '<=': function(l, r) { return l<=r; },
+    '>=': function(l, r) { return l>=r; },
+    '==': function(l, r) { return l==r; },
+    '!=': function(l, r) { return l!=r; },
+    '===': function(l, r) { return l===r; },
+    '!==': function(l, r) { return l!==r; },
+    '&&': function(l, r) { return l&&r; },
+    '||': function(l, r) { return l||r; },
+  };
+
+  ASTDelegate.prototype = {
+
+    getFn: function(arg) {
+      return arg instanceof IdentPath ? arg.valueFn() : arg;
+    },
+
+    createProgram: function() {},
+
+    createExpressionStatement: function(statement) {
+      this.statements.push(statement);
+      return statement;
+    },
+
+    createLabeledStatement: function(label, body) {
+      this.labeledStatements.push({
+        label: label.getPath(),
+        body: body instanceof IdentPath ? body.valueFn() : body
+      });
+      return body;
+    },
+
+    createUnaryExpression: function(op, argument) {
+      if (!unaryOperators[op])
+        throw Error('Disallowed operator: ' + op);
+
+      argument = this.getFn(argument);
+
+      return function(values) {
+        return unaryOperators[op](argument(values));
+      };
+    },
+
+    createBinaryExpression: function(op, left, right) {
+      if (!binaryOperators[op])
+        throw Error('Disallowed operator: ' + op);
+
+      left = this.getFn(left);
+      right = this.getFn(right);
+
+      return function(values) {
+        return binaryOperators[op](left(values), right(values));
+      };
+    },
+
+    createConditionalExpression: function(test, consequent, alternate) {
+      test = this.getFn(test);
+      consequent = this.getFn(consequent);
+      alternate = this.getFn(alternate);
+
+      return function(values) {
+        return test(values) ? consequent(values) : alternate(values);
+      }
+    },
+
+    createIdentifier: function(name) {
+      var ident = new IdentPath(this.deps, name);
+      ident.type = 'Identifier';
+      return ident;
+    },
+
+    createMemberExpression: function(accessor, object, property) {
+      return new IdentPath(this.deps, property.name, object);
+    },
+
+    createLiteral: function(token) {
+      return function() { return token.value; };
+    },
+
+    createArrayExpression: function(elements) {
+      for (var i = 0; i < elements.length; i++)
+        elements[i] = this.getFn(elements[i]);
+
+      return function(values) {
+        var arr = []
+        for (var i = 0; i < elements.length; i++)
+          arr.push(elements[i](values));
+        return arr;
+      }
+    },
+
+    createProperty: function(kind, key, value) {
+      return {
+        key: key instanceof IdentPath ? key.getPath() : key(),
+        value: value
+      };
+    },
+
+    createObjectExpression: function(properties) {
+      for (var i = 0; i < properties.length; i++)
+        properties[i].value = this.getFn(properties[i].value);
+
+      return function(values) {
+        var obj = {};
+        for (var i = 0; i < properties.length; i++)
+          obj[properties[i].key] = properties[i].value(values);
+        return obj;
+      }
+    },
+
+    createCallExpression: notImplemented, // args: callee, args
+    createEmptyStatement: notImplemented,
+    createThisExpression: notImplemented
   }
 
   function MDVSyntax() {}
@@ -167,17 +345,10 @@
     getBinding: function(model, pathString, name, node) {
       pathString = pathString.trim();
       if (!pathString || pathString.match(pathPattern))
-        return; // bail out early if pathString is really just a path.
+        return; // bail out early if pathString is simple path.
 
-      var binding;
-
-      binding = getClassBinding(model, pathString, name, node);
-      if (binding)
-        return binding;
-
-      binding = getNamedScopeBinding(model, pathString, name, node);
-      if (binding)
-        return binding;
+      return getNamedScopeBinding(model, pathString, name, node) ||
+             getExpressionBinding(model, pathString, name, node);
     },
 
     getInstanceModel: function(template, model) {
@@ -185,7 +356,10 @@
       if (!scopeName)
         return model;
 
-      var parentScope = template.templateInstance.model;
+      var parentScope = template.templateInstance ?
+          template.templateInstance.model :
+          template.model;
+
       var scope = createObject({
         __proto__: parentScope
       });
