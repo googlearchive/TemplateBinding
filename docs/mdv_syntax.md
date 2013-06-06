@@ -56,7 +56,7 @@ When an expression is used within a mustach (`{{` `}}`), it is parsed. The expre
 <div>Jill has {{ daughter.children.length + son.children.length }} grandchildren</div>
 ```
 
-* If the result is one or more labeled statements, the value of the mustache will include the set of space-separated label idenitifiers whose corresponding expressions are truthy. e.g.
+* If the result is one or more labeled statements, the value of the mustache will include the set of space-separated label identifiers whose corresponding expressions are truthy. e.g.
 
 ```HTML
 <div class="{{ active: user.selected; big: user.type == 'super' }}"> 
