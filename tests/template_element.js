@@ -119,6 +119,34 @@ suite('Template Element', function() {
     assert.strictEqual('text', div.lastChild.textContent);
   });
 
+  test('Template Bind If', function() {
+    var div = createTestHtml(
+        '<template bind if="{{ foo }}">text</template>');
+    var m = { foo: 0 };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.foo = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
+  });
+
+  test('Template If', function() {
+    var div = createTestHtml(
+        '<template if="{{ foo }}">text</template>');
+    var m = { foo: 0 };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.foo = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
+  });
+
   test('TextTemplateWithNullStringBinding', function() {
     var div = createTestHtml(
         '<template bind={{}}>a{{b}}c</template>');

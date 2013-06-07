@@ -1227,7 +1227,7 @@
         this.valueChanged(undefined);
       else if (REPEAT in values)
         this.valueChanged(values[REPEAT]);
-      else if (BIND in values)
+      else if (BIND in values || IF in values)
         this.valueChanged([values[BIND]]);
       else
         this.valueChanged(undefined);
