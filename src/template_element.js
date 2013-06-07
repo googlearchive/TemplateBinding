@@ -1234,24 +1234,24 @@
     },
 
     valueChanged: function(value) {
-      // TODO(rafaelw): We are needlessly observing the bogus empty array.
-      var oldValue = this.iteratedValue;
       if (!Array.isArray(value))
-        value = [];
+        value = undefined;
 
+      var oldValue = this.iteratedValue;
       this.unobserve();
       this.iteratedValue = value;
-      this.arrayObserver =
-          new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
 
-      var splice = {
-        index: 0,
-        addedCount: this.iteratedValue.length,
-        removed: Array.isArray(oldValue) ? oldValue : []
-      };
+      if (this.iteratedValue) {
+        this.arrayObserver =
+            new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
+      }
 
-      if (splice.addedCount || splice.removed.length)
-        this.handleSplices([splice]);
+      var splices = ArrayObserver.calculateSplices(
+          this.iteratedValue ? this.iteratedValue : [],
+          oldValue ? oldValue : []);
+
+      if (splices.length)
+        this.handleSplices(splices);
 
       if (!this.inputs.size) {
         // End iteration

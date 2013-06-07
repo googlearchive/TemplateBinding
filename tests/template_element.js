@@ -1412,6 +1412,27 @@ suite('Template Element', function() {
     assert.strictEqual('baz', div.childNodes[3].textContent);
   });
 
+  test('Template - Same Contents, Different Array has no effect', function() {
+    if (!window.MutationObserver)
+      return;
+    var div = createTestHtml(
+        '<template repeat>{{ foo }}</template>');
+
+    var m = [{ foo: 'bar' }, { foo: 'bat'}];
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    var observer = new MutationObserver(function() {});
+    observer.observe(div, { childList: true });
+
+    var template = div.firstChild;
+    template.bind('repeat', m.slice(), '');
+    Platform.performMicrotaskCheckpoint();
+    var records = observer.takeRecords();
+    assert.strictEqual(0, records.length);
+  });
+
+
   test('ChangeFromBindToRepeat', function() {
     var div = createTestHtml(
         '<template bind="{{a}}">' +
