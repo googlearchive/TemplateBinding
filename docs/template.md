@@ -30,7 +30,7 @@ MDV extends the capabilities of the [HTML Template Element](http://www.w3.org/TR
 </template>
 
 <template if="{{ conditionalValue }}">
-  Will bind if and only if conditionalValue is truthy.
+  Will bind if and only if conditionalValue is truthy. (same as *bind if*)
 </template>
 
 <template repeat if="{{ conditionalValue }}">
