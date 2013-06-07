@@ -200,7 +200,7 @@ suite('MDV Syntax', function() {
   test('Expressions Arithmetic, + - / *', function() {
     var div = createTestHtml(
         '<template bind syntax="MDV">' +
-            '{{ (a.b + c.d)/e - (f * g.h) }}' +
+            '{{ (a.b + c.d)/e - f * g.h }}' +
         '</template>');
     var model = {
       a: {

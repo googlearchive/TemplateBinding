@@ -109,7 +109,8 @@
   // association is stored as an expando property.
   var SideTable;
   // TODO(arv): WeakMap does not allow for Node etc to be keys in Firefox
-  if (typeof WeakMap !== 'undefined' && navigator.userAgent.indexOf('Firefox/') < 0) {
+  if (typeof WeakMap !== 'undefined' &&
+      navigator.userAgent.indexOf('Firefox/') < 0) {
     SideTable = WeakMap;
   } else {
     (function() {
@@ -126,7 +127,8 @@
           defineProperty(key, this.name, {value: value, writable: true});
         },
         get: function(key) {
-          return hasOwnProperty.call(key, this.name) ? key[this.name] : undefined;
+          return hasOwnProperty.call(key, this.name) ?
+              key[this.name] : undefined;
         },
         delete: function(key) {
           this.set(key, undefined);
@@ -456,7 +458,8 @@
       case 'SELECT.selectedindex':
         this.unbind('selectedindex');
         this.removeAttribute('selectedindex');
-        valueBindingTable.set(this, new SelectedIndexBinding(this, model, path));
+        valueBindingTable.set(this,
+                              new SelectedIndexBinding(this, model, path));
         break;
       default:
         return Element.prototype.bind.call(this, name, model, path);
@@ -604,10 +607,10 @@
   }
 
   var ensureScheduled = function() {
-    // We need to ping-pong between two Runners in order for the tests to simulate
-    // proper end-of-microtask behavior for Object.observe. Without this,
-    // we'll continue delivering to a single observer without allowing other observers
-    // in the same microtask to make progress.
+    // We need to ping-pong between two Runners in order for the tests to
+    // simulate proper end-of-microtask behavior for Object.observe. Without
+    // this, we'll continue delivering to a single observer without allowing
+    // other observers in the same microtask to make progress.
     var current;
     var next;
 
@@ -1191,8 +1194,10 @@
       if (this.disposed)
         return;
 
-      if (!this.combinator_)
-        throw Error('CompoundBinding attempted to resolve without a combinator');
+      if (!this.combinator_) {
+        throw Error('CompoundBinding attempted to resolve without a ' +
+                    'combinator');
+      }
 
       this.value = this.combinator_(this.values);
     },
@@ -1214,27 +1219,22 @@
     this.arrayObserver = undefined;
     this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
-    var boundValueChanged = this.valueChanged.bind(this);
-
-    Object.defineProperty(this.inputs, 'value', {
-      configurable: true,
-      set: boundValueChanged
-    });
   }
 
   TemplateIterator.prototype = {
     resolveInputs: function(values) {
       if (IF in values && !values[IF])
-        return undefined;
-
-      if (REPEAT in values)
-        return values[REPEAT];
-
-      if (BIND in values)
-        return [values[BIND]];
+        this.valueChanged(undefined);
+      else if (REPEAT in values)
+        this.valueChanged(values[REPEAT]);
+      else if (BIND in values)
+        this.valueChanged([values[BIND]]);
+      else
+        this.valueChanged(undefined);
     },
 
     valueChanged: function(value) {
+      // TODO(rafaelw): We are needlessly observing the bogus empty array.
       var oldValue = this.iteratedValue;
       if (!Array.isArray(value))
         value = [];
@@ -1265,8 +1265,9 @@
         return this.templateElement_;
       var terminator = this.terminators[index];
       if (terminator.nodeType !== Node.ELEMENT_NODE ||
-          this.templateElement_ === terminator)
+          this.templateElement_ === terminator) {
         return terminator;
+      }
 
       var subIterator = templateIteratorTable.get(terminator);
       if (!subIterator)
@@ -1355,7 +1356,8 @@
           var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
                                             syntax);
-          var instanceNodes = this.getInstanceNodes(model, syntax, instanceCache);
+          var instanceNodes = this.getInstanceNodes(model, syntax,
+                                                    instanceCache);
           this.insertInstanceAt(addIndex, instanceNodes);
         }
       }, this);

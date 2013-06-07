@@ -45,34 +45,6 @@
     })();
   }
 
-  // JScript does not have __proto__. We wrap all object literals with
-  // createObject which uses Object.create, Object.defineProperty and
-  // Object.getOwnPropertyDescriptor to create a new object that does the exact
-  // same thing. The main downside to this solution is that we have to extract
-  // all those property descriptors for IE.
-  var createObject = ('__proto__' in {}) ?
-      function(obj) { return obj; } :
-      function(obj) {
-        var proto = obj.__proto__;
-        if (!proto)
-          return obj;
-        var newObject = Object.create(proto);
-        Object.getOwnPropertyNames(obj).forEach(function(name) {
-          Object.defineProperty(newObject, name,
-                               Object.getOwnPropertyDescriptor(obj, name));
-        });
-        return newObject;
-      };
-
-  // IE does not support have Document.prototype.contains.
-  if (typeof document.contains != 'function') {
-    Document.prototype.contains = function(node) {
-      if (node === this || node.parentNode === this)
-        return true;
-      return this.documentElement.contains(node);
-    }
-  }
-
   var identStart = '[\$_a-zA-Z]';
   var identPart = '[\$_a-zA-Z0-9]';
   var ident = identStart + '+' + identPart + '*';
@@ -86,15 +58,16 @@
               ')*';
 
   var pathPattern = new RegExp('^' + path + '$');
-  var repeatPattern = new RegExp('^' + capturedIdent + '[\\s]* in (.*)$');
-  var bindPattern = new RegExp('^(.*) as [\\s]*' + capturedIdent + '$');
+  var repeatPattern = new RegExp('^' + capturedIdent + '\\s* in (.*)$');
+  var bindPattern = new RegExp('^(.*) as \\s*' + capturedIdent + '$');
 
   var templateScopeTable = new SideTable;
 
   function getNamedScopeBinding(model, pathString, name, node) {
     if (node.nodeType !== Node.ELEMENT_NODE || node.tagName !== 'TEMPLATE' ||
-       (name !== 'bind' && name !== 'repeat'))
+       (name !== 'bind' && name !== 'repeat')) {
       return;
+    }
 
     var ident, expressionText;
     var match = pathString.match(repeatPattern);
@@ -115,9 +88,9 @@
     expressionText = expressionText.trim();
     if (expressionText.match(pathPattern)) {
       binding = new CompoundBinding(function(values) {
-        return values['value'];
+        return values.path;
       });
-      binding.bind('value', model, expressionText);
+      binding.bind('path', model, expressionText);
     } else {
       try {
         binding = getExpressionBinding(model, expressionText);
@@ -143,8 +116,12 @@
         return;
 
       if (!delegate.labeledStatements.length && delegate.statements.length > 1)
-        throw Error('Expression must be a single statement');
+        throw Error('Multiple unlabelled statements are not allowed.');
 
+      // TODO(rafaelw): This is a bit of hack. We'd like to support syntax for
+      // binding to class like class="{{ foo: bar; baz: bat }}", so we're
+      // abusing ECMAScript labelled statements for this use. The main downside
+      // is that ECMAScript indentifiers are more limited than CSS classnames.
       var resolveFn = delegate.labeledStatements.length ?
           newLabeledResolve(delegate.labeledStatements) :
           resolveFn = delegate.statements[0];
@@ -158,8 +135,9 @@
         return { value: resolveFn({}) }; // only literals in expression.
 
       var binding = new CompoundBinding(resolveFn);
-      for (var i = 0; i < paths.length; i++)
+      for (var i = 0; i < paths.length; i++) {
         binding.bind(paths[i], model, paths[i]);
+      }
 
       return binding;
     } catch (ex) {
@@ -360,10 +338,7 @@
           template.templateInstance.model :
           template.model;
 
-      var scope = createObject({
-        __proto__: parentScope
-      });
-
+      var scope = Object.create(parentScope);
       scope[scopeName] = model;
       return scope;
     }

@@ -1093,7 +1093,7 @@ suite('Template Element', function() {
       selected: 1,
       groups: [
         {
-          name: "one", items: [{ val: 0 }, { val: 1 }]
+          name: 'one', items: [{ val: 0 }, { val: 1 }]
         }
       ],
     };
@@ -1153,7 +1153,7 @@ suite('Template Element', function() {
 
     // Asset the 'class' binding is retained on the semantic template (just check
     // the last one).
-    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
+    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute('class'));
   });
 
   test('NestedIterateTable', function() {
@@ -1190,7 +1190,7 @@ suite('Template Element', function() {
 
     // Asset the 'class' binding is retained on the semantic template (just check
     // the last one).
-    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
+    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute('class'));
   });
 
   test('NestedRepeatDeletionOfMultipleSubTemplates', function() {
@@ -1605,7 +1605,7 @@ suite('Template Element', function() {
     HTMLTemplateElement.syntax['Test'] = {
       getBinding: function(model, path, name, node) {
         if (path.trim() == 'replaceme')
-          return { value: "replaced" };
+          return { value: 'replaced' };
       }
     };
 

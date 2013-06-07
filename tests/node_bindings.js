@@ -18,9 +18,9 @@
 var testDiv;
 
 function unbindAll(node) {
-node.unbindAll();
-for (var child = node.firstChild; child; child = child.nextSibling)
-  unbindAll(child);
+  node.unbindAll();
+  for (var child = node.firstChild; child; child = child.nextSibling)
+    unbindAll(child);
 }
 
 function doSetup() {
