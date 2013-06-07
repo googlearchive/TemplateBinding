@@ -1408,8 +1408,8 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
 
     assert.strictEqual(5, div.childNodes.length);
-    assert.strictEqual('bar', div.childNodes[2].textContent);
-    assert.strictEqual('baz', div.childNodes[4].textContent);
+    assert.strictEqual('bar', div.childNodes[1].textContent);
+    assert.strictEqual('baz', div.childNodes[3].textContent);
   });
 
   test('ChangeFromBindToRepeat', function() {

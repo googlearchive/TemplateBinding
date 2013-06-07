@@ -1295,8 +1295,10 @@
 
       var parent = this.templateElement_.parentNode;
       while (terminator !== previousTerminator) {
-        var node = terminator;
-        terminator = node.previousSibling;
+        var node = previousTerminator.nextSibling;
+        if (node == terminator)
+          terminator = previousTerminator;
+
         parent.removeChild(node);
         instanceNodes.push(node);
       }
