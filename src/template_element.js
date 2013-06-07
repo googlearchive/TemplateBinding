@@ -1246,9 +1246,8 @@
             new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
       }
 
-      var splices = ArrayObserver.calculateSplices(
-          this.iteratedValue ? this.iteratedValue : [],
-          oldValue ? oldValue : []);
+      var splices = ArrayObserver.calculateSplices(this.iteratedValue || [],
+                                                   oldValue || []);
 
       if (splices.length)
         this.handleSplices(splices);
