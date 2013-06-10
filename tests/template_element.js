@@ -133,6 +133,20 @@ suite('Template Element', function() {
     assert.strictEqual('text', div.lastChild.textContent);
   });
 
+  test('Template Bind If, 2', function() {
+    var div = createTestHtml(
+        '<template bind="{{ foo }}" if="{{ bar }}">{{ bat }}</template>');
+    var m = { bar: 0, foo: { bat: 'baz' } };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.bar = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('baz', div.lastChild.textContent);
+  });
+
   test('Template If', function() {
     var div = createTestHtml(
         '<template if="{{ foo }}">text</template>');
