@@ -20,9 +20,9 @@
     document.write('<script src="' + libLocation + inSrc + '"></script>');
   }
 
-  var script = document.querySelector('script[src $= "' + thisFile + '"]');
+  var script = document.querySelector('script[src*="' + thisFile + '"]');
   if (script)
-    libLocation = script.src.slice(0, -thisFile.length);
+    libLocation = script.src.slice(0, script.src.indexOf(thisFile));
 
   document.write('<link rel="stylesheet" href="' +
       libLocation + 'src/template_element.css">');
