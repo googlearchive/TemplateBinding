@@ -30,9 +30,8 @@ HTMLTemplateElement.syntax['MDV'] = MDVSyntax;
 
 The MDV syntax allows for inline expressions within bindings which support a strict subset of the JavaScript language. In order to use this feature, it's important to understand its behavior and limitations:
 
- * The subset of JavaScript which is implemented is intentionally chosen so that expressions can not have side effects.
- * Expressions are never run (e.g. eval) as page script. They cannot access or mutate any global or local state. They are parsed and converted to a simple interpretted form which can only compute the value of an expression.
  * The goal for inline expressions is to allow the expression of simple value concepts and relationships. It is generally bad practice to put complex logic into your HTML (view).
+ * Expressions are never run (e.g. eval) as page script. They cannot access or mutate any global or local state. They are parsed and converted to a simple interpretted form which can only compute the value of an expression.
 
 The specific subset of JavaScript which is supported is:
 
