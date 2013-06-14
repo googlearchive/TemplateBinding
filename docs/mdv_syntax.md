@@ -1,23 +1,23 @@
-## Experimental: MDV Syntax
+## Expression Syntax
 
-MDV now includes an experimental (and optional) syntax (using the template element syntax API) which can do things like named scopes and simple inline expressions. For now, in order to enable the MDV syntax you must register it and require its use:
+An ExpressionSyntax is provided as an example of a syntax which is implemented in script using the template element's [Syntax API](https://github.com/Polymer/mdv/blob/master/docs/syntax_api.md). It allows the use of named scopes within template `bind` and `repeat` and simple inline expressions within bindings.
 
  * Include the implementation:
 
 ```HTML
-<script src="src/mdv_syntax.js"></script>
+<script src="util/expression_syntax.js"></script>
 ```
 
- * Register the syntax:
+ * Register the syntax for use on the template element (sub-templates will inherit its use).
 
 ```JavaScript
-HTMLTemplateElement.syntax['MDV'] = MDVSyntax;
+templateElement.bindingDelegate = new ExpressionSyntax();
 ```
 
  * Use the syntax in your templates
 
 ```HTML
-<template bind syntax="MDV">
+<template bind>
   <template repeat="{{ user in users }}">
     {{ user.name }} <div hidden="{{ user.age < 21 }}">Can have a drink!</div>
   </template>
@@ -28,7 +28,7 @@ HTMLTemplateElement.syntax['MDV'] = MDVSyntax;
 
 ### Inline expressions
 
-The MDV syntax allows for inline expressions within bindings which support a strict subset of the JavaScript language. In order to use this feature, it's important to understand its behavior and limitations:
+The ExpressionSyntax allows for inline expressions within bindings which support a strict subset of the JavaScript language. In order to use this feature, it's important to understand its behavior and limitations:
 
  * The goal for inline expressions is to allow the expression of simple value concepts and relationships. It is generally bad practice to put complex logic into your HTML (view).
  * Expressions are never run (e.g. eval) as page script. They cannot access any global state (e.g. window). They are parsed and converted to a simple interpretted form which is provided the present values of paths contained in the expression.
