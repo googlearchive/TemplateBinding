@@ -19,7 +19,7 @@ templateElement.bindingDelegate = new ExpressionSyntax();
 ```HTML
 <template bind>
   <template repeat="{{ user in users }}">
-    {{ user.name }} <div hidden="{{ user.age < 21 }}">Can have a drink!</div>
+    {{ user.name }} <template if="{{ user.age >= 21 }}"> Can have a drink!</template>
   </template>
 </template>
 ```
