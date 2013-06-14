@@ -1069,10 +1069,18 @@
     }
 
     if (isTemplate(element)) {
+      // Accept 'naked' bind & repeat.
       if (attrs[BIND] === '')
         attrs[BIND] = '{{}}';
       if (attrs[REPEAT] === '')
         attrs[REPEAT] = '{{}}';
+
+      // Treat <template if> as <template bind if>
+      if (attrs[IF] !== undefined &&
+          attrs[REPEAT] === undefined &&
+          attrs[REPEAT] === undefined) {
+        attrs[BIND] = '{{}}';
+      }
     }
 
     Object.keys(attrs).forEach(function(attrName) {

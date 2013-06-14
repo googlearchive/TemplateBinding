@@ -150,8 +150,8 @@ suite('Template Element', function() {
 
   test('Template If', function() {
     var div = createTestHtml(
-        '<template if="{{ foo }}">text</template>');
-    var m = { foo: 0 };
+        '<template if="{{ foo }}">{{ value }}</template>');
+    var m = { foo: 0, value: 'foo' };
     recursivelySetTemplateModel(div, m);
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
@@ -159,7 +159,7 @@ suite('Template Element', function() {
     m.foo = 1;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('text', div.lastChild.textContent);
+    assert.strictEqual('foo', div.lastChild.textContent);
   });
 
   test('TextTemplateWithNullStringBinding', function() {
