@@ -162,6 +162,22 @@ suite('Template Element', function() {
     assert.strictEqual('foo', div.lastChild.textContent);
   });
 
+  test('Template Repeat If', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ foo }}" if="{{ bar }}">{{ }}</template>');
+    var m = { bar: 0, foo: [1, 2, 3] };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.bar = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+    assert.strictEqual('2', div.childNodes[2].textContent);
+    assert.strictEqual('3', div.childNodes[3].textContent);
+  });
+
   test('TextTemplateWithNullStringBinding', function() {
     var div = createTestHtml(
         '<template bind={{}}>a{{b}}c</template>');

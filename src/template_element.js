@@ -1077,7 +1077,7 @@
 
       // Treat <template if> as <template bind if>
       if (attrs[IF] !== undefined &&
-          attrs[REPEAT] === undefined &&
+          attrs[BIND] === undefined &&
           attrs[REPEAT] === undefined) {
         attrs[BIND] = '{{}}';
       }
