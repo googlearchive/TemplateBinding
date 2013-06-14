@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-suite('MDV Syntax', function() {
+suite('Util: Expression Syntax', function() {
 
   var testDiv;
 
@@ -23,13 +23,11 @@ suite('MDV Syntax', function() {
   }
 
   setup(function() {
-    HTMLTemplateElement.syntax['MDV'] = new MDVSyntax();
     testDiv = document.body.appendChild(document.createElement('div'));
     Observer._errorThrownDuringCallback = false;
   });
 
   teardown(function() {
-    delete HTMLTemplateElement.syntax['MDV'];
     assert.isFalse(!!Observer._errorThrownDuringCallback);
     document.body.removeChild(testDiv);
     unbindAll(testDiv);
@@ -65,13 +63,14 @@ suite('MDV Syntax', function() {
 
   function recursivelySetTemplateModel(node, model) {
     HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+      template.bindingDelegate = new ExpressionSyntax;
       template.model = model;
     });
   }
 
   test('ClassName Singular', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV"><div class="{{ foo: bar }}">' +
+        '<template bind><div class="{{ foo: bar }}">' +
         '</div></template>');
     var model = {bar: 1};
     recursivelySetTemplateModel(div, model);
@@ -87,7 +86,7 @@ suite('MDV Syntax', function() {
 
   test('ClassName Multiple', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
         '<div class="{{ foo: bar; baz: bat > 1; boo: bot.bam }}">' +
         '</div></template>');
     var model = {bar: 1, bat: 1, bot: { bam: 1 }};
@@ -111,7 +110,7 @@ suite('MDV Syntax', function() {
 
   test('Named Scope Bind', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
           '<template bind="{{ foo.bar as baz }}">' +
             '{{ id }}:{{ baz.bat }}' +
           '</template>' +
@@ -125,7 +124,7 @@ suite('MDV Syntax', function() {
 
   test('Named Scope Repeat', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
           '<template repeat="{{ user in users }}">' +
             '{{ id }}:{{ user.name }}' +
           '</template>' +
@@ -146,7 +145,7 @@ suite('MDV Syntax', function() {
 
   test('Named Scope Deep Nesting', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
           '<template repeat="{{ user in users }}">' +
             '{{ id }}:{{ user.name }}' +
             '<template repeat="{{ employee in user.employees }}">' +
@@ -174,7 +173,7 @@ suite('MDV Syntax', function() {
 
   test('Named Scope Unnamed resets', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
           '<template bind="{{ foo as bar }}">' +
             '{{ bar.id }}' +
             '<template bind="{{ bar.bat }}">' +
@@ -199,7 +198,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Arithmetic, + - / *', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ (a.b + c.d)/e - f * g.h }}' +
         '</template>');
     var model = {
@@ -227,7 +226,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Unary - +', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ (-a.b) - (+c) }}' +
         '</template>');
     var model = {
@@ -248,7 +247,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Logical !', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ !a.b }}:{{ !c }}:{{ !d }}' +
         '</template>');
     var model = {
@@ -270,7 +269,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Arithmetic, Additive', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ (a.b + c.d) - (f + g.h) }}' +
         '</template>');
     var model = {
@@ -298,7 +297,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Arithmetic, Multiplicative', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ (a.b * c.d) / (f % g.h) }}' +
         '</template>');
     var model = {
@@ -326,7 +325,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Relational', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ a.b > c }}:{{ a.b < c }}:{{ c >= d }}:{{ d <= e }}' +
         '</template>');
     var model = {
@@ -349,7 +348,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Equality', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ a.b == c }}:{{ a.b != c }}:{{ c === d }}:{{ d !== e }}' +
         '</template>');
     var model = {
@@ -373,7 +372,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Binary Logical', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ a.b && c }}:{{ a.b || c }}:{{ c && d }}:{{ d || e }}' +
         '</template>');
     var model = {
@@ -397,7 +396,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Conditional', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ a.b ? c : d.e }}:{{ f ? g.h : i }}' +
         '</template>');
     var model = {
@@ -428,7 +427,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Literals', function() {
     var div = createTestHtml(
-        '<template bind syntax="MDV">' +
+        '<template bind>' +
             '{{ +1 }}:{{ "foo" }}:{{ true ? true : false }}:' +
             '{{ true ? null : false}}' +
         '</template>');
@@ -441,7 +440,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Array Literals', function() {
     var div = createTestHtml(
-        '<template repeat="{{ [foo, bar] }}" syntax="MDV">' +
+        '<template repeat="{{ [foo, bar] }}">' +
             '{{}}' +
         '</template>');
 
@@ -464,7 +463,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Object Literals', function() {
     var div = createTestHtml(
-        '<template bind="{{ { \'id\': 1, foo: bar } }}" syntax="MDV">' +
+        '<template bind="{{ { \'id\': 1, foo: bar } }}">' +
             '{{id}}:{{foo}}' +
         '</template>');
 
@@ -483,7 +482,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Array Literals, Named Scope', function() {
     var div = createTestHtml(
-        '<template repeat="{{ user in [foo, bar] }}" syntax="MDV">' +
+        '<template repeat="{{ user in [foo, bar] }}">' +
             '{{ user }}' +
         '</template>');
 
@@ -506,7 +505,7 @@ suite('MDV Syntax', function() {
 
   test('Expressions Object Literals, Named Scope', function() {
     var div = createTestHtml(
-        '<template bind="{{ { \'id\': 1, foo: bar } as t }}" syntax="MDV">' +
+        '<template bind="{{ { \'id\': 1, foo: bar } as t }}">' +
             '{{t.id}}:{{t.foo}}' +
         '</template>');
 

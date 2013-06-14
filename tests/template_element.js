@@ -45,8 +45,9 @@ function createTestHtml(s) {
   return div;
 }
 
-function recursivelySetTemplateModel(node, model) {
+function recursivelySetTemplateModel(node, model, delegate) {
   HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+    template.bindingDelegate = delegate;
     template.model = model;
   });
 }
@@ -1606,7 +1607,7 @@ suite('Template Element', function() {
   // https://github.com/Polymer/mdv/issues/8
   test('UnbindingInNestedBind', function() {
     var div = createTestHtml(
-      '<template bind="{{outer}}" if="{{outer}}" syntax="testHelper">' +
+      '<template bind="{{outer}}" if="{{outer}}">' +
         '<template bind="{{inner}}" if="{{inner}}">' +
           '{{ age }}' +
         '</template>' +
@@ -1614,7 +1615,7 @@ suite('Template Element', function() {
 
     var count = 0;
     var expectedAge = 42;
-    HTMLTemplateElement.syntax['testHelper'] = {
+    var delegate = {
       getBinding: function(model, path, name, node) {
         if (name != 'textContent' || path != 'age')
           return;
@@ -1632,7 +1633,7 @@ suite('Template Element', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model);
+    recursivelySetTemplateModel(div, model, delegate);
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, count);
@@ -1665,7 +1666,7 @@ suite('Template Element', function() {
   });
 
   test('CreateInstance', function() {
-    HTMLTemplateElement.syntax['Test'] = {
+    var delegate = {
       getBinding: function(model, path, name, node) {
         if (path.trim() == 'replaceme')
           return { value: 'replaced' };
@@ -1686,9 +1687,8 @@ suite('Template Element', function() {
     };
 
     var host = testDiv.appendChild(document.createElement('div'));
-    var instance = outer.createInstance(model, 'Test');
+    var instance = outer.createInstance(model, delegate);
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
-    assert.strictEqual('Test', instance.firstChild.getAttribute('syntax'));
 
     host.appendChild(instance);
     Platform.performMicrotaskCheckpoint();
@@ -1787,7 +1787,7 @@ suite('Template Syntax', function() {
       },
     ];
 
-    HTMLTemplateElement.syntax['Test'] = {
+    var delegate = {
       getBinding: function(model, path, name, node) {
         var data = testData.shift();
 
@@ -1800,18 +1800,16 @@ suite('Template Syntax', function() {
     };
 
     var div = createTestHtml(
-        '<template bind syntax="Test">{{ foo }}' +
-        '<template bind>{{ foo }}</template></template>');
-    recursivelySetTemplateModel(div, model);
+        '<template bind>{{ foo }}' +
+          '<template bind>{{ foo }}</template>' +
+        '</template>');
+    recursivelySetTemplateModel(div, model, delegate);
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('bar', div.lastChild.textContent);
-    assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
-    assert.strictEqual('Test', div.childNodes[2].getAttribute('syntax'))
+    assert.strictEqual('TEMPLATE', div.childNodes[2].tagName);
 
     assert.strictEqual(0, testData.length);
-
-    delete HTMLTemplateElement.syntax['Test'];
   });
 
   test('getInstanceModel', function() {
@@ -1840,7 +1838,7 @@ suite('Template Syntax', function() {
       }
     ];
 
-    HTMLTemplateElement.syntax['Test'] = {
+    var delegate = {
       getInstanceModel: function(template, model) {
         var data = testData.shift();
 
@@ -1850,7 +1848,7 @@ suite('Template Syntax', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model);
+    recursivelySetTemplateModel(div, model, delegate);
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('TEMPLATE', div.childNodes[0].tagName);
@@ -1859,14 +1857,12 @@ suite('Template Syntax', function() {
     assert.strictEqual('c', div.childNodes[3].textContent);
 
     assert.strictEqual(0, testData.length);
-
-    delete HTMLTemplateElement.syntax['Test'];
   });
 
   test('Basic', function() {
     var model = { foo: 2, bar: 4 };
 
-    HTMLTemplateElement.syntax['2x'] = {
+    var delegate = {
       getBinding: function(model, path, name, node) {
         var match = path.match(/2x:(.*)/);
         if (match == null)
@@ -1883,9 +1879,9 @@ suite('Template Syntax', function() {
     };
 
     var div = createTestHtml(
-        '<template bind syntax="2x">' +
+        '<template bind>' +
         '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
-    recursivelySetTemplateModel(div, model);
+    recursivelySetTemplateModel(div, model, delegate);
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('2 + 8 + ', div.lastChild.textContent);
@@ -1894,85 +1890,5 @@ suite('Template Syntax', function() {
     model.bar = 8;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('4 + 16 + ', div.lastChild.textContent);
-
-    delete HTMLTemplateElement.syntax['2x'];
-  });
-
-  test('Different Sub-Template Syntax', function() {
-    var model = { foo: 'bar'};
-
-    var testData = [
-      {
-        model: model,
-        path: '',
-        name: 'bind',
-        nodeType: Node.ELEMENT_NODE,
-        tagName: 'TEMPLATE'
-      },
-      {
-        model: model,
-        path: 'foo',
-        name: 'textContent',
-        nodeType: Node.TEXT_NODE,
-        tagName: undefined
-      },
-      {
-        model: model,
-        path: '',
-        name: 'bind',
-        nodeType: Node.ELEMENT_NODE,
-        tagName: 'TEMPLATE'
-      }
-    ];
-
-    HTMLTemplateElement.syntax['Test'] = {
-      getBinding: function(model, path, name, node) {
-        var data = testData.shift();
-
-        assert.strictEqual(data.model, model);
-        assert.strictEqual(data.path, path);
-        assert.strictEqual(data.name, name);
-        assert.strictEqual(data.nodeType, node.nodeType);
-        assert.strictEqual(data.tagName, node.tagName);
-      }
-    };
-
-    var test2Data = [
-      {
-        model: model,
-        path: 'foo',
-        name: 'textContent',
-        nodeType: Node.TEXT_NODE,
-        tagName: undefined
-      },
-    ];
-
-    HTMLTemplateElement.syntax['Test2'] = {
-      getBinding: function(model, path, name, node) {
-        var data = test2Data.shift();
-
-        assert.strictEqual(data.model, model);
-        assert.strictEqual(data.path, path);
-        assert.strictEqual(data.name, name);
-        assert.strictEqual(data.nodeType, node.nodeType);
-        assert.strictEqual(data.tagName, node.tagName);
-      }
-    };
-
-    var div = createTestHtml(
-        '<template bind syntax="Test">{{ foo }}' +
-        '<template bind syntax="Test2">{{ foo }}</template></template>');
-    recursivelySetTemplateModel(div, model);
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(4, div.childNodes.length);
-    assert.strictEqual('bar', div.lastChild.textContent);
-    assert.strictEqual('TEMPLATE', div.childNodes[2].tagName)
-    assert.strictEqual('Test2', div.childNodes[2].getAttribute('syntax'))
-
-    assert.strictEqual(0, testData.length);
-    assert.strictEqual(0, test2Data.length);
-
-    delete HTMLTemplateElement.syntax['Test'];
-    delete HTMLTemplateElement.syntax['Test2'];
   });
 });

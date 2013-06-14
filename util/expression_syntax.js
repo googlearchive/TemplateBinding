@@ -317,9 +317,9 @@
     createThisExpression: notImplemented
   }
 
-  function MDVSyntax() {}
+  function ExpressionSyntax() {}
 
-  MDVSyntax.prototype = {
+  ExpressionSyntax.prototype = {
     getBinding: function(model, pathString, name, node) {
       pathString = pathString.trim();
       if (!pathString || pathString.match(pathPattern))
@@ -342,7 +342,8 @@
       scope[scopeName] = model;
       return scope;
     }
-  }
+  };
 
-  global.MDVSyntax = MDVSyntax;
+  global.ExpressionSyntax = ExpressionSyntax;
+
 })(this);

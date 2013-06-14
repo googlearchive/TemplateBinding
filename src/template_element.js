@@ -105,37 +105,26 @@
     }
   }
 
-  // SideTable is a weak map where possible. If WeakMap is not available the
-  // association is stored as an expando property.
   var SideTable;
-  // TODO(arv): WeakMap does not allow for Node etc to be keys in Firefox
-  if (typeof WeakMap !== 'undefined' &&
-      navigator.userAgent.indexOf('Firefox/') < 0) {
-    SideTable = WeakMap;
-  } else {
-    (function() {
-      var defineProperty = Object.defineProperty;
-      var hasOwnProperty = Object.hasOwnProperty;
-      var counter = new Date().getTime() % 1e9;
-
+  "undefined" != typeof WeakMap && navigator.userAgent.indexOf("Firefox/") < 0 ? SideTable = WeakMap : function() {
+      var a = Object.defineProperty, b = Object.hasOwnProperty, c = new Date().getTime() % 1e9;
       SideTable = function() {
-        this.name = '__st' + (Math.random() * 1e9 >>> 0) + (counter++ + '__');
+          this.name = "__st" + (1e9 * Math.random() >>> 0) + (c++ + "__");
+      }, SideTable.prototype = {
+          set: function(b, c) {
+              a(b, this.name, {
+                  value: c,
+                  writable: !0
+              });
+          },
+          get: function(a) {
+              return b.call(a, this.name) ? a[this.name] : void 0;
+          },
+          "delete": function(a) {
+              this.set(a, void 0);
+          }
       };
-
-      SideTable.prototype = {
-        set: function(key, value) {
-          defineProperty(key, this.name, {value: value, writable: true});
-        },
-        get: function(key) {
-          return hasOwnProperty.call(key, this.name) ?
-              key[this.name] : undefined;
-        },
-        delete: function(key) {
-          this.set(key, undefined);
-        }
-      }
-    })();
-  }
+  }();
 
   function isNodeInDocument(node) {
     return node.ownerDocument.contains(node);
@@ -152,7 +141,7 @@
   Node.prototype.unbind = unbindNode;
   Node.prototype.unbindAll = unbindAllNode;
 
-  var textContentBindingTable = new SideTable('textContentBinding');
+  var textContentBindingTable = new SideTable();
 
   function Binding(model, path, changed) {
     this.model = model;
@@ -215,7 +204,7 @@
   Text.prototype.unbind = unbindText;
   Text.prototype.unbindAll = unbindAllText;
 
-  var attributeBindingsTable = new SideTable('attributeBindings');
+  var attributeBindingsTable = new SideTable();
 
   function boundSetAttribute(element, attributeName, conditional) {
     if (conditional) {
@@ -299,8 +288,8 @@
   Element.prototype.unbind = unbindElement;
   Element.prototype.unbindAll = unbindAllElement;
 
-  var valueBindingTable = new SideTable('valueBinding');
-  var checkedBindingTable = new SideTable('checkedBinding');
+  var valueBindingTable = new SideTable();
+  var checkedBindingTable = new SideTable();
 
   var checkboxEventType;
   (function() {
@@ -561,7 +550,6 @@
   var BIND = 'bind';
   var REPEAT = 'repeat';
   var IF = 'if';
-  var SYNTAX = 'syntax';
   var GET_BINDING = 'getBinding';
   var GET_INSTANCE_MODEL = 'getInstanceModel';
 
@@ -710,9 +698,9 @@
     });
   }
 
-  var templateContentsTable = new SideTable('templateContents');
-  var templateContentsOwnerTable = new SideTable('templateContentsOwner');
-  var templateInstanceRefTable = new SideTable('templateInstanceRef');
+  var templateContentsTable = new SideTable();
+  var templateContentsOwnerTable = new SideTable();
+  var templateInstanceRefTable = new SideTable();
 
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
   function getTemplateContentsOwner(doc) {
@@ -864,7 +852,22 @@
     }
   }
 
-  var templateModelTable = new SideTable('templateModel');
+  var templateModelTable = new SideTable();
+  var templateBindingDelegateTable = new SideTable();
+  var templateSetModelFnTable = new SideTable();
+
+  function ensureSetModelScheduled(template) {
+    var setModelFn = templateSetModelFnTable.get(template);
+    if (!setModelFn) {
+      setModelFn = function() {
+        addBindings(template, template.model, template.bindingDelegate);
+      };
+
+      templateSetModelFnTable.set(template, setModelFn);
+    }
+
+    ensureScheduled(setModelFn);
+  }
 
   mixin(HTMLTemplateElement.prototype, {
     bind: function(name, model, path) {
@@ -912,15 +915,15 @@
       Element.prototype.unbindAll.call(this);
     },
 
-    createInstance: function(model, syntax) {
+    createInstance: function(model, delegate) {
       var instance = createDeepCloneAndDecorateTemplates(this.ref.content,
-                                                         syntax);
+                                                         delegate);
       // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
       // because custom elements are not upgraded during cloneNode()
       if (typeof HTMLTemplateElement.__instanceCreated == 'function')
         HTMLTemplateElement.__instanceCreated(instance);
 
-      addBindings(instance, model, HTMLTemplateElement.syntax[syntax]);
+      addBindings(instance, model, delegate);
       addTemplateInstanceRecord(instance, model);
       return instance;
     },
@@ -930,9 +933,17 @@
     },
 
     set model(model) {
-      var syntax = HTMLTemplateElement.syntax[this.getAttribute(SYNTAX)];
       templateModelTable.set(this, model);
-      addBindings(this, model, syntax);
+      ensureSetModelScheduled(this);
+    },
+
+    get bindingDelegate() {
+      return templateBindingDelegateTable.get(this);
+    },
+
+    set bindingDelegate(bindingDelegate) {
+      templateBindingDelegateTable.set(this, bindingDelegate);
+      ensureSetModelScheduled(this);
     },
 
     get ref() {
@@ -1099,16 +1110,16 @@
     }
   }
 
-  function createDeepCloneAndDecorateTemplates(node, syntax) {
+  function createDeepCloneAndDecorateTemplates(node, delegate) {
     var clone = node.cloneNode(false);  // Shallow clone.
     if (isTemplate(clone)) {
       HTMLTemplateElement.decorate(clone, node);
-      if (syntax && !clone.hasAttribute(SYNTAX))
-        clone.setAttribute(SYNTAX, syntax);
+      if (delegate)
+        templateBindingDelegateTable.set(clone, delegate);
     }
 
      for (var child = node.firstChild; child; child = child.nextSibling) {
-      clone.appendChild(createDeepCloneAndDecorateTemplates(child, syntax))
+      clone.appendChild(createDeepCloneAndDecorateTemplates(child, delegate))
     }
     return clone;
   }
@@ -1135,7 +1146,7 @@
     }
   }
 
-  var templateInstanceTable = new SideTable('templateInstance');
+  var templateInstanceTable = new SideTable();
 
   Object.defineProperty(Node.prototype, 'templateInstance', {
     get: function() {
@@ -1305,8 +1316,7 @@
       return instanceNodes;
     },
 
-    getInstanceModel: function(template, model, syntax) {
-      var delegate = HTMLTemplateElement.syntax[syntax];
+    getInstanceModel: function(template, model, delegate) {
       var delegateFunction = delegate && delegate[GET_INSTANCE_MODEL];
       if (delegateFunction && typeof delegateFunction == 'function')
         return delegateFunction(template, model);
@@ -1314,7 +1324,7 @@
         return model;
     },
 
-    getInstanceNodes: function(model, syntax, instanceCache) {
+    getInstanceNodes: function(model, delegate, instanceCache) {
       var instanceNodes = instanceCache.get(model);
       if (instanceNodes) {
         instanceCache.delete(model);
@@ -1322,7 +1332,7 @@
       }
 
       instanceNodes = [];
-      var fragment = this.templateElement_.createInstance(model, syntax);
+      var fragment = this.templateElement_.createInstance(model, delegate);
       while (fragment.firstChild)
         instanceNodes.push(fragment.removeChild(fragment.firstChild));
 
@@ -1337,7 +1347,7 @@
         return;
       }
 
-      var syntax = template.getAttribute(SYNTAX);
+      var delegate = template.bindingDelegate;
 
       var instanceCache = new Map;
       var removeDelta = 0;
@@ -1356,8 +1366,8 @@
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
           var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
-                                            syntax);
-          var instanceNodes = this.getInstanceNodes(model, syntax,
+                                            delegate);
+          var instanceNodes = this.getInstanceNodes(model, delegate,
                                                     instanceCache);
           this.insertInstanceAt(addIndex, instanceNodes);
         }
@@ -1389,14 +1399,9 @@
     }
   };
 
-  var templateIteratorTable = new SideTable('templateIterator');
+  var templateIteratorTable = new SideTable();
 
   global.CompoundBinding = CompoundBinding;
-
-  Object.defineProperty(HTMLTemplateElement, SYNTAX, {
-    value: {},
-    enumerable: true
-  })
 
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
