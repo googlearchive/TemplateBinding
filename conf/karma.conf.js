@@ -18,6 +18,7 @@ files = [
   'tests/*.js',
   {pattern: 'src/*.css', included: false},
   {pattern: 'src/*.js', included: false},
+  {pattern: 'util/*.js', included: false},
   {pattern: 'third_party/**/*.js', included: false}
 ];
 
