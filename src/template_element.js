@@ -774,6 +774,8 @@
       return false;
 
     var templateElement = el;
+    templateElement.templateIsDecorated_ = true;
+
     var isNative = isNativeTemplate(templateElement);
     var bootstrapContents = isNative;
     var liftContents = !isNative;
@@ -782,11 +784,11 @@
     if (!isNative && isAttributeTemplate(templateElement)) {
       assert(!opt_instanceRef);
       templateElement = extractTemplateFromAttributeTemplate(el);
+      templateElement.templateIsDecorated_ = true;
+
       isNative = isNativeTemplate(templateElement);
       liftRoot = true;
     }
-
-    templateElement.templateIsDecorated_ = true;
 
     if (!isNative) {
       fixTemplateElementPrototype(templateElement);

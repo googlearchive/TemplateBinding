@@ -1174,7 +1174,7 @@ suite('Template Element', function() {
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {
-    if (!hasNativeTemplates)
+    if (!parserHasNativeTemplate)
       return;
 
     var div = createTestHtml(
