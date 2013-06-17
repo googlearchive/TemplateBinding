@@ -12,31 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-suite('Template Element', function() {
+var testDiv;
 
-  var testDiv;
+function unbindAll(node) {
+  node.unbindAll();
+  for (var child = node.firstChild; child; child = child.nextSibling)
+    unbindAll(child);
+}
 
-  setup(function() {
-    testDiv = document.body.appendChild(document.createElement('div'));
-    Observer._errorThrownDuringCallback = false;
-  })
+function doSetup() {
+  testDiv = document.body.appendChild(document.createElement('div'));
+  Observer._errorThrownDuringCallback = false;
+}
 
-  teardown(function() {
-    assert.isFalse(!!Observer._errorThrownDuringCallback);
-    document.body.removeChild(testDiv);
+function doTeardown() {
+  assert.isFalse(!!Observer._errorThrownDuringCallback);
+  document.body.removeChild(testDiv);
+  unbindAll(testDiv);
+  Platform.performMicrotaskCheckpoint();
+  assert.strictEqual(2, Observer._allObserversCount);
+}
+
+function createTestHtml(s) {
+  var div = document.createElement('div');
+  div.innerHTML = s;
+  testDiv.appendChild(div);
+
+  HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
+    HTMLTemplateElement.decorate(template);
   });
 
-  function createTestHtml(s) {
-    var div = document.createElement('div');
-    div.innerHTML = s;
-    testDiv.appendChild(div);
+  return div;
+}
 
-    HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
-      HTMLTemplateElement.decorate(template);
-    });
+function recursivelySetTemplateModel(node, model, delegate) {
+  HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+    template.bindingDelegate = delegate;
+    template.model = model;
+  });
+}
 
-    return div;
-  }
+suite('Template Element', function() {
+
+  setup(doSetup)
+
+  teardown(doTeardown);
 
   function createShadowTestHtml(s) {
     var div = document.createElement('div');
@@ -49,12 +69,6 @@ suite('Template Element', function() {
     });
 
     return root;
-  }
-
-  function recursivelySetTemplateModel(node, model) {
-    HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
-      template.model = model;
-    });
   }
 
   function dispatchEvent(type, target) {
@@ -104,6 +118,64 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
+  });
+
+  test('Template Bind If', function() {
+    var div = createTestHtml(
+        '<template bind if="{{ foo }}">text</template>');
+    var m = { foo: 0 };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.foo = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
+  });
+
+  test('Template Bind If, 2', function() {
+    var div = createTestHtml(
+        '<template bind="{{ foo }}" if="{{ bar }}">{{ bat }}</template>');
+    var m = { bar: 0, foo: { bat: 'baz' } };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.bar = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('baz', div.lastChild.textContent);
+  });
+
+  test('Template If', function() {
+    var div = createTestHtml(
+        '<template if="{{ foo }}">{{ value }}</template>');
+    var m = { foo: 0, value: 'foo' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.foo = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo', div.lastChild.textContent);
+  });
+
+  test('Template Repeat If', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ foo }}" if="{{ bar }}">{{ }}</template>');
+    var m = { bar: 0, foo: [1, 2, 3] };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.bar = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+    assert.strictEqual('2', div.childNodes[2].textContent);
+    assert.strictEqual('3', div.childNodes[3].textContent);
   });
 
   test('TextTemplateWithNullStringBinding', function() {
@@ -287,15 +359,27 @@ suite('Template Element', function() {
     addExpandos(template.nextSibling);
     checkExpandos(template.nextSibling);
 
-    model.sort(function(a, b) { return a.val - b.val; });
-    Platform.performMicrotaskCheckpoint();
-    checkExpandos(template.nextSibling);
+    // TODO(rafaelw): Re-enable when Object.observe/sort bug is fixed.
+    // model.sort(function(a, b) { return a.val - b.val; });
+    // Platform.performMicrotaskCheckpoint();
+    // checkExpandos(template.nextSibling);
 
     model = model.slice();
     model.reverse();
     recursivelySetTemplateModel(div, model);
     Platform.performMicrotaskCheckpoint();
     checkExpandos(template.nextSibling);
+
+    model.forEach(function(item) {
+      item.val = item.val + 1;
+    });
+
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('2', div.childNodes[1].textContent);
+    assert.strictEqual('9', div.childNodes[2].textContent);
+    assert.strictEqual('3', div.childNodes[3].textContent);
+    assert.strictEqual('6', div.childNodes[4].textContent);
+    assert.strictEqual('11', div.childNodes[5].textContent);
   });
 
   test('Bind - Reuse Instance', function() {
@@ -1054,28 +1138,39 @@ suite('Template Element', function() {
     assert.strictEqual('Item 2', div.childNodes[i++].textContent);
   });
 
-  test('Attribute Template Option', function() {
+  test('Attribute Template Optgroup/Option', function() {
     var div = createTestHtml(
         '<template bind>' +
-          '<select>' +
-            '<option template repeat>{{ val }}</option>' +
+          '<select selectedIndex="{{ selected }}">' +
+            '<optgroup template repeat="{{ groups }}" label="{{ name }}">' +
+              '<option template repeat="{{ items }}">{{ val }}</option>' +
+            '</optgroup>' +
           '</select>' +
         '</template>');
 
-    var m = [{ val: 0 }, { val: 1 }];
+    var m = {
+      selected: 1,
+      groups: [
+        {
+          name: 'one', items: [{ val: 0 }, { val: 1 }]
+        }
+      ],
+    };
 
     recursivelySetTemplateModel(div, m);
     Platform.performMicrotaskCheckpoint();
 
     var select = div.firstChild.nextSibling;
-    assert.strictEqual(3, select.childNodes.length);
+    assert.strictEqual(2, select.childNodes.length);
+    assert.strictEqual(1, select.selectedIndex);
     assert.strictEqual('TEMPLATE', select.childNodes[0].tagName);
-    assert.strictEqual('OPTION',
-                       select.childNodes[0].ref.content.firstChild.tagName);
-    assert.strictEqual('OPTION', select.childNodes[1].tagName);
-    assert.strictEqual('0', select.childNodes[1].textContent);
-    assert.strictEqual('OPTION', select.childNodes[2].tagName);
-    assert.strictEqual('1', select.childNodes[2].textContent);
+    assert.strictEqual('OPTGROUP', select.childNodes[0].ref.content.firstChild.tagName);
+    var optgroup = select.childNodes[1];
+    assert.strictEqual('TEMPLATE', optgroup.childNodes[0].tagName);
+    assert.strictEqual('OPTION', optgroup.childNodes[1].tagName);
+    assert.strictEqual('0', optgroup.childNodes[1].textContent);
+    assert.strictEqual('OPTION', optgroup.childNodes[2].tagName);
+    assert.strictEqual('1', optgroup.childNodes[2].textContent);
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {
@@ -1117,7 +1212,7 @@ suite('Template Element', function() {
 
     // Asset the 'class' binding is retained on the semantic template (just check
     // the last one).
-    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
+    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute('class'));
   });
 
   test('NestedIterateTable', function() {
@@ -1154,7 +1249,7 @@ suite('Template Element', function() {
 
     // Asset the 'class' binding is retained on the semantic template (just check
     // the last one).
-    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute("class"));
+    assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute('class'));
   });
 
   test('NestedRepeatDeletionOfMultipleSubTemplates', function() {
@@ -1340,6 +1435,63 @@ suite('Template Element', function() {
     assert.strictEqual('Name: Leela', div.childNodes[3].textContent);
   });
 
+  test('RecursiveRef', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<template id=src>{{ foo }}</template>' +
+          '<template bind ref=src></template>' +
+        '</template>');
+
+    var m = {
+      foo: 'bar'
+    };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('bar', div.childNodes[3].textContent);
+  });
+
+  test('Template - Self is terminator', function() {
+    var div = createTestHtml(
+        '<template repeat>{{ foo }}' +
+          '<template bind></template>' +
+        '</template>');
+
+    var m = [{ foo: 'bar' }];
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    m.push({ foo: 'baz' });
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual(5, div.childNodes.length);
+    assert.strictEqual('bar', div.childNodes[1].textContent);
+    assert.strictEqual('baz', div.childNodes[3].textContent);
+  });
+
+  test('Template - Same Contents, Different Array has no effect', function() {
+    if (!window.MutationObserver)
+      return;
+    var div = createTestHtml(
+        '<template repeat>{{ foo }}</template>');
+
+    var m = [{ foo: 'bar' }, { foo: 'bat'}];
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    var observer = new MutationObserver(function() {});
+    observer.observe(div, { childList: true });
+
+    var template = div.firstChild;
+    template.bind('repeat', m.slice(), '');
+    Platform.performMicrotaskCheckpoint();
+    var records = observer.takeRecords();
+    assert.strictEqual(0, records.length);
+  });
+
+
   test('ChangeFromBindToRepeat', function() {
     var div = createTestHtml(
         '<template bind="{{a}}">' +
@@ -1453,13 +1605,25 @@ suite('Template Element', function() {
       recursivelySetTemplateModel(root, model);
       Platform.performMicrotaskCheckpoint();
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
+      unbindAll(root);
+    }
+  });
+
+  test('BindShadowDOM Template Ref', function() {
+    if (HTMLElement.prototype.webkitCreateShadowRoot) {
+      var root = createShadowTestHtml(
+          '<template id=foo>Hi</template><template bind ref=foo></template>');
+      recursivelySetTemplateModel(root, {});
+      Platform.performMicrotaskCheckpoint();
+      assert.strictEqual(3, root.childNodes.length);
+      unbindAll(root);
     }
   });
 
   // https://github.com/Polymer/mdv/issues/8
   test('UnbindingInNestedBind', function() {
     var div = createTestHtml(
-      '<template bind="{{outer}}" if="{{outer}}" syntax="testHelper">' +
+      '<template bind="{{outer}}" if="{{outer}}">' +
         '<template bind="{{inner}}" if="{{inner}}">' +
           '{{ age }}' +
         '</template>' +
@@ -1467,7 +1631,7 @@ suite('Template Element', function() {
 
     var count = 0;
     var expectedAge = 42;
-    HTMLTemplateElement.syntax['testHelper'] = {
+    var delegate = {
       getBinding: function(model, path, name, node) {
         if (name != 'textContent' || path != 'age')
           return;
@@ -1485,7 +1649,7 @@ suite('Template Element', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model);
+    recursivelySetTemplateModel(div, model, delegate);
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, count);
@@ -1517,20 +1681,34 @@ suite('Template Element', function() {
     assert.isFalse(!!Observer._errorThrownDuringCallback);
   });
 
-  test('CreateIntance', function() {
+  test('CreateInstance', function() {
+    var delegate = {
+      getBinding: function(model, path, name, node) {
+        if (path.trim() == 'replaceme')
+          return { value: 'replaced' };
+      }
+    };
+
     var div = createTestHtml(
       '<template bind="{{a}}">' +
         '<template bind="{{b}}">' +
-          '{{text}}' +
+          '{{ foo }}:{{ replaceme }}' +
         '</template>' +
       '</template>');
     var outer = div.firstChild;
+    var model = {
+      b: {
+        foo: 'bar'
+      }
+    };
 
-    var instance = outer.createInstance(null, null);
+    var host = testDiv.appendChild(document.createElement('div'));
+    var instance = outer.createInstance(model, delegate);
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
 
-    var instance2 =  outer.createInstance(null, null);
-    assert.strictEqual(instance.firstChild.ref, instance2.firstChild.ref);
+    host.appendChild(instance);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('bar:replaced', host.firstChild.nextSibling.textContent);
   });
 
   test('Bootstrap', function() {
@@ -1582,5 +1760,151 @@ suite('Template Element', function() {
     assert.isTrue(called);
 
     HTMLTemplateElement.__instanceCreated = undefined;
+  });
+});
+
+
+suite('Template Syntax', function() {
+
+  setup(doSetup)
+
+  teardown(doTeardown);
+
+  test('Registration', function() {
+    var model = { foo: 'bar'};
+    var testData = [
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+      {
+        model: model,
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        model: model,
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+    ];
+
+    var delegate = {
+      getBinding: function(model, path, name, node) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.model, model);
+        assert.strictEqual(data.path, path);
+        assert.strictEqual(data.name, name);
+        assert.strictEqual(data.nodeType, node.nodeType);
+        assert.strictEqual(data.tagName, node.tagName);
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind>{{ foo }}' +
+          '<template bind>{{ foo }}</template>' +
+        '</template>');
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('bar', div.lastChild.textContent);
+    assert.strictEqual('TEMPLATE', div.childNodes[2].tagName);
+
+    assert.strictEqual(0, testData.length);
+  });
+
+  test('getInstanceModel', function() {
+    var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
+
+    var div = createTestHtml(
+        '<template repeat syntax="Test">' +
+        '{{ foo }}</template>');
+    var template = div.firstChild;
+
+    var testData = [
+      {
+        template: template,
+        model: model[0],
+        altModel: { foo: 'a' }
+      },
+      {
+        template: template,
+        model: model[1],
+        altModel: { foo: 'b' }
+      },
+      {
+        template: template,
+        model: model[2],
+        altModel: { foo: 'c' }
+      }
+    ];
+
+    var delegate = {
+      getInstanceModel: function(template, model) {
+        var data = testData.shift();
+
+        assert.strictEqual(data.template, template);
+        assert.strictEqual(data.model, model);
+        return data.altModel;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('TEMPLATE', div.childNodes[0].tagName);
+    assert.strictEqual('a', div.childNodes[1].textContent);
+    assert.strictEqual('b', div.childNodes[2].textContent);
+    assert.strictEqual('c', div.childNodes[3].textContent);
+
+    assert.strictEqual(0, testData.length);
+  });
+
+  test('Basic', function() {
+    var model = { foo: 2, bar: 4 };
+
+    var delegate = {
+      getBinding: function(model, path, name, node) {
+        var match = path.match(/2x:(.*)/);
+        if (match == null)
+          return;
+
+        path = match[1].trim();
+        var binding = new CompoundBinding(function(values) {
+          return values['value'] * 2;
+        });
+
+        binding.bind('value', model, path);
+        return binding;
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind>' +
+        '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('2 + 8 + ', div.lastChild.textContent);
+
+    model.foo = 4;
+    model.bar = 8;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('4 + 16 + ', div.lastChild.textContent);
   });
 });

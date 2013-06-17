@@ -21,12 +21,8 @@ limitations under the License.
 <link rel="stylesheet" href="../node_modules/mocha/mocha.css">
 <script src="../node_modules/chai/chai.js"></script>
 <script src="../node_modules/mocha/mocha.js"></script>
-<script>
+<script src="setup.js"></script>
 
-var hasNativeTemplates = typeof HTMLTemplateElement !== 'undefined';
-var forceCollectObservers = true;
-
-</script>
 <script src="../mdv.js"></script>
 </head>
 <body>
@@ -41,9 +37,8 @@ var assert = chai.assert;
 
 </script>
 <script src="node_bindings.js"></script>
-<script src="element_bindings.js"></script>
 <script src="template_element.js"></script>
-<script src="syntax.js"></script>
+<script src="expression_syntax.js"></script>
 <div id="mocha"></div>
 <script>
 mocha.run();
