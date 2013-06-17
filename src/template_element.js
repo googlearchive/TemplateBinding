@@ -574,13 +574,7 @@
     'OPTGROUP': true
   };
 
-  var hasTemplateElement = function() {
-    // Check to see whether parser lifts <template> out of <table>
-    var div = document.createElement('div');
-    div.innerHTML = '<table><template>';
-    return div.firstChild.firstChild &&
-           div.firstChild.firstChild.tagName == 'TEMPLATE';
-  }();
+  var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
 
   var allTemplatesSelectors = 'template, ' +
       Object.keys(semanticTemplateElements).map(function(tagName) {
