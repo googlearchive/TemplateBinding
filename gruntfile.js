@@ -31,17 +31,65 @@ module.exports = function(grunt) {
     grunt.file.write(dest, header + result + footer);
   });
 
+  // karma setup
+  var browsers;
+  (function() {
+    try {
+      var config = grunt.file.readJSON('local.json');
+      if (config.browsers) {
+        browsers = config.browsers;
+      }
+    } catch (e) {
+      var os = require('os');
+      browsers = ['Chrome', 'Firefox'];
+      //browsers = ['Chrome'];
+      if (os.type() === 'Darwin') {
+        browsers.push('ChromeCanary');
+      }
+      if (os.type() === 'Windows_NT') {
+        browsers.push('IE');
+      }
+    }
+  })();
+
   grunt.initConfig({
+    karma: {
+      options: {
+        configFile: 'conf/karma.conf.js',
+        keepalive: true
+      },
+      buildbot: {
+        browsers: browsers,
+        reporters: ['crbot'],
+        logLevel: 'OFF'
+      },
+      mdv: {
+        browsers: browsers
+      }
+    },
     wrap: {
       modules: {
         src: [
           'third_party/ChangeSummary/change_summary.js',
+          'src/compat.js',
+          'src/sidetable.js',
+          'src/model.js',
+          'src/script_value_binding.js',
+          'src/text_replacements_binding.js',
+          'src/element_attribute_bindings.js',
+          'src/element_bindings.js',
+          'src/input_bindings.js',
           'src/template_element.js',
+          'src/delegates.js'
         ],
         dest: 'src/mdv.combined.js'
       }
     }
   });
 
+  grunt.loadNpmTasks('grunt-karma-0.9.1');
+
   grunt.registerTask('default', 'wrap');
+  grunt.registerTask('test', ['karma:mdv']);
+  grunt.registerTask('test-buildbot', ['karma:buildbot']);
 };

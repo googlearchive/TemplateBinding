@@ -24,6 +24,14 @@
 
   var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
 
+  function getTreeScope(node) {
+    while (node.parentNode) {
+      node = node.parentNode;
+    }
+
+    return typeof node.getElementById === 'function' ? node : null;
+  }
+
   var Map;
   if (global.Map && typeof global.Map.prototype.forEach === 'function') {
     Map = global.Map;
@@ -97,35 +105,26 @@
     }
   }
 
-  // SideTable is a weak map where possible. If WeakMap is not available the
-  // association is stored as an expando property.
   var SideTable;
-  // TODO(arv): WeakMap does not allow for Node etc to be keys in Firefox
-  if (typeof WeakMap !== 'undefined' && navigator.userAgent.indexOf('Firefox/') < 0) {
-    SideTable = WeakMap;
-  } else {
-    (function() {
-      var defineProperty = Object.defineProperty;
-      var hasOwnProperty = Object.hasOwnProperty;
-      var counter = new Date().getTime() % 1e9;
-
+  "undefined" != typeof WeakMap && navigator.userAgent.indexOf("Firefox/") < 0 ? SideTable = WeakMap : function() {
+      var a = Object.defineProperty, b = Object.hasOwnProperty, c = new Date().getTime() % 1e9;
       SideTable = function() {
-        this.name = '__st' + (Math.random() * 1e9 >>> 0) + (counter++ + '__');
+          this.name = "__st" + (1e9 * Math.random() >>> 0) + (c++ + "__");
+      }, SideTable.prototype = {
+          set: function(b, c) {
+              a(b, this.name, {
+                  value: c,
+                  writable: !0
+              });
+          },
+          get: function(a) {
+              return b.call(a, this.name) ? a[this.name] : void 0;
+          },
+          "delete": function(a) {
+              this.set(a, void 0);
+          }
       };
-
-      SideTable.prototype = {
-        set: function(key, value) {
-          defineProperty(key, this.name, {value: value, writable: true});
-        },
-        get: function(key) {
-          return hasOwnProperty.call(key, this.name) ? key[this.name] : undefined;
-        },
-        delete: function(key) {
-          this.set(key, undefined);
-        }
-      }
-    })();
-  }
+  }();
 
   function isNodeInDocument(node) {
     return node.ownerDocument.contains(node);
@@ -142,7 +141,7 @@
   Node.prototype.unbind = unbindNode;
   Node.prototype.unbindAll = unbindAllNode;
 
-  var textContentBindingTable = new SideTable('textContentBinding');
+  var textContentBindingTable = new SideTable();
 
   function Binding(model, path, changed) {
     this.model = model;
@@ -154,6 +153,9 @@
 
   Binding.prototype = {
     dispose: function() {
+      if (this.model && typeof this.model.dispose == 'function')
+        this.model.dispose();
+
       this.observer.close();
     },
 
@@ -202,7 +204,7 @@
   Text.prototype.unbind = unbindText;
   Text.prototype.unbindAll = unbindAllText;
 
-  var attributeBindingsTable = new SideTable('attributeBindings');
+  var attributeBindingsTable = new SideTable();
 
   function boundSetAttribute(element, attributeName, conditional) {
     if (conditional) {
@@ -286,8 +288,8 @@
   Element.prototype.unbind = unbindElement;
   Element.prototype.unbindAll = unbindAllElement;
 
-  var valueBindingTable = new SideTable('valueBinding');
-  var checkedBindingTable = new SideTable('checkedBinding');
+  var valueBindingTable = new SideTable();
+  var checkedBindingTable = new SideTable();
 
   var checkboxEventType;
   (function() {
@@ -430,16 +432,23 @@
   });
 
   function bindInput(name, model, path) {
-    switch(name) {
-      case 'value':
+    switch(this.tagName + '.' + name.toLowerCase()) {
+      case 'INPUT.value':
+      case 'TEXTAREA.value':
         this.unbind('value');
         this.removeAttribute('value');
         valueBindingTable.set(this, new ValueBinding(this, model, path));
         break;
-      case 'checked':
+      case 'INPUT.checked':
         this.unbind('checked');
         this.removeAttribute('checked');
         checkedBindingTable.set(this, new CheckedBinding(this, model, path));
+        break;
+      case 'SELECT.selectedindex':
+        this.unbind('selectedindex');
+        this.removeAttribute('selectedindex');
+        valueBindingTable.set(this,
+                              new SelectedIndexBinding(this, model, path));
         break;
       default:
         return Element.prototype.bind.call(this, name, model, path);
@@ -448,19 +457,27 @@
   }
 
   function unbindInput(name) {
-    switch(name) {
-      case 'value':
+    switch(this.tagName + '.' + name.toLowerCase()) {
+      case 'INPUT.value':
+      case 'TEXTAREA.value':
         var valueBinding = valueBindingTable.get(this);
         if (valueBinding) {
           valueBinding.unbind();
           valueBindingTable.delete(this);
         }
         break;
-      case 'checked':
+      case 'INPUT.checked':
         var checkedBinding = checkedBindingTable.get(this);
         if (checkedBinding) {
           checkedBinding.unbind();
           checkedBindingTable.delete(this)
+        }
+        break;
+      case 'SELECT.selectedindex':
+        var valueBinding = valueBindingTable.get(this);
+        if (valueBinding) {
+          valueBinding.unbind();
+          valueBindingTable.delete(this);
         }
         break;
       default:
@@ -470,8 +487,18 @@
   }
 
   function unbindAllInput(name) {
-    this.unbind('value');
-    this.unbind('checked');
+    switch (this.tagName) {
+      case 'INPUT':
+        this.unbind('checked');
+        // fallthrough
+      case 'TEXTAREA':
+        this.unbind('value');
+        break;
+      case 'SELECT':
+        this.unbind('selectedindex');
+        break;
+    }
+
     Element.prototype.unbindAll.call(this);
   }
 
@@ -479,10 +506,50 @@
   HTMLInputElement.prototype.unbind = unbindInput;
   HTMLInputElement.prototype.unbindAll = unbindAllInput;
 
+  function SelectedIndexBinding(element, model, path) {
+    InputBinding.call(this, element, 'selectedIndex', model, path);
+  }
+
+  SelectedIndexBinding.prototype = createObject({
+    __proto__: InputBinding.prototype,
+
+    valueChanged: function(newValue) {
+      var newValue = this.produceElementValue(newValue);
+      if (newValue <= this.element.length) {
+        this.element[this.valueProperty] = newValue;
+        return;
+      }
+
+      // The binding may wish to bind to an <option> which has not yet been
+      // produced by a child <template>. Delay a maximum of two times: once for
+      // each of <optgroup> and <option>
+      var maxRetries = 2;
+      var self = this;
+      function delaySetSelectedIndex() {
+        if (newValue > self.element.length && maxRetries--)
+          ensureScheduled(delaySetSelectedIndex);
+        else
+          self.element[self.valueProperty] = newValue;
+      }
+      ensureScheduled(delaySetSelectedIndex);
+    },
+
+    produceElementValue: function(value) {
+      return Number(value);
+    }
+  });
+
+  HTMLSelectElement.prototype.bind = bindInput;
+  HTMLSelectElement.prototype.unbind = unbindInput;
+  HTMLSelectElement.prototype.unbindAll = unbindAllInput;
+
+  HTMLTextAreaElement.prototype.bind = bindInput;
+  HTMLTextAreaElement.prototype.unbind = unbindInput;
+  HTMLTextAreaElement.prototype.unbindAll = unbindAllInput;
+
   var BIND = 'bind';
   var REPEAT = 'repeat';
   var IF = 'if';
-  var SYNTAX = 'syntax';
   var GET_BINDING = 'getBinding';
   var GET_INSTANCE_MODEL = 'getInstanceModel';
 
@@ -503,7 +570,8 @@
     'COLGROUP': true,
     'COL': true,
     'CAPTION': true,
-    'OPTION': true
+    'OPTION': true,
+    'OPTGROUP': true
   };
 
   var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
@@ -527,36 +595,59 @@
   }
 
   var ensureScheduled = function() {
-    var scheduled = [];
-    var delivering = [];
-    var obj = {
-      value: 0
-    };
+    // We need to ping-pong between two Runners in order for the tests to
+    // simulate proper end-of-microtask behavior for Object.observe. Without
+    // this, we'll continue delivering to a single observer without allowing
+    // other observers in the same microtask to make progress.
+    var current;
+    var next;
 
-    var lastScheduled = obj.value;
+    function Runner() {
+      var self = this;
+      this.value = false;
+      var lastValue = this.value;
+
+      var scheduled = [];
+      var running = false;
+
+      this.schedule = function(fn) {
+        if (scheduled.indexOf(fn) >= 0)
+          return true;
+        if (running)
+          return false;
+
+        scheduled.push(fn);
+        if (lastValue === self.value)
+          self.value = !self.value;
+
+        return true;
+      }
+
+      var observer = new PathObserver(this, 'value', function() {
+        running = true;
+
+        for (var i = 0; i < scheduled.length; i++) {
+          var fn = scheduled[i];
+          scheduled[i] = undefined;
+          fn();
+        }
+
+        scheduled = [];
+        lastValue = self.value;
+
+        current = next;
+        next = self;
+
+        running = false;
+      });
+    }
+
+    current = new Runner();
+    next = new Runner();
 
     function ensureScheduled(fn) {
-      if (delivering.indexOf(fn) >= 0 || scheduled.indexOf(fn) >= 0)
-        return;
-
-      scheduled.push(fn);
-
-      if (lastScheduled == obj.value)
-        obj.value = !obj.value;
+      current.schedule(fn) || next.schedule(fn);
     }
-
-    function runScheduled() {
-      lastScheduled = obj.value;
-
-      delivering = scheduled;
-      scheduled = [];
-      while (delivering.length) {
-        var nextFn = delivering.shift();
-        nextFn();
-      }
-    }
-
-    var observer = new PathObserver(obj, 'value', runScheduled);
 
     return ensureScheduled;
   }();
@@ -607,9 +698,9 @@
     });
   }
 
-  var templateContentsTable = new SideTable('templateContents');
-  var templateContentsOwnerTable = new SideTable('templateContentsOwner');
-  var templateInstanceRefTable = new SideTable('templateInstanceRef');
+  var templateContentsTable = new SideTable();
+  var templateContentsOwnerTable = new SideTable();
+  var templateInstanceRefTable = new SideTable();
 
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
   function getTemplateContentsOwner(doc) {
@@ -761,12 +852,22 @@
     }
   }
 
-  function effectiveContent(template) {
-    var ref = template.ref;
-    return ref ? ref.content : template.content;
-  }
+  var templateModelTable = new SideTable();
+  var templateBindingDelegateTable = new SideTable();
+  var templateSetModelFnTable = new SideTable();
 
-  var templateModelTable = new SideTable('templateModel');
+  function ensureSetModelScheduled(template) {
+    var setModelFn = templateSetModelFnTable.get(template);
+    if (!setModelFn) {
+      setModelFn = function() {
+        addBindings(template, template.model, template.bindingDelegate);
+      };
+
+      templateSetModelFnTable.set(template, setModelFn);
+    }
+
+    ensureScheduled(setModelFn);
+  }
 
   mixin(HTMLTemplateElement.prototype, {
     bind: function(name, model, path) {
@@ -797,8 +898,8 @@
           if (!templateIterator)
             break;
 
-          // the template iterator will clear() and unobserve() if
-          // its resolveInputs() is called and its inputs.size is 0.
+          // the template iterator will remove its instances and
+          // abandon() itself if its inputs.size is 0.
           templateIterator.inputs.unbind(name);
           break;
         default:
@@ -814,15 +915,16 @@
       Element.prototype.unbindAll.call(this);
     },
 
-    createInstance: function() {
-      var content = effectiveContent(this);
-      var syntaxString = this.getAttribute(SYNTAX);
-      var instance = createDeepCloneAndDecorateTemplates(content, syntaxString);
+    createInstance: function(model, delegate) {
+      var instance = createDeepCloneAndDecorateTemplates(this.ref.content,
+                                                         delegate);
       // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
       // because custom elements are not upgraded during cloneNode()
-      if (typeof HTMLTemplateElement.__instanceCreated == 'function') {
+      if (typeof HTMLTemplateElement.__instanceCreated == 'function')
         HTMLTemplateElement.__instanceCreated(instance);
-      }
+
+      addBindings(instance, model, delegate);
+      addTemplateInstanceRecord(instance, model);
       return instance;
     },
 
@@ -831,21 +933,36 @@
     },
 
     set model(model) {
-      var syntax = HTMLTemplateElement.syntax[this.getAttribute(SYNTAX)];
       templateModelTable.set(this, model);
-      addBindings(this, model, syntax);
+      ensureSetModelScheduled(this);
+    },
+
+    get bindingDelegate() {
+      return templateBindingDelegateTable.get(this);
+    },
+
+    set bindingDelegate(bindingDelegate) {
+      templateBindingDelegateTable.set(this, bindingDelegate);
+      ensureSetModelScheduled(this);
     },
 
     get ref() {
       var ref;
       var refId = this.getAttribute('ref');
-      if (refId)
-        ref = this.ownerDocument.getElementById(refId);
+      if (refId) {
+        var treeScope = getTreeScope(this);
+        if (treeScope)
+          ref = treeScope.getElementById(refId);
+      }
 
       if (!ref)
         ref = templateInstanceRefTable.get(this);
 
-      return ref || null;
+      if (!ref)
+        return this;
+
+      var nextRef = ref.ref;
+      return nextRef ? nextRef : ref;
     }
   });
 
@@ -891,11 +1008,11 @@
     return result;
   }
 
-  function bindOrDelegate(node, name, model, path, syntax) {
+  function bindOrDelegate(node, name, model, path, delegate) {
     var delegateBinding;
-    var delegate = syntax && syntax[GET_BINDING];
-    if (delegate && typeof delegate == 'function') {
-      delegateBinding = delegate(model, path, name, node);
+    var delegateFunction = delegate && delegate[GET_BINDING];
+    if (delegateFunction && typeof delegateFunction == 'function') {
+      delegateBinding = delegateFunction(model, path, name, node);
       if (delegateBinding) {
         model = delegateBinding;
         path = 'value';
@@ -905,13 +1022,13 @@
     node.bind(name, model, path);
   }
 
-  function parseAndBind(node, name, text, model, syntax) {
+  function parseAndBind(node, name, text, model, delegate) {
     var tokens = parseMustacheTokens(text);
     if (!tokens.length || (tokens.length == 1 && tokens[0].type == TEXT))
       return;
 
     if (tokens.length == 1 && tokens[0].type == BINDING) {
-      bindOrDelegate(node, name, model, tokens[0].value, syntax);
+      bindOrDelegate(node, name, model, tokens[0].value, delegate);
       return;
     }
 
@@ -919,7 +1036,7 @@
     for (var i = 0; i < tokens.length; i++) {
       var token = tokens[i];
       if (token.type == BINDING)
-        bindOrDelegate(replacementBinding, i, model, token.value, syntax);
+        bindOrDelegate(replacementBinding, i, model, token.value, delegate);
     }
 
     replacementBinding.combinator = function(values) {
@@ -942,7 +1059,7 @@
     node.bind(name, replacementBinding, 'value');
   }
 
-  function addAttributeBindings(element, model, syntax) {
+  function addAttributeBindings(element, model, delegate) {
     assert(element);
 
     var attrs = {};
@@ -952,28 +1069,36 @@
     }
 
     if (isTemplate(element)) {
+      // Accept 'naked' bind & repeat.
       if (attrs[BIND] === '')
         attrs[BIND] = '{{}}';
       if (attrs[REPEAT] === '')
         attrs[REPEAT] = '{{}}';
+
+      // Treat <template if> as <template bind if>
+      if (attrs[IF] !== undefined &&
+          attrs[BIND] === undefined &&
+          attrs[REPEAT] === undefined) {
+        attrs[BIND] = '{{}}';
+      }
     }
 
     Object.keys(attrs).forEach(function(attrName) {
-      parseAndBind(element, attrName, attrs[attrName], model, syntax);
+      parseAndBind(element, attrName, attrs[attrName], model, delegate);
     });
   }
 
-  function addBindings(node, model, syntax) {
+  function addBindings(node, model, delegate) {
     assert(node);
 
     if (node.nodeType === Node.ELEMENT_NODE) {
-      addAttributeBindings(node, model, syntax);
+      addAttributeBindings(node, model, delegate);
     } else if (node.nodeType === Node.TEXT_NODE) {
-      parseAndBind(node, 'textContent', node.data, model, syntax);
+      parseAndBind(node, 'textContent', node.data, model, delegate);
     }
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
-      addBindings(child, model, syntax);
+      addBindings(child, model, delegate);
   }
 
   function unbindAllRecursively(node) {
@@ -993,16 +1118,16 @@
     }
   }
 
-  function createDeepCloneAndDecorateTemplates(node, syntax) {
+  function createDeepCloneAndDecorateTemplates(node, delegate) {
     var clone = node.cloneNode(false);  // Shallow clone.
     if (isTemplate(clone)) {
       HTMLTemplateElement.decorate(clone, node);
-      if (syntax && !clone.hasAttribute(SYNTAX))
-        clone.setAttribute(SYNTAX, syntax);
+      if (delegate)
+        templateBindingDelegateTable.set(clone, delegate);
     }
 
      for (var child = node.firstChild; child; child = child.nextSibling) {
-      clone.appendChild(createDeepCloneAndDecorateTemplates(child, syntax))
+      clone.appendChild(createDeepCloneAndDecorateTemplates(child, delegate))
     }
     return clone;
   }
@@ -1029,7 +1154,7 @@
     }
   }
 
-  var templateInstanceTable = new SideTable('templateInstance');
+  var templateInstanceTable = new SideTable();
 
   Object.defineProperty(Node.prototype, 'templateInstance', {
     get: function() {
@@ -1088,8 +1213,10 @@
       if (this.disposed)
         return;
 
-      if (!this.combinator_)
-        throw Error('CompoundBinding attempted to resolve without a combinator');
+      if (!this.combinator_) {
+        throw Error('CompoundBinding attempted to resolve without a ' +
+                    'combinator');
+      }
 
       this.value = this.combinator_(this.values);
     },
@@ -1111,48 +1238,54 @@
     this.arrayObserver = undefined;
     this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
-    this.valueBinding = new Binding(this.inputs, 'value', this.valueChanged.bind(this));
   }
 
   TemplateIterator.prototype = {
     resolveInputs: function(values) {
       if (IF in values && !values[IF])
-        return undefined;
-
-      if (REPEAT in values)
-        return values[REPEAT];
-
-      if (BIND in values)
-        return [values[BIND]];
+        this.valueChanged(undefined);
+      else if (REPEAT in values)
+        this.valueChanged(values[REPEAT]);
+      else if (BIND in values || IF in values)
+        this.valueChanged([values[BIND]]);
+      else
+        this.valueChanged(undefined);
     },
 
-    valueChanged: function(value, oldValue) {
+    valueChanged: function(value) {
       if (!Array.isArray(value))
-        value = [];
+        value = undefined;
 
+      var oldValue = this.iteratedValue;
       this.unobserve();
       this.iteratedValue = value;
-      this.arrayObserver =
-          new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
 
-      var splice = {
-        index: 0,
-        addedCount: this.iteratedValue.length,
-        removed: Array.isArray(oldValue) ? oldValue : []
-      };
+      if (this.iteratedValue) {
+        this.arrayObserver =
+            new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
+      }
 
-      if (!splice.addedCount && !splice.removed.length)
-        return; // nothing to do.
+      var splices = ArrayObserver.calculateSplices(this.iteratedValue || [],
+                                                   oldValue || []);
 
-      this.handleSplices([splice]);
+      if (splices.length)
+        this.handleSplices(splices);
+
+      if (!this.inputs.size) {
+        // End iteration
+        templateIteratorTable.delete(this);
+        this.abandon();
+      }
     },
 
     getTerminatorAt: function(index) {
       if (index == -1)
         return this.templateElement_;
       var terminator = this.terminators[index];
-      if (terminator.nodeType !== Node.ELEMENT_NODE)
+      if (terminator.nodeType !== Node.ELEMENT_NODE ||
+          this.templateElement_ === terminator) {
         return terminator;
+      }
 
       var subIterator = templateIteratorTable.get(terminator);
       if (!subIterator)
@@ -1180,8 +1313,10 @@
 
       var parent = this.templateElement_.parentNode;
       while (terminator !== previousTerminator) {
-        var node = terminator;
-        terminator = node.previousSibling;
+        var node = previousTerminator.nextSibling;
+        if (node == terminator)
+          terminator = previousTerminator;
+
         parent.removeChild(node);
         instanceNodes.push(node);
       }
@@ -1189,20 +1324,23 @@
       return instanceNodes;
     },
 
-    getInstanceModel: function(template, model, syntax) {
-      var delegateModel;
-      var delegate = syntax && syntax[GET_INSTANCE_MODEL];
-      if (delegate && typeof delegate == 'function')
-        return delegate(template, model);
+    getInstanceModel: function(template, model, delegate) {
+      var delegateFunction = delegate && delegate[GET_INSTANCE_MODEL];
+      if (delegateFunction && typeof delegateFunction == 'function')
+        return delegateFunction(template, model);
       else
         return model;
     },
 
-    getInstanceNodes: function(model, syntax) {
-      var instanceNodes = [];
-      var fragment = this.templateElement_.createInstance();
-      addBindings(fragment, model, syntax);
-      addTemplateInstanceRecord(fragment, model);
+    getInstanceNodes: function(model, delegate, instanceCache) {
+      var instanceNodes = instanceCache.get(model);
+      if (instanceNodes) {
+        instanceCache.delete(model);
+        return instanceNodes;
+      }
+
+      instanceNodes = [];
+      var fragment = this.templateElement_.createInstance(model, delegate);
       while (fragment.firstChild)
         instanceNodes.push(fragment.removeChild(fragment.firstChild));
 
@@ -1217,8 +1355,7 @@
         return;
       }
 
-      var syntaxString = template.getAttribute(SYNTAX);
-      var syntax = HTMLTemplateElement.syntax[syntaxString];
+      var delegate = template.bindingDelegate;
 
       var instanceCache = new Map;
       var removeDelta = 0;
@@ -1237,9 +1374,9 @@
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
           var model = this.getInstanceModel(template,
                                             this.iteratedValue[addIndex],
-                                            syntax);
-          var instanceNodes =
-              instanceCache.get(model) || this.getInstanceNodes(model, syntax);
+                                            delegate);
+          var instanceNodes = this.getInstanceNodes(model, delegate,
+                                                    instanceCache);
           this.insertInstanceAt(addIndex, instanceNodes);
         }
       }, this);
@@ -1260,20 +1397,19 @@
 
     abandon: function() {
       this.unobserve();
-      this.valueBinding.dispose();
       this.terminators.length = 0;
+      Object.defineProperty(this.inputs, 'value', {
+        configurable: true,
+        writable: true,
+        value: undefined
+      });
       this.inputs.dispose();
     }
   };
 
-  var templateIteratorTable = new SideTable('templateIterator');
+  var templateIteratorTable = new SideTable();
 
   global.CompoundBinding = CompoundBinding;
-
-  Object.defineProperty(HTMLTemplateElement, SYNTAX, {
-    value: {},
-    enumerable: true
-  })
 
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;

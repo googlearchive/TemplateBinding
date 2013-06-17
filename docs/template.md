@@ -17,7 +17,7 @@ MDV extends the capabilities of the [HTML Template Element](http://www.w3.org/TR
 #### repeat
 
 ```html
-<template repeat="{{ colleciton }}">
+<template repeat="{{ collection }}">
   Will create maintain exactly instance with {{ bindings }} for every element in the array collection, when it is provided.
 </template>
 ```
@@ -26,11 +26,15 @@ MDV extends the capabilities of the [HTML Template Element](http://www.w3.org/TR
 
 ```html
 <template bind if="{{ conditionalValue }}">
-  Controls the behavior of bind or repeat. Instances will be present if the value provided is truthy.
+  Will bind if and only if conditionalValue is truthy.
+</template>
+
+<template if="{{ conditionalValue }}">
+  Will bind if and only if conditionalValue is truthy. (same as *bind if*)
 </template>
 
 <template repeat if="{{ conditionalValue }}">
-  Controls the behavior of bind or repeat. Instances will be present if the value provided is truthy.
+  Will repeat if and only if conditionalValue is truthy.
 </template>
 ```
 
