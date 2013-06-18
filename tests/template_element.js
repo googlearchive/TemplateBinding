@@ -1875,6 +1875,31 @@ suite('Template Syntax', function() {
     assert.strictEqual(0, testData.length);
   });
 
+  test('getInstanceModel - reorder instances', function() {
+    var model = [0, 1, 2];
+
+    var div = createTestHtml(
+        '<template repeat syntax="Test">' +
+        '{{}}</template>');
+    var template = div.firstChild;
+    var count = 0;
+
+    var delegate = {
+      getInstanceModel: function(template, model) {
+        count++;
+        return model;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(3, count);
+
+    model.reverse();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(3, count);
+  });
+
   test('Basic', function() {
     var model = { foo: 2, bar: 4 };
 

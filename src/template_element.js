@@ -1296,13 +1296,20 @@
       return subIterator.getTerminatorAt(subIterator.terminators.length - 1);
     },
 
-    insertInstanceAt: function(index, instanceNodes) {
+    insertInstanceAt: function(index, fragment, instanceNodes) {
       var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator =
-        instanceNodes[instanceNodes.length - 1] || previousTerminator;
+      var terminator = fragment ? fragment.lastChild || previousTerminator :
+          instanceNodes[instanceNodes.length - 1] || previousTerminator;
+
       this.terminators.splice(index, 0, terminator);
       var parent = this.templateElement_.parentNode;
       var insertBeforeNode = previousTerminator.nextSibling;
+
+      if (fragment) {
+        parent.insertBefore(fragment, insertBeforeNode);
+        return;
+      }
+
       for (var i = 0; i < instanceNodes.length; i++)
         parent.insertBefore(instanceNodes[i], insertBeforeNode);
     },
@@ -1334,19 +1341,8 @@
         return model;
     },
 
-    getInstanceNodes: function(model, delegate, instanceCache) {
-      var instanceNodes = instanceCache.get(model);
-      if (instanceNodes) {
-        instanceCache.delete(model);
-        return instanceNodes;
-      }
-
-      instanceNodes = [];
-      var fragment = this.templateElement_.createInstance(model, delegate);
-      while (fragment.firstChild)
-        instanceNodes.push(fragment.removeChild(fragment.firstChild));
-
-      return instanceNodes;
+    getInstanceFragment: function(model, delegate) {
+      return this.templateElement_.createInstance(model, delegate);
     },
 
     handleSplices: function(splices) {
@@ -1374,12 +1370,17 @@
       splices.forEach(function(splice) {
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
-          var model = this.getInstanceModel(template,
-                                            this.iteratedValue[addIndex],
-                                            delegate);
-          var instanceNodes = this.getInstanceNodes(model, delegate,
-                                                    instanceCache);
-          this.insertInstanceAt(addIndex, instanceNodes);
+          var model = this.iteratedValue[addIndex];
+          var fragment = undefined;
+          var instanceNodes = instanceCache.get(model);
+          if (instanceNodes) {
+            instanceCache.delete(model);
+          } else {
+            var actualModel = this.getInstanceModel(template, model, delegate);
+            fragment = this.getInstanceFragment(actualModel, delegate);
+          }
+
+          this.insertInstanceAt(addIndex, fragment, instanceNodes);
         }
       }, this);
 
