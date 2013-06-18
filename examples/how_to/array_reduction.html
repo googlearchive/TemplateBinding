@@ -12,7 +12,7 @@
 </form>
 
 <script>
-window.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
   var model = {
     items: [
       { name: 'One', amount: 1, selected: false },
@@ -21,7 +21,8 @@ window.addEventListener('DOMContentLoaded', function() {
     ]
   };
 
-  // reduction1 must be close()'d if Object.observe is not implemented otherwise => memory leak.
+  // reduction1 must be close()'d if Object.observe is not implemented otherwise
+  // => memory leak.
   var reduction1 = ArrayReduction.defineProperty(model, 'noneSelected', {
     array: model.items,
     path: 'selected',
@@ -31,7 +32,8 @@ window.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // reduction2 must be close()'d if Object.observe is not implemented otherwise => memory leak.
+  // reduction2 must be close()'d if Object.observe is not implemented otherwise
+  // => memory leak.
   var reduction2 = ArrayReduction.defineProperty(model, 'sum', {
     array: model.items,
     path: 'amount',
