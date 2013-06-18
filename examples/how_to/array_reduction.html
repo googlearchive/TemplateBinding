@@ -12,32 +12,38 @@
 </form>
 
 <script>
-var model = {
-  items: [
-    { name: 'One', amount: 1, selected: false },
-    { name: 'Two', amount: 2, selected: false },
-    { name: 'Three', amount: 3, selected: false }
-  ]
-};
+window.addEventListener('DOMContentLoaded', function() {
+  var model = {
+    items: [
+      { name: 'One', amount: 1, selected: false },
+      { name: 'Two', amount: 2, selected: false },
+      { name: 'Three', amount: 3, selected: false }
+    ]
+  };
 
-// reduction1 must be close()'d if Object.observe is not implemented otherwise => memory leak.
-var reduction1 = ArrayReduction.defineProperty(model, 'noneSelected', {
-  array: model.items,
-  path: 'selected',
-  initial: true,
-  reduce: function(prev, current) {
-    return prev && !current;
-  }
+  // reduction1 must be close()'d if Object.observe is not implemented otherwise => memory leak.
+  var reduction1 = ArrayReduction.defineProperty(model, 'noneSelected', {
+    array: model.items,
+    path: 'selected',
+    initial: true,
+    reduce: function(prev, current) {
+      return prev && !current;
+    }
+  });
+
+  // reduction2 must be close()'d if Object.observe is not implemented otherwise => memory leak.
+  var reduction2 = ArrayReduction.defineProperty(model, 'sum', {
+    array: model.items,
+    path: 'amount',
+    reduce: function(prev, current) {
+      return Number(prev) + Number(current);
+    }
+  });
+
+  document.getElementById('reduction').model = model;
+
+  // Needed to detect model changes if Object.observe
+  // is not available in the JS VM.
+  Platform.performMicrotaskCheckpoint();
 });
-
-// reduction2 must be close()'d if Object.observe is not implemented otherwise => memory leak.
-var reduction2 = ArrayReduction.defineProperty(model, 'sum', {
-  array: model.items,
-  path: 'amount',
-  reduce: function(prev, current) {
-    return Number(prev) + Number(current);
-  }
-});
-
-document.getElementById('reduction').model = model;
 </script>

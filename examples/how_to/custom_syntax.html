@@ -9,25 +9,33 @@
 </ul>
 
 <script>
-HTMLTemplateElement.syntax['MyCustom'] = {
-  getBinding: function(model, path, name, node) {
-    var twoXPattern = /2x:(.*)/
-    var match = path.match(twoXPattern);
-    if (match == null)
-      return;
+window.addEventListener('DOMContentLoaded', function() {
 
-    path = match[1].trim();
-    var binding = new CompoundBinding(function(values) {
-      return values['value'] * 2;
-    });
+  var delegate = {
+    getBinding: function(model, path, name, node) {
+      var twoXPattern = /2x:(.*)/
+      var match = path.match(twoXPattern);
+      if (match == null)
+        return;
 
-    binding.bind('value', model, path);
-    return binding;
-  }
-};
+      path = match[1].trim();
+      var binding = new CompoundBinding(function(values) {
+        return values['value'] * 2;
+      });
 
-var t = document.getElementById('example');
-t.model = {
-  value: 4
-};
+      binding.bind('value', model, path);
+      return binding;
+    }
+  };
+
+  var t = document.getElementById('example');
+  t.bindingDelegate = delegate;
+  t.model = {
+    value: 4
+  };
+
+  // Needed to detect model changes if Object.observe
+  // is not available in the JS VM.
+  Platform.performMicrotaskCheckpoint();
+});
 </script>

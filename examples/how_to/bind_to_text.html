@@ -11,21 +11,26 @@
 <button id="rotateText">Rotate</button>
 
 <script>
-var t = document.getElementById('text');
-t.model = {
-  text: [
-    { value: 'Fee' },
-    { value: 'Fi' },
-    { value: 'Fo' },
-    { value: 'Fum' }
-  ]
-};
+window.addEventListener('DOMContentLoaded', function() {
+  var t = document.getElementById('text');
+  t.model = {
+    text: [
+      { value: 'Fee' },
+      { value: 'Fi' },
+      { value: 'Fo' },
+      { value: 'Fum' }
+    ]
+  };
 
-var b = document.getElementById('rotateText');
-b.addEventListener('click', function() {
-  t.model.text.push(t.model.text.shift());
-
-  // Needed to support browsers that don't support Object.observe.
+  // Needed to detect model changes if Object.observe
+  // is not available in the JS VM.
   Platform.performMicrotaskCheckpoint();
+
+  var b = document.getElementById('rotateText');
+  b.addEventListener('click', function() {
+    t.model.text.push(t.model.text.shift());
+
+    Platform.performMicrotaskCheckpoint();
+  });
 });
 </script>
