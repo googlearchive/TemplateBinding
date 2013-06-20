@@ -87,7 +87,7 @@ module.exports = function(grunt) {
     }
   });
 
-  grunt.loadNpmTasks('grunt-karma-0.9.1');
+  grunt.loadNpmTasks('grunt-karma');
 
   grunt.registerTask('default', 'wrap');
   grunt.registerTask('test', ['karma:mdv']);
