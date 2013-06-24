@@ -137,6 +137,7 @@ MDV is designed to as two primitives which could eventually become standardized 
 MDV is mainly concerned with being robust and efficient in interacting with application data and keeping the DOM in sync , but more advanced behaviors can be accomplished via one or both of the following:
 
 * [A Custom Syntax API](https://github.com/Polymer/mdv/blob/master/docs/syntax_api.md)
+* [Expression Syntax](https://github.com/Polymer/mdv/blob/master/docs/expression_syntax.md)
 
 ### Advanced Topics
 
