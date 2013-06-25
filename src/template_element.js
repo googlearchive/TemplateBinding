@@ -1360,7 +1360,7 @@
       splices.forEach(function(splice) {
         splice.removed.forEach(function(model) {
           var instanceNodes =
-              this.extractInstanceAt(splice.index + removeDelta, instanceNodes);
+              this.extractInstanceAt(splice.index + removeDelta);
           instanceCache.set(model, instanceNodes);
         }, this);
 
