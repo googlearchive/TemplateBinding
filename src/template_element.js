@@ -1275,7 +1275,6 @@
 
       if (!this.inputs.size) {
         // End iteration
-        templateIteratorTable.delete(this);
         this.abandon();
       }
     },
@@ -1349,7 +1348,6 @@
       var template = this.templateElement_;
       if (!template.parentNode || !template.ownerDocument.defaultView) {
         this.abandon();
-        templateIteratorTable.delete(this);
         return;
       }
 
