@@ -968,15 +968,18 @@
     }
   });
 
-  var TEXT = 0;
-  var BINDING = 1;
-
-  function Token(type, value) {
-    this.type = type;
-    this.value = value;
+  function isSimpleBinding(tokens) {
+    // tokens ==? ['', path, '']
+    return tokens.length == 3 && tokens[0].length == 0 && tokens[2].length == 0;
   }
 
+  // Returns
+  //   a) undefined if there are no mustaches.
+  //   b) [TEXT, (PATH, TEXT)+] if there is at least one mustache.
   function parseMustacheTokens(s) {
+    if (!s || s.length === 0)
+      return;
+
     var tokens = undefined;
     var length = s.length;
     var startIndex = 0, lastIndex = 0, endIndex = 0;
@@ -985,21 +988,21 @@
       endIndex = startIndex < 0 ? -1 : s.indexOf('}}', startIndex + 2);
 
       if (endIndex < 0) {
-        if (tokens)
-          tokens.push(new Token(TEXT, s.slice(lastIndex)));
+        if (!tokens)
+          return;
+
+        tokens.push(s.slice(lastIndex)); // TEXT
         break;
       }
 
-      // There is a non-empty text run before the next path token.
-      if (startIndex - lastIndex > 0) {
-        tokens = tokens || [];
-        tokens.push(new Token(TEXT, s.slice(lastIndex, startIndex)));
-      }
-
       tokens = tokens || [];
-      tokens.push(new Token(BINDING, s.slice(startIndex + 2, endIndex).trim()));
+      tokens.push(s.slice(lastIndex, startIndex)); // TEXT
+      tokens.push(s.slice(startIndex + 2, endIndex).trim()); // PATH
       lastIndex = endIndex + 2;
     }
+
+    if (lastIndex === length)
+      tokens.push(''); // TEXT
 
     return tokens;
   }
@@ -1023,25 +1026,22 @@
     if (!tokens)
       return;
 
-    if (tokens.length == 1) {
-      bindOrDelegate(node, name, model, tokens[0].value, delegate);
+    if (isSimpleBinding(tokens)) {
+      bindOrDelegate(node, name, model, tokens[1], delegate);
       return;
     }
 
     var replacementBinding = new CompoundBinding();
-    for (var i = 0; i < tokens.length; i++) {
-      var token = tokens[i];
-      if (token.type == BINDING)
-        bindOrDelegate(replacementBinding, i, model, token.value, delegate);
+    for (var i = 1; i < tokens.length; i = i + 2) {
+      bindOrDelegate(replacementBinding, i, model, tokens[i], delegate);
     }
 
     replacementBinding.combinator = function(values) {
       var newValue = '';
 
-      for (var i = 0; i < tokens.length; i++) {
-        var token = tokens[i];
-        if (token.type === TEXT) {
-          newValue += token.value;
+      for (var i = 0, text = true; i < tokens.length; i++, text = !text) {
+        if (text) {
+          newValue += tokens[i];
         } else {
           var value = values[i];
           if (value !== undefined)
