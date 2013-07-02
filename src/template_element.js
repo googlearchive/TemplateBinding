@@ -1021,11 +1021,12 @@
     node.bind(name, model, path);
   }
 
-  function parseAndBind(node, name, text, model, delegate) {
-    var tokens = parseMustacheTokens(text);
-    if (!tokens)
-      return;
+  function processBindings(bindings, node, model, delegate) {
+    for (var i = 0; i < bindings.length; i = i + 2)
+      setupBinding(node, bindings[i], bindings[i + 1], model, delegate);
+  }
 
+  function setupBinding(node, name, tokens, model, delegate) {
     if (isSimpleBinding(tokens)) {
       bindOrDelegate(node, name, model, tokens[1], delegate);
       return;
@@ -1055,43 +1056,59 @@
     node.bind(name, replacementBinding, 'value');
   }
 
-  function addAttributeBindings(element, model, delegate) {
+  function parseAttributeBindings(element) {
     assert(element);
 
-    var attrs = {};
+    var bindings = undefined;
+    var isTemplateNode = isTemplate(element);
+    var ifFound = false;
+    var bindFound = false;
+
     for (var i = 0; i < element.attributes.length; i++) {
       var attr = element.attributes[i];
-      attrs[attr.name] = attr.value;
-    }
+      var name = attr.name;
+      var value = attr.value;
 
-    if (isTemplate(element)) {
-      // Accept 'naked' bind & repeat.
-      if (attrs[BIND] === '')
-        attrs[BIND] = '{{}}';
-      if (attrs[REPEAT] === '')
-        attrs[REPEAT] = '{{}}';
-
-      // Treat <template if> as <template bind if>
-      if (attrs[IF] !== undefined &&
-          attrs[BIND] === undefined &&
-          attrs[REPEAT] === undefined) {
-        attrs[BIND] = '{{}}';
+      if (isTemplateNode) {
+        if (name === IF) {
+          ifFound = true;
+        } else if (name === BIND || name === REPEAT) {
+          bindFound = true;
+          value = value || '{{}}';  // Accept 'naked' bind & repeat.
+        }
       }
+
+      var tokens = parseMustacheTokens(value);
+      if (!tokens)
+        continue;
+
+      bindings = bindings || [];
+      bindings.push(name, tokens);
     }
 
-    Object.keys(attrs).forEach(function(attrName) {
-      parseAndBind(element, attrName, attrs[attrName], model, delegate);
-    });
+    // Treat <template if> as <template bind if>
+    if (ifFound && !bindFound) {
+      bindings = bindings || [];
+      bindings.push(BIND, parseMustacheTokens('{{}}'));
+    }
+
+    return bindings;
   }
 
   function addBindings(node, model, delegate) {
     assert(node);
 
+    var bindings = undefined;
     if (node.nodeType === Node.ELEMENT_NODE) {
-      addAttributeBindings(node, model, delegate);
+      bindings = parseAttributeBindings(node, model, delegate);
     } else if (node.nodeType === Node.TEXT_NODE) {
-      parseAndBind(node, 'textContent', node.data, model, delegate);
+      var tokens = parseMustacheTokens(node.data);
+      if (tokens)
+        bindings = ['textContent', tokens];
     }
+
+    if (bindings)
+      processBindings(bindings, node, model, delegate);
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
       addBindings(child, model, delegate);
@@ -1411,5 +1428,14 @@
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
   HTMLTemplateElement.bindAllMustachesFrom_ = addBindings;
+
+  function parseAndBind(node, name, text, model, delegate) {
+    var tokens = parseMustacheTokens(text);
+    if (!tokens)
+      return;
+
+    processBindings([name, tokens], node, model, delegate);
+  }
+
   HTMLTemplateElement.parseAndBind_ = parseAndBind;
 })(this);
