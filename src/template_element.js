@@ -977,37 +977,31 @@
   }
 
   function parseMustacheTokens(s) {
-    var result = [];
+    var tokens = undefined;
     var length = s.length;
-    var index = 0, lastIndex = 0;
+    var startIndex = 0, lastIndex = 0, endIndex = 0;
     while (lastIndex < length) {
-      index = s.indexOf('{{', lastIndex);
-      if (index < 0) {
-        result.push(new Token(TEXT, s.slice(lastIndex)));
-        break;
-      } else {
-        // There is a non-empty text run before the next path token.
-        if (index > 0 && lastIndex < index) {
-          result.push(new Token(TEXT, s.slice(lastIndex, index)));
-        }
-        lastIndex = index + 2;
-        index = s.indexOf('}}', lastIndex);
-        if (index < 0) {
-          var text = s.slice(lastIndex - 2);
-          var lastToken = result[result.length - 1];
-          if (lastToken && lastToken.type == TEXT)
-            lastToken.value += text;
-          else
-            result.push(new Token(TEXT, text));
-          break;
-        }
+      startIndex = s.indexOf('{{', lastIndex);
+      endIndex = startIndex < 0 ? -1 : s.indexOf('}}', startIndex + 2);
 
-        var value = s.slice(lastIndex, index).trim();
-        result.push(new Token(BINDING, value));
-        lastIndex = index + 2;
+      if (endIndex < 0) {
+        if (tokens)
+          tokens.push(new Token(TEXT, s.slice(lastIndex)));
+        break;
       }
+
+      // There is a non-empty text run before the next path token.
+      if (startIndex - lastIndex > 0) {
+        tokens = tokens || [];
+        tokens.push(new Token(TEXT, s.slice(lastIndex, startIndex)));
+      }
+
+      tokens = tokens || [];
+      tokens.push(new Token(BINDING, s.slice(startIndex + 2, endIndex).trim()));
+      lastIndex = endIndex + 2;
     }
-    return result;
+
+    return tokens;
   }
 
   function bindOrDelegate(node, name, model, path, delegate) {
@@ -1026,10 +1020,10 @@
 
   function parseAndBind(node, name, text, model, delegate) {
     var tokens = parseMustacheTokens(text);
-    if (!tokens.length || (tokens.length == 1 && tokens[0].type == TEXT))
+    if (!tokens)
       return;
 
-    if (tokens.length == 1 && tokens[0].type == BINDING) {
+    if (tokens.length == 1) {
       bindOrDelegate(node, name, model, tokens[0].value, delegate);
       return;
     }
