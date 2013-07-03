@@ -143,20 +143,40 @@
 
   var textContentBindingTable = new SideTable();
 
-  function Binding(model, path, changed) {
+  function NodeBinding(node, property, model, path) {
+    this.closed = false;
+    this.node = node;
+    this.property = property;
     this.model = model;
     this.path = path;
-    this.observer = new PathObserver(this.model, this.path, changed);
-    changed(this.observer.value);
+    this.observer = new PathObserver(this.model, this.path,
+                                     this.modelValueToNode.bind(this));
   }
 
-  Binding.prototype = {
-    close: function() {
-      this.observer.close();
+  NodeBinding.prototype = {
+    modelValueToNode: function(value) {
+      this.node[this.property] = this.filterModelValue(value);
     },
 
-    set value(newValue) {
-      PathObserver.setValueAtPath(this.model, this.path, newValue);
+    filterModelValue: function(value) {
+      return value == undefined ? '' : String(value);
+    },
+
+    close: function() {
+      if (this.closed)
+        return;
+      this.observer.close();
+      this.observer = undefined;
+      this.node = undefined;
+      this.model = undefined;
+    },
+
+    get value() {
+      return this.observer.value;
+    },
+
+    set value(value) {
+      PathObserver.setValueAtPath(this.model, this.path, value);
     },
 
     reset: function() {
@@ -164,19 +184,14 @@
     }
   };
 
-  function boundSetTextContent(textNode) {
-    return function(value) {
-      textNode.data = value == undefined ? '' : String(value);
-    };
-  }
-
   function bindText(name, model, path) {
     if (name !== 'textContent')
       return Node.prototype.bind.call(this, name, model, path);
 
     this.unbind('textContent');
-    var binding = new Binding(model, path, boundSetTextContent(this));
+    var binding = new NodeBinding(this, 'data', model, path);
     textContentBindingTable.set(this, binding);
+    binding.modelValueToNode(binding.value);
   }
 
   function unbindText(name) {
@@ -202,21 +217,26 @@
 
   var attributeBindingsTable = new SideTable();
 
-  function boundSetAttribute(element, attributeName, conditional) {
-    if (conditional) {
-      return function(value) {
-        if (!value)
-          element.removeAttribute(attributeName);
-        else
-          element.setAttribute(attributeName, '');
-      };
-    }
-
-    return function(value) {
-      element.setAttribute(attributeName,
-                           String(value === undefined ? '' : value));
-    };
+  function AttributeBinding(element, attributeName, model, path, conditional) {
+    NodeBinding.call(this, element, attributeName, model, path);
+    this.conditional = conditional;
   }
+
+  AttributeBinding.prototype = createObject({
+    __proto__: NodeBinding.prototype,
+
+    modelValueToNode: function(value) {
+      if (this.conditional) {
+        if (value)
+          this.node.setAttribute(this.property, '');
+        else
+          this.node.removeAttribute(this.property);
+        return;
+      }
+
+      this.node.setAttribute(this.property, this.filterModelValue(value));
+    }
+  });
 
   function ElementAttributeBindings() {
     this.bindingMap = Object.create(null);
@@ -224,17 +244,17 @@
 
   ElementAttributeBindings.prototype = {
     add: function(element, attributeName, model, path) {
+      // TODO(rafaelw): Consider removing this.
       element.removeAttribute(attributeName);
       var conditional = attributeName[attributeName.length - 1] == '?';
       if (conditional)
         attributeName = attributeName.slice(0, -1);
 
       this.remove(attributeName);
-
-      var binding = new Binding(model, path,
-          boundSetAttribute(element, attributeName, conditional));
-
+      var binding = new AttributeBinding(element, attributeName, model, path,
+                                         conditional);
       this.bindingMap[attributeName] = binding;
+      binding.modelValueToNode(binding.value);
     },
 
     remove: function(attributeName) {
@@ -327,47 +347,31 @@
     }
   }
 
-  function InputBinding(element, valueProperty, model, path) {
-    this.element = element;
-    this.valueProperty = valueProperty;
-    this.boundValueChanged = this.valueChanged.bind(this);
-    this.boundUpdateBinding = this.updateBinding.bind(this);
-
-    this.binding = new Binding(model, path, this.boundValueChanged);
-    this.element.addEventListener(getEventForInputType(this.element),
-                                  this.boundUpdateBinding, true);
+  function InputBinding(node, property, model, path) {
+    NodeBinding.call(this, node, property, model, path);
+    this.eventType = getEventForInputType(this.node);
+    this.boundNodeValueToModel = this.nodeValueToModel.bind(this);
+    this.node.addEventListener(this.eventType, this.boundNodeValueToModel,
+                               true);
   }
 
-  InputBinding.prototype = {
-    valueChanged: function(newValue) {
-      this.element[this.valueProperty] = this.produceElementValue(newValue);
-    },
+  InputBinding.prototype = createObject({
+    __proto__: NodeBinding.prototype,
 
-    updateBinding: function() {
-      this.binding.value = this.element[this.valueProperty];
-      this.binding.reset();
-      if (this.postUpdateBinding)
-        this.postUpdateBinding();
-
+    nodeValueToModel: function() {
+      this.value = this.node[this.property];
+      this.reset();
+      this.postUpdateBinding();
       Platform.performMicrotaskCheckpoint();
     },
 
-    unbind: function() {
-      this.binding.close();
-      this.element.removeEventListener(getEventForInputType(this.element),
-                                        this.boundUpdateBinding, true);
-    }
-  };
+    postUpdateBinding: function() {},
 
-  function ValueBinding(element, model, path) {
-    InputBinding.call(this, element, 'value', model, path);
-  }
-
-  ValueBinding.prototype = createObject({
-    __proto__: InputBinding.prototype,
-
-    produceElementValue: function(value) {
-      return String(value == null ? '' : value);
+    close: function() {
+      this.node.removeEventListener(this.eventType,
+                                    this.boundNodeValueToModel,
+                                    true);
+      NodeBinding.prototype.close.call(this);
     }
   });
 
@@ -406,7 +410,7 @@
   CheckedBinding.prototype = createObject({
     __proto__: InputBinding.prototype,
 
-    produceElementValue: function(value) {
+    filterModelValue: function(value) {
       return Boolean(value);
     },
 
@@ -414,13 +418,13 @@
       // Only the radio button that is getting checked gets an event. We
       // therefore find all the associated radio buttons and update their
       // CheckedBinding manually.
-      if (this.element.tagName === 'INPUT' &&
-          this.element.type === 'radio') {
-        getAssociatedRadioButtons(this.element).forEach(function(r) {
+      if (this.node.tagName === 'INPUT' &&
+          this.node.type === 'radio') {
+        getAssociatedRadioButtons(this.node).forEach(function(r) {
           var checkedBinding = checkedBindingTable.get(r);
           if (checkedBinding) {
             // Set the value directly to avoid an infinite call stack.
-            checkedBinding.binding.value = false;
+            checkedBinding.value = false;
           }
         });
       }
@@ -433,19 +437,27 @@
       case 'TEXTAREA.value':
         this.unbind('value');
         this.removeAttribute('value');
-        valueBindingTable.set(this, new ValueBinding(this, model, path));
+        var binding = new InputBinding(this, 'value', model, path);
+        valueBindingTable.set(this, binding);
+        binding.modelValueToNode(binding.value);
         break;
+
       case 'INPUT.checked':
         this.unbind('checked');
         this.removeAttribute('checked');
-        checkedBindingTable.set(this, new CheckedBinding(this, model, path));
+        var binding = new CheckedBinding(this, model, path);
+        checkedBindingTable.set(this, binding);
+        binding.modelValueToNode(binding.value);
         break;
+
       case 'SELECT.selectedindex':
         this.unbind('selectedindex');
         this.removeAttribute('selectedindex');
-        valueBindingTable.set(this,
-                              new SelectedIndexBinding(this, model, path));
+        var binding = new SelectedIndexBinding(this, model, path);
+        valueBindingTable.set(this, binding);
+        binding.modelValueToNode(binding.value);
         break;
+
       default:
         return Element.prototype.bind.call(this, name, model, path);
         break;
@@ -458,21 +470,21 @@
       case 'TEXTAREA.value':
         var valueBinding = valueBindingTable.get(this);
         if (valueBinding) {
-          valueBinding.unbind();
+          valueBinding.close();
           valueBindingTable.delete(this);
         }
         break;
       case 'INPUT.checked':
         var checkedBinding = checkedBindingTable.get(this);
         if (checkedBinding) {
-          checkedBinding.unbind();
+          checkedBinding.close();
           checkedBindingTable.delete(this)
         }
         break;
       case 'SELECT.selectedindex':
         var valueBinding = valueBindingTable.get(this);
         if (valueBinding) {
-          valueBinding.unbind();
+          valueBinding.close();
           valueBindingTable.delete(this);
         }
         break;
@@ -509,10 +521,10 @@
   SelectedIndexBinding.prototype = createObject({
     __proto__: InputBinding.prototype,
 
-    valueChanged: function(newValue) {
-      var newValue = this.produceElementValue(newValue);
-      if (newValue <= this.element.length) {
-        this.element[this.valueProperty] = newValue;
+    modelValueToNode: function(value) {
+      var newValue = Number(value);
+      if (newValue <= this.node.length) {
+        this.node[this.property] = newValue;
         return;
       }
 
@@ -522,16 +534,12 @@
       var maxRetries = 2;
       var self = this;
       function delaySetSelectedIndex() {
-        if (newValue > self.element.length && maxRetries--)
+        if (newValue > self.node.length && maxRetries--)
           ensureScheduled(delaySetSelectedIndex);
         else
-          self.element[self.valueProperty] = newValue;
+          self.node[self.property] = newValue;
       }
       ensureScheduled(delaySetSelectedIndex);
-    },
-
-    produceElementValue: function(value) {
-      return Number(value);
     }
   });
 

@@ -113,7 +113,7 @@ suite('Element attribute bindings', function() {
 
     model.a = null;
     Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('null', el.getAttribute('foo'));
+    assert.strictEqual('', el.getAttribute('foo'));
 
     model.a = undefined;
     Platform.performMicrotaskCheckpoint();
