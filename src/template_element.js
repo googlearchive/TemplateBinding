@@ -244,11 +244,11 @@
 
   ElementAttributeBindings.prototype = {
     add: function(element, attributeName, model, path) {
-      // TODO(rafaelw): Consider removing this.
-      element.removeAttribute(attributeName);
       var conditional = attributeName[attributeName.length - 1] == '?';
-      if (conditional)
+      if (conditional) {
+        element.removeAttribute(attributeName);
         attributeName = attributeName.slice(0, -1);
+      }
 
       this.remove(attributeName);
       var binding = new AttributeBinding(element, attributeName, model, path,
