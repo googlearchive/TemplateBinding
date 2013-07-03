@@ -146,16 +146,12 @@
   function Binding(model, path, changed) {
     this.model = model;
     this.path = path;
-    this.changed = changed;
-    this.observer = new PathObserver(this.model, this.path, this.changed);
-    this.changed(this.observer.value);
+    this.observer = new PathObserver(this.model, this.path, changed);
+    changed(this.observer.value);
   }
 
   Binding.prototype = {
-    dispose: function() {
-      if (this.model && typeof this.model.dispose == 'function')
-        this.model.dispose();
-
+    close: function() {
       this.observer.close();
     },
 
@@ -191,7 +187,7 @@
     if (!binding)
       return;
 
-    binding.dispose();
+    binding.close();
     textContentBindingTable.delete(this);
   }
 
@@ -246,7 +242,7 @@
       if (!binding)
         return;
 
-      binding.dispose();
+      binding.close();
       delete this.bindingMap[attributeName];
     },
 
@@ -357,7 +353,7 @@
     },
 
     unbind: function() {
-      this.binding.dispose();
+      this.binding.close();
       this.element.removeEventListener(getEventForInputType(this.element),
                                         this.boundUpdateBinding, true);
     }
@@ -1178,13 +1174,13 @@
   });
 
   function CompoundBinding(combinator) {
-    this.bindings = {};
+    this.observers = {};
     this.values = {};
     this.value = undefined;
     this.size = 0;
     this.combinator_ = combinator;
     this.boundResolve = this.resolve.bind(this);
-    this.disposed = false;
+    this.closed = false;
   }
 
   CompoundBinding.prototype = {
@@ -1197,19 +1193,23 @@
       this.unbind(name);
 
       this.size++;
-      this.bindings[name] = new Binding(model, path, function(value) {
+      var changed = function(value) {
         this.values[name] = value;
         this.scheduleResolve();
-      }.bind(this));
+      }.bind(this);
+
+      var observer = new PathObserver(model, path, changed);
+      this.observers[name] = observer;
+      changed(observer.value);
     },
 
     unbind: function(name, suppressResolve) {
-      if (!this.bindings[name])
+      if (!this.observers[name])
         return;
 
       this.size--;
-      this.bindings[name].dispose();
-      delete this.bindings[name];
+      this.observers[name].close();
+      delete this.observers[name];
       delete this.values[name];
       if (!suppressResolve)
         this.scheduleResolve();
@@ -1223,7 +1223,7 @@
     },
 
     resolve: function() {
-      if (this.disposed)
+      if (this.closed)
         return;
 
       if (!this.combinator_) {
@@ -1234,12 +1234,16 @@
       this.value = this.combinator_(this.values);
     },
 
-    dispose: function() {
-      Object.keys(this.bindings).forEach(function(name) {
+    unobserved: function() {
+      this.close();
+    },
+
+    close: function() {
+      Object.keys(this.observers).forEach(function(name) {
         this.unbind(name, true);
       }, this);
 
-      this.disposed = true;
+      this.closed = true;
       this.value = undefined;
     }
   };
@@ -1417,7 +1421,7 @@
         writable: true,
         value: undefined
       });
-      this.inputs.dispose();
+      this.inputs.close();
     }
   };
 
