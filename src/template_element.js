@@ -179,7 +179,7 @@
     this.model = model;
     this.path = path;
     this.observer = new PathObserver(this.model, this.path,
-                                     this.modelValueToNode.bind(this));
+                                     this.modelValueToNode, this);
   }
 
   NodeBinding.prototype = {
@@ -1145,7 +1145,6 @@
     this.terminators = [];
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
-    this.boundHandleSplices = this.handleSplices.bind(this);
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
   }
 
@@ -1171,7 +1170,7 @@
 
       if (this.iteratedValue) {
         this.arrayObserver =
-            new ArrayObserver(this.iteratedValue, this.boundHandleSplices);
+            new ArrayObserver(this.iteratedValue, this.handleSplices, this);
       }
 
       var splices = ArrayObserver.calculateSplices(this.iteratedValue || [],
