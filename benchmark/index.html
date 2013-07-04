@@ -38,26 +38,21 @@ limitations under the License.
 <h1>MDV Benchmarks</h1>
 
 Width: <select id="widthSelect">
-  <option>1
   <option selected>2
   <option>3
-  <option>4
 </select>
 
 Depth: <select id="depthSelect">
   <option>2
-  <option>3
-  <option>4
-  <option selected>5
-  <option>6
+  <option selected>4
+  <option>8
 </select>
 
 Decoration: <select id="decorationSelect">
   <option>0
-  <option>1
-  <option selected>2
-  <option>3
   <option>4
+  <option selected>8
+  <option>16
 </select>
 
 Instance Count: <select id="instanceCountSelect">
@@ -67,8 +62,8 @@ Instance Count: <select id="instanceCountSelect">
   <option>15
 </select>
 <br>
-<span>Binding Density: </span>
-<input id="bindingDensityInput" style="width: 200px" value="0, 20, 40, 60, 80, 100"><br>
+<span>Binding Density (%): </span>
+<input id="bindingDensityInput" style="width: 200px" value="0, 1, 2, 4, 8, 16, 32, 64, 100"><br>
 
 MDV: <input id="mdvCheckbox" type="checkbox" checked>
 Handlebars: <input id="handlebarsCheckbox" type="checkbox" checked>
