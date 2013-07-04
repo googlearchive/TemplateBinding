@@ -130,18 +130,47 @@
     return node.ownerDocument.contains(node);
   }
 
-  function bindNode(name, model, path) {
-    console.error('Unhandled binding to Node: ', this, name, model, path);
-  }
+  Node.prototype.bind = function(name, model, path) {
+    this.bindings = this.bindings || {};
+    var binding = this.bindings[name];
+    if (binding)
+      binding.close();
 
-  function unbindNode(name) {}
-  function unbindAllNode() {}
+    binding = this.createBinding(name, model, path);
+    this.bindings[name] = binding;
+    if (!binding) {
+      console.error('Unhandled binding to Node: ', this, name, model, path);
+      return;
+    }
 
-  Node.prototype.bind = bindNode;
-  Node.prototype.unbind = unbindNode;
-  Node.prototype.unbindAll = unbindAllNode;
+    binding.modelValueToNode(binding.value);
+    return binding;
+  };
 
-  var textContentBindingTable = new SideTable();
+  Node.prototype.createBinding = function() {};
+
+  Node.prototype.unbind = function(name) {
+    if (!this.bindings)
+      return;
+    var binding = this.bindings[name];
+    if (!binding)
+      return;
+    binding.close();
+    delete this.bindings[name];
+  };
+
+  Node.prototype.unbindAll = function() {
+    if (!this.bindings)
+      return;
+    var names = Object.keys(this.bindings);
+    for (var i = 0; i < names.length; i++) {
+      var binding = this.bindings[names[i]];
+      if (binding)
+        binding.close();
+    }
+
+    this.bindings = {};
+  };
 
   function NodeBinding(node, property, model, path) {
     this.closed = false;
@@ -169,6 +198,7 @@
       this.observer = undefined;
       this.node = undefined;
       this.model = undefined;
+      this.closed = true;
     },
 
     get value() {
@@ -184,40 +214,20 @@
     }
   };
 
-  function bindText(name, model, path) {
-    if (name !== 'textContent')
-      return Node.prototype.bind.call(this, name, model, path);
+  Text.prototype.createBinding = function(name, model, path) {
+    if (name === 'textContent')
+      return new NodeBinding(this, 'data', model, path);
 
-    this.unbind('textContent');
-    var binding = new NodeBinding(this, 'data', model, path);
-    textContentBindingTable.set(this, binding);
-    binding.modelValueToNode(binding.value);
+    return Node.prototype.createBinding.call(this, name, model, path);
   }
 
-  function unbindText(name) {
-    if (name != 'textContent')
-      return Node.prototype.unbind.call(this, name);
+  function AttributeBinding(element, attributeName, model, path) {
+    var conditional = attributeName[attributeName.length - 1] == '?';
+    if (conditional) {
+      element.removeAttribute(attributeName);
+      attributeName = attributeName.slice(0, -1);
+    }
 
-    var binding = textContentBindingTable.get(this);
-    if (!binding)
-      return;
-
-    binding.close();
-    textContentBindingTable.delete(this);
-  }
-
-  function unbindAllText() {
-    this.unbind('textContent');
-    Node.prototype.unbindAll.call(this);
-  }
-
-  Text.prototype.bind = bindText;
-  Text.prototype.unbind = unbindText;
-  Text.prototype.unbindAll = unbindAllText;
-
-  var attributeBindingsTable = new SideTable();
-
-  function AttributeBinding(element, attributeName, model, path, conditional) {
     NodeBinding.call(this, element, attributeName, model, path);
     this.conditional = conditional;
   }
@@ -238,74 +248,9 @@
     }
   });
 
-  function ElementAttributeBindings() {
-    this.bindingMap = Object.create(null);
-  }
-
-  ElementAttributeBindings.prototype = {
-    add: function(element, attributeName, model, path) {
-      var conditional = attributeName[attributeName.length - 1] == '?';
-      if (conditional) {
-        element.removeAttribute(attributeName);
-        attributeName = attributeName.slice(0, -1);
-      }
-
-      this.remove(attributeName);
-      var binding = new AttributeBinding(element, attributeName, model, path,
-                                         conditional);
-      this.bindingMap[attributeName] = binding;
-      binding.modelValueToNode(binding.value);
-    },
-
-    remove: function(attributeName) {
-      var binding = this.bindingMap[attributeName];
-      if (!binding)
-        return;
-
-      binding.close();
-      delete this.bindingMap[attributeName];
-    },
-
-    removeAll: function() {
-      Object.keys(this.bindingMap).forEach(function(attributeName) {
-        this.remove(attributeName);
-      }, this);
-    }
+  Element.prototype.createBinding = function(name, model, path) {
+    return new AttributeBinding(this, name, model, path);
   };
-
-  function bindElement(name, model, path) {
-    var bindings = attributeBindingsTable.get(this);
-    if (!bindings) {
-      bindings = new ElementAttributeBindings();
-      attributeBindingsTable.set(this, bindings);
-    }
-
-    // ElementAttributeBindings takes care of removing old binding as needed.
-    bindings.add(this, name, model, path);
-  }
-
-  function unbindElement(name) {
-    var bindings = attributeBindingsTable.get(this);
-    if (bindings)
-      bindings.remove(name);
-  }
-
-  function unbindAllElement(name) {
-    var bindings = attributeBindingsTable.get(this);
-    if (!bindings)
-      return;
-    attributeBindingsTable.delete(this);
-    bindings.removeAll();
-    Node.prototype.unbindAll.call(this);
-  }
-
-
-  Element.prototype.bind = bindElement;
-  Element.prototype.unbind = unbindElement;
-  Element.prototype.unbindAll = unbindAllElement;
-
-  var valueBindingTable = new SideTable();
-  var checkedBindingTable = new SideTable();
 
   var checkboxEventType;
   (function() {
@@ -420,8 +365,8 @@
       // CheckedBinding manually.
       if (this.node.tagName === 'INPUT' &&
           this.node.type === 'radio') {
-        getAssociatedRadioButtons(this.node).forEach(function(r) {
-          var checkedBinding = checkedBindingTable.get(r);
+        getAssociatedRadioButtons(this.node).forEach(function(radio) {
+          var checkedBinding = radio.bindings.checked;
           if (checkedBinding) {
             // Set the value directly to avoid an infinite call stack.
             checkedBinding.value = false;
@@ -431,88 +376,30 @@
     }
   });
 
-  function bindInput(name, model, path) {
-    switch(this.tagName + '.' + name.toLowerCase()) {
-      case 'INPUT.value':
-      case 'TEXTAREA.value':
-        this.unbind('value');
-        this.removeAttribute('value');
-        var binding = new InputBinding(this, 'value', model, path);
-        valueBindingTable.set(this, binding);
-        binding.modelValueToNode(binding.value);
-        break;
-
-      case 'INPUT.checked':
-        this.unbind('checked');
-        this.removeAttribute('checked');
-        var binding = new CheckedBinding(this, model, path);
-        checkedBindingTable.set(this, binding);
-        binding.modelValueToNode(binding.value);
-        break;
-
-      case 'SELECT.selectedindex':
-        this.unbind('selectedindex');
-        this.removeAttribute('selectedindex');
-        var binding = new SelectedIndexBinding(this, model, path);
-        valueBindingTable.set(this, binding);
-        binding.modelValueToNode(binding.value);
-        break;
-
-      default:
-        return Element.prototype.bind.call(this, name, model, path);
-        break;
-    }
-  }
-
-  function unbindInput(name) {
-    switch(this.tagName + '.' + name.toLowerCase()) {
-      case 'INPUT.value':
-      case 'TEXTAREA.value':
-        var valueBinding = valueBindingTable.get(this);
-        if (valueBinding) {
-          valueBinding.close();
-          valueBindingTable.delete(this);
-        }
-        break;
-      case 'INPUT.checked':
-        var checkedBinding = checkedBindingTable.get(this);
-        if (checkedBinding) {
-          checkedBinding.close();
-          checkedBindingTable.delete(this)
-        }
-        break;
-      case 'SELECT.selectedindex':
-        var valueBinding = valueBindingTable.get(this);
-        if (valueBinding) {
-          valueBinding.close();
-          valueBindingTable.delete(this);
-        }
-        break;
-      default:
-        return Element.prototype.unbind.call(this, name);
-        break;
-    }
-  }
-
-  function unbindAllInput(name) {
-    switch (this.tagName) {
-      case 'INPUT':
-        this.unbind('checked');
-        // fallthrough
-      case 'TEXTAREA':
-        this.unbind('value');
-        break;
-      case 'SELECT':
-        this.unbind('selectedindex');
-        break;
+  HTMLInputElement.prototype.createBinding = function(name, model, path) {
+    if (name === 'value') {
+      // TODO(rafaelw): Maybe template should remove all binding instructions.
+      this.removeAttribute(name);
+      return new InputBinding(this, 'value', model, path)
     }
 
-    Element.prototype.unbindAll.call(this);
+    if (name === 'checked') {
+      this.removeAttribute(name);
+      return new CheckedBinding(this, model, path);
+    }
+
+    return HTMLElement.prototype.createBinding.call(this, name, model, path);
   }
 
-  HTMLInputElement.prototype.bind = bindInput;
-  HTMLInputElement.prototype.unbind = unbindInput;
-  HTMLInputElement.prototype.unbindAll = unbindAllInput;
+  HTMLTextAreaElement.prototype.createBinding = function(name, model, path) {
+    if (name === 'value') {
+      // TODO(rafaelw): Maybe template should remove all binding instructions.
+      this.removeAttribute(name);
+      return new InputBinding(this, name, model, path)
+    }
+
+    return HTMLElement.prototype.createBinding.call(this, name, model, path);
+  }
 
   function SelectedIndexBinding(element, model, path) {
     InputBinding.call(this, element, 'selectedIndex', model, path);
@@ -543,13 +430,15 @@
     }
   });
 
-  HTMLSelectElement.prototype.bind = bindInput;
-  HTMLSelectElement.prototype.unbind = unbindInput;
-  HTMLSelectElement.prototype.unbindAll = unbindAllInput;
+  HTMLSelectElement.prototype.createBinding = function(name, model, path) {
+    if (name.toLowerCase() === 'selectedindex') {
+      // TODO(rafaelw): Maybe template should remove all binding instructions.
+      this.removeAttribute(name);
+      return new SelectedIndexBinding(this, model, path);
+    }
 
-  HTMLTextAreaElement.prototype.bind = bindInput;
-  HTMLTextAreaElement.prototype.unbind = unbindInput;
-  HTMLTextAreaElement.prototype.unbindAll = unbindAllInput;
+    return HTMLElement.prototype.createBinding.call(this, name, model, path);
+  }
 
   var BIND = 'bind';
   var REPEAT = 'repeat';
@@ -875,50 +764,42 @@
     ensureScheduled(setModelFn);
   }
 
+  function TemplateBinding(node, property, model, path) {
+    this.closed = false;
+    this.node = node;
+    this.property = property;
+    this.model = model;
+    this.path = path;
+    this.node.inputs.bind(this.property, model, path || '');
+  }
+
+  TemplateBinding.prototype = createObject({
+    __proto__: NodeBinding.prototype,
+    get value() {},
+    modelValueToNode: function() {},
+    close: function() {
+      if (this.closed)
+        return;
+      this.node.inputs.unbind(this.property);
+      this.node = undefined;
+      this.model = undefined;
+      this.closed = true;
+    }
+  });
+
   mixin(HTMLTemplateElement.prototype, {
-    bind: function(name, model, path) {
-      switch (name) {
-        case BIND:
-        case REPEAT:
-        case IF:
-          var templateIterator = templateIteratorTable.get(this);
-          if (!templateIterator) {
-            templateIterator = new TemplateIterator(this);
-            templateIteratorTable.set(this, templateIterator);
-          }
+    createBinding: function(name, model, path) {
+      if (name === BIND || name === REPEAT || name === IF) {
+        var iterator = templateIteratorTable.get(this);
+        if (!iterator) {
+          iterator = new TemplateIterator(this);
+          templateIteratorTable.set(this, iterator);
+        }
 
-          templateIterator.inputs.bind(name, model, path || '');
-          break;
-        default:
-          return Element.prototype.bind.call(this, name, model, path);
-          break;
+        return new TemplateBinding(iterator, name, model, path || '');
       }
-    },
 
-    unbind: function(name, model, path) {
-      switch (name) {
-        case BIND:
-        case REPEAT:
-        case IF:
-          var templateIterator = templateIteratorTable.get(this);
-          if (!templateIterator)
-            break;
-
-          // the template iterator will remove its instances and
-          // abandon() itself if its inputs.size is 0.
-          templateIterator.inputs.unbind(name);
-          break;
-        default:
-          return Element.prototype.unbind.call(this, name, model, path);
-          break;
-      }
-    },
-
-    unbindAll: function() {
-      this.unbind(BIND);
-      this.unbind(REPEAT);
-      this.unbind(IF);
-      Element.prototype.unbindAll.call(this);
+      return Element.prototype.createBinding.call(this, name, model, path);
     },
 
     createInstance: function(model, delegate) {
@@ -1247,6 +1128,9 @@
     },
 
     close: function() {
+      if (this.closed)
+        return;
+
       Object.keys(this.observers).forEach(function(name) {
         this.unbind(name, true);
       }, this);
