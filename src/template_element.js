@@ -143,7 +143,6 @@
       return;
     }
 
-    binding.modelValueToNode(binding.value);
     return binding;
   };
 
@@ -180,6 +179,7 @@
     this.path = path;
     this.observer = new PathObserver(this.model, this.path,
                                      this.modelValueToNode, this);
+    this.modelValueToNode(this.value);
   }
 
   NodeBinding.prototype = {
@@ -222,14 +222,13 @@
   }
 
   function AttributeBinding(element, attributeName, model, path) {
-    var conditional = attributeName[attributeName.length - 1] == '?';
-    if (conditional) {
+    this.conditional = attributeName[attributeName.length - 1] == '?';
+    if (this.conditional) {
       element.removeAttribute(attributeName);
       attributeName = attributeName.slice(0, -1);
     }
 
     NodeBinding.call(this, element, attributeName, model, path);
-    this.conditional = conditional;
   }
 
   AttributeBinding.prototype = createObject({
