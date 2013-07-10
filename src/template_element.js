@@ -146,6 +146,9 @@
     return binding;
   };
 
+  // TODO(rafaelw): This isn't really the right design. If node.bind() is
+  // specified, there's no way to host objects to invoke a "virtual"
+  // createBinding on custom elements.
   Node.prototype.createBinding = function() {};
 
   Node.prototype.unbind = function(name) {
@@ -177,17 +180,17 @@
     this.property = property;
     this.model = model;
     this.path = path;
-    this.observer = new PathObserver(this.model, this.path,
-                                     this.modelValueToNode, this);
-    this.modelValueToNode(this.value);
+    this.observer = new PathObserver(model, path,
+                                     this.boundValueChanged, this);
+    this.boundValueChanged(this.value);
   }
 
   NodeBinding.prototype = {
-    modelValueToNode: function(value) {
-      this.node[this.property] = this.filterModelValue(value);
+    boundValueChanged: function(value) {
+      this.node[this.property] = this.sanitizeBoundValue(value);
     },
 
-    filterModelValue: function(value) {
+    sanitizeBoundValue: function(value) {
       return value == undefined ? '' : String(value);
     },
 
@@ -234,7 +237,7 @@
   AttributeBinding.prototype = createObject({
     __proto__: NodeBinding.prototype,
 
-    modelValueToNode: function(value) {
+    boundValueChanged: function(value) {
       if (this.conditional) {
         if (value)
           this.node.setAttribute(this.property, '');
@@ -243,7 +246,7 @@
         return;
       }
 
-      this.node.setAttribute(this.property, this.filterModelValue(value));
+      this.node.setAttribute(this.property, this.sanitizeBoundValue(value));
     }
   });
 
@@ -294,7 +297,7 @@
   function InputBinding(node, property, model, path) {
     NodeBinding.call(this, node, property, model, path);
     this.eventType = getEventForInputType(this.node);
-    this.boundNodeValueToModel = this.nodeValueToModel.bind(this);
+    this.boundNodeValueToModel = this.nodeValueChanged.bind(this);
     this.node.addEventListener(this.eventType, this.boundNodeValueToModel,
                                true);
   }
@@ -302,7 +305,7 @@
   InputBinding.prototype = createObject({
     __proto__: NodeBinding.prototype,
 
-    nodeValueToModel: function() {
+    nodeValueChanged: function() {
       this.value = this.node[this.property];
       this.reset();
       this.postUpdateBinding();
@@ -357,7 +360,7 @@
   CheckedBinding.prototype = createObject({
     __proto__: InputBinding.prototype,
 
-    filterModelValue: function(value) {
+    sanitizeBoundValue: function(value) {
       return Boolean(value);
     },
 
@@ -410,7 +413,7 @@
   SelectedIndexBinding.prototype = createObject({
     __proto__: InputBinding.prototype,
 
-    modelValueToNode: function(value) {
+    boundValueChanged: function(value) {
       var newValue = Number(value);
       if (newValue <= this.node.length) {
         this.node[this.property] = newValue;
@@ -789,7 +792,7 @@
   TemplateBinding.prototype = createObject({
     __proto__: NodeBinding.prototype,
     get value() {},
-    modelValueToNode: function() {},
+    boundValueChanged: function() {},
     close: function() {
       if (this.closed)
         return;
@@ -812,7 +815,7 @@
         return new TemplateBinding(iterator, name, model, path || '');
       }
 
-      return Element.prototype.createBinding.call(this, name, model, path);
+      return HTMLElement.prototype.createBinding.call(this, name, model, path);
     },
 
     createInstance: function(model, delegate, bound) {
@@ -883,10 +886,10 @@
   //   a) undefined if there are no mustaches.
   //   b) [TEXT, (PATH, TEXT)+] if there is at least one mustache.
   function parseMustacheTokens(s) {
-    if (!s || s.length === 0)
+    if (!s || !s.length)
       return;
 
-    var tokens = undefined;
+    var tokens;
     var length = s.length;
     var startIndex = 0, lastIndex = 0, endIndex = 0;
     while (lastIndex < length) {
@@ -928,7 +931,7 @@
   }
 
   function processBindings(bindings, node, model, delegate, bound) {
-    for (var i = 0; i < bindings.length; i = i + 2) {
+    for (var i = 0; i < bindings.length; i += 2) {
       var binding = setupBinding(node, bindings[i], bindings[i + 1], model,
                                  delegate);
       if (bound)
@@ -973,7 +976,7 @@
   function parseAttributeBindings(element) {
     assert(element);
 
-    var bindings = undefined;
+    var bindings;
     var isTemplateNode = isTemplate(element);
     var ifFound = false;
     var bindFound = false;
@@ -1020,6 +1023,18 @@
     }
   }
 
+  function TemplateCloser(node) {
+    this.node = node;
+  }
+
+  TemplateCloser.prototype = {
+    close: function() {
+      var iterator = templateIteratorTable.get(this.node);
+      if (iterator)
+        iterator.close();
+    }
+  }
+
   function addMapBindings(node, bindings, model, delegate, bound) {
     if (!bindings)
       return;
@@ -1030,25 +1045,19 @@
         templateBindingDelegateTable.set(node, delegate);
       }
       if (bound) {
-        bound.push({
-          close: function() {
-            var iterator = templateIteratorTable.get(node);
-            if (iterator)
-              iterator.close();
-          }
-        });
+        bound.push(new TemplateCloser(node));
       }
     }
 
-    if (bindings.length > 0)
+    if (bindings.length)
       processBindings(bindings, node, model, delegate, bound);
 
     if (!bindings.children)
       return;
 
-    var child = node.firstChild, i = 0;
-    for (; child; child = child.nextSibling, i++) {
-      addMapBindings(child, bindings.children[i], model, delegate, bound);
+    var i = 0;
+    for (var child = node.firstChild; child; child = child.nextSibling) {
+      addMapBindings(child, bindings.children[i++], model, delegate, bound);
     }
   }
 
@@ -1377,8 +1386,9 @@
       instanceCache.forEach(function(instanceNodes) {
         var bound = instanceNodes.bound;
 
-        for (var i = 0; i < bound.length; i++)
+        for (var i = 0; i < bound.length; i++) {
           bound[i].close();
+        }
       });
     },
 
@@ -1394,7 +1404,7 @@
       if (this.closed)
         return;
       this.unobserve();
-      for (var i = 1; i < this.terminators.length; i = i + 2) {
+      for (var i = 1; i < this.terminators.length; i += 2) {
         var bound = this.terminators[i];
         for (var j = 0; j < bound.length; j++)
           bound[j].close();
