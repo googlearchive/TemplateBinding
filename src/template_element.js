@@ -952,12 +952,12 @@
 
     tokens.combinator = tokens.combinator || newTokenCombinator(tokens);
 
+    // TODO(rafaelw): We *should* be able to force the compound binding to
+    // resolve now since we know we'll have a complete set of dependencies.
     var replacementBinding = new CompoundBinding(tokens.combinator);
-    replacementBinding.scheduled = true;
     for (var i = 1; i < tokens.length; i = i + 2) {
       bindOrDelegate(replacementBinding, i, model, tokens[i], delegate);
     }
-    replacementBinding.resolve();
     return node.bind(name, replacementBinding, 'value');
   }
 
@@ -1130,7 +1130,6 @@
     this.size = 0;
     this.combinator_ = combinator;
     this.closed = false;
-    this.scheduled = false;
   }
 
   CompoundBinding.prototype = {
@@ -1171,9 +1170,6 @@
     // TODO(rafaelw): Consider having a seperate ChangeSummary for
     // CompoundBindings so to excess dirtyChecks.
     scheduleResolve: function() {
-      if (this.scheduled)
-        return;
-      this.scheduled = true;
       ensureScheduled(this);
     },
 
@@ -1187,7 +1183,6 @@
       }
 
       this.value = this.combinator_(this.values);
-      this.scheduled = false;
     },
 
     unobserved: function() {
