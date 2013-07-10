@@ -1744,23 +1744,6 @@ suite('Template Element', function() {
     assert.strictEqual(1, template3.content.childNodes.length);
     assert.strictEqual('Hello', template3.content.firstChild.textContent);
   });
-
-  test('__instanceCreated() hack', function() {
-    var called = false;
-    HTMLTemplateElement.__instanceCreated = function(node) {
-      assert.strictEqual(Node.DOCUMENT_FRAGMENT_NODE, node.nodeType);
-      called = true;
-    }
-
-    var div = createTestHtml('<template bind="{{}}">Foo</template>');
-    assert.isFalse(called);
-
-    recursivelySetTemplateModel(div);
-    Platform.performMicrotaskCheckpoint();
-    assert.isTrue(called);
-
-    HTMLTemplateElement.__instanceCreated = undefined;
-  });
 });
 
 

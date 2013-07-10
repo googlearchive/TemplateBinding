@@ -828,11 +828,6 @@
       var instance = map.hasSubTemplate ?
           deepCloneIgnoreTemplateContent(content) : content.cloneNode(true);
 
-      // TODO(rafaelw): This is a hack, and is neccesary for the polyfil
-      // because custom elements are not upgraded during cloneNode()
-      if (typeof HTMLTemplateElement.__instanceCreated == 'function')
-        HTMLTemplateElement.__instanceCreated(instance);
-
       addMapBindings(instance, map, model, delegate, bound);
       addTemplateInstanceRecord(instance, model);
       return instance;
@@ -1407,15 +1402,4 @@
 
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
-  HTMLTemplateElement.bindAllMustachesFrom_ = addBindings;
-
-  function parseAndBind(node, name, text, model, delegate) {
-    var tokens = parseMustacheTokens(text);
-    if (!tokens)
-      return;
-
-    processBindings([name, tokens], node, model, delegate);
-  }
-
-  HTMLTemplateElement.parseAndBind_ = parseAndBind;
 })(this);

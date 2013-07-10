@@ -71,20 +71,6 @@ suite('Text bindings', function() {
     text.bind('textContent', model, 'a');
     assert.strictEqual(text.data, '');
   });
-
-  test('Compound Binding', function() {
-    var text = testDiv.appendChild(document.createTextNode('hi'));
-    var model = {a: 1, b: 2};
-    text.textContent = '{{a}} and {{b}}';
-    HTMLTemplateElement.bindAllMustachesFrom_(text, model);
-    Platform.performMicrotaskCheckpoint();
-
-    assert.strictEqual('1 and 2', text.data);
-
-    model.a = 3;
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('3 and 2', text.data);
-  });
 });
 
 suite('Element attribute bindings', function() {
@@ -159,15 +145,6 @@ suite('Element attribute bindings', function() {
     var model = {};
     element.bind('id', model, 'a');
     assert.strictEqual(element.id, '');
-  });
-
-  test('MultipleReferences', function() {
-    var el = testDiv.appendChild(document.createElement('div'));
-    var model = {foo: 'bar'};
-    el.setAttribute('foo', '{{foo}} {{foo}}');
-    HTMLTemplateElement.bindAllMustachesFrom_(el, model);
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('bar bar', el.getAttribute('foo'));
   });
 });
 
