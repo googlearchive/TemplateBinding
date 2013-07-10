@@ -107,21 +107,15 @@
 
   var SideTable;
   "undefined" != typeof WeakMap && navigator.userAgent.indexOf("Firefox/") < 0 ? SideTable = WeakMap : function() {
-      var a = Object.defineProperty, b = Object.hasOwnProperty, c = new Date().getTime() % 1e9;
+      var c = new Date().getTime() % 1e9;
       SideTable = function() {
           this.name = "__st" + (1e9 * Math.random() >>> 0) + (c++ + "__");
       }, SideTable.prototype = {
-          set: function(b, c) {
-              a(b, this.name, {
-                  value: c,
-                  writable: !0
-              });
+          set: function(key, value) {
+              key[this.name] = value;
           },
-          get: function(a) {
-              return b.call(a, this.name) ? a[this.name] : void 0;
-          },
-          "delete": function(a) {
-              this.set(a, void 0);
+          get: function(key) {
+              return key[this.name];
           }
       };
   }();
@@ -1260,7 +1254,7 @@
 
       if (!this.inputs.size) {
         // End iteration
-        templateIteratorTable.delete(this);
+        templateIteratorTable.set(this, undefined);
         this.close();
       }
     },
@@ -1334,7 +1328,7 @@
       var template = this.templateElement_;
       if (!template.parentNode || !template.ownerDocument.defaultView) {
         this.close();
-        templateIteratorTable.delete(this);
+        templateIteratorTable.set(this, undefined);
         return;
       }
 
