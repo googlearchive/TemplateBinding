@@ -823,6 +823,9 @@
           deepCloneIgnoreTemplateContent(content) : content.cloneNode(true);
 
       addMapBindings(instance, map, model, delegate, bound);
+      // TODO(rafaelw): We can do this more lazily, but setting a sentinal
+      // in the parent of the template element, and creating it when it's
+      // asked for by walking back to find the iterating template.
       addTemplateInstanceRecord(instance, model);
       return instance;
     },
@@ -1270,6 +1273,8 @@
       return subIterator.getTerminatorAt(subIterator.terminators.length/2 - 1);
     },
 
+    // TODO(rafaelw): If we inserting sequences of instances we can probably
+    // avoid lots of calls to getTerminatorAt(), or cache its result.
     insertInstanceAt: function(index, fragment, instanceNodes, bound) {
       var previousTerminator = this.getTerminatorAt(index - 1);
       var terminator = fragment ? fragment.lastChild || previousTerminator :
