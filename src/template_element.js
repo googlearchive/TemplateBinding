@@ -503,15 +503,21 @@
       var lastValue = this.value;
 
       var scheduled = [];
+      var scheduledIds = [];
       var running = false;
+      var nextId = 1;
 
-      this.schedule = function(fn) {
-        if (scheduled.indexOf(fn) >= 0)
+      this.schedule = function(async) {
+        if (!async.__scheduledId__)
+          async.__scheduledId__ = nextId++;
+
+        if (scheduledIds[async.__scheduledId__])
           return true;
         if (running)
           return false;
 
-        scheduled.push(fn);
+        scheduledIds[async.__scheduledId__] = true;
+        scheduled.push(async);
         if (lastValue === self.value)
           self.value = !self.value;
 
@@ -522,12 +528,16 @@
         running = true;
 
         for (var i = 0; i < scheduled.length; i++) {
-          var fn = scheduled[i];
-          scheduled[i] = undefined;
-          fn();
+          var async = scheduled[i];
+          scheduledIds[async.__scheduledId__] = undefined;
+          if (typeof async === 'function')
+            async();
+          else
+            async.resolve();
         }
 
         scheduled = [];
+        scheduledIds = [];
         lastValue = self.value;
 
         current = next;
@@ -1125,7 +1135,6 @@
     this.value = undefined;
     this.size = 0;
     this.combinator_ = combinator;
-    this.boundResolve = this.resolve.bind(this);
     this.closed = false;
   }
 
@@ -1135,18 +1144,20 @@
       this.scheduleResolve();
     },
 
+    pathValueChanged: function(value, oldValue, name) {
+      this.values[name] = value;
+      this.scheduleResolve();
+    },
+
     bind: function(name, model, path) {
       this.unbind(name);
 
       this.size++;
-      var changed = function(value) {
-        this.values[name] = value;
-        this.scheduleResolve();
-      }.bind(this);
-
-      var observer = new PathObserver(model, path, changed);
+      var observer = new PathObserver(model, path, this.pathValueChanged,
+                                      this,
+                                      name);
       this.observers[name] = observer;
-      changed(observer.value);
+      this.pathValueChanged(observer.value, undefined, name);
     },
 
     unbind: function(name, suppressResolve) {
@@ -1165,7 +1176,7 @@
     // TODO(rafaelw): Consider having a seperate ChangeSummary for
     // CompoundBindings so to excess dirtyChecks.
     scheduleResolve: function() {
-      ensureScheduled(this.boundResolve);
+      ensureScheduled(this);
     },
 
     resolve: function() {
