@@ -1,19 +1,31 @@
-<script src="../../mdv.js"></script>
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="../../mdv.js"></script>
+  </head>
+  <body>
+    <h1>Conditional Template</h1>
 
-<h1>Conditional Template</h1>
+    <ul>
+    <template id="example" bind>
+      <span>Show?: <input type="checkbox" checked="{{ show }}"></span>
+      <template bind if="{{ show }}">
+      	<span>Yay! I'm shown</span>
+      </template>
+    </template>
+    </ul>
 
-<ul>
-<template id="example" bind>
-  <span>Show?: <input type="checkbox" checked="{{ show }}"></span>
-  <template bind if="{{ show }}">
-  	<span>Yay! I'm shown</span>
-  </template>
-</template>
-</ul>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var t = document.getElementById('example');
+      t.model = {
+        show: true
+      };
 
-<script>
-var t = document.getElementById('example');
-t.model = {
-  show: true
-};
-</script>
+      // Needed to detect model changes if Object.observe
+      // is not available in the JS VM.
+      Platform.performMicrotaskCheckpoint();
+    });
+    </script>
+  </body>
+</html>

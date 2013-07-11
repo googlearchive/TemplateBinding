@@ -1174,7 +1174,7 @@ suite('Template Element', function() {
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {
-    if (!hasNativeTemplates)
+    if (!parserHasNativeTemplate)
       return;
 
     var div = createTestHtml(
@@ -1744,23 +1744,6 @@ suite('Template Element', function() {
     assert.strictEqual(1, template3.content.childNodes.length);
     assert.strictEqual('Hello', template3.content.firstChild.textContent);
   });
-
-  test('__instanceCreated() hack', function() {
-    var called = false;
-    HTMLTemplateElement.__instanceCreated = function(node) {
-      assert.strictEqual(Node.DOCUMENT_FRAGMENT_NODE, node.nodeType);
-      called = true;
-    }
-
-    var div = createTestHtml('<template bind="{{}}">Foo</template>');
-    assert.isFalse(called);
-
-    recursivelySetTemplateModel(div);
-    Platform.performMicrotaskCheckpoint();
-    assert.isTrue(called);
-
-    HTMLTemplateElement.__instanceCreated = undefined;
-  });
 });
 
 
@@ -1873,6 +1856,31 @@ suite('Template Syntax', function() {
     assert.strictEqual('c', div.childNodes[3].textContent);
 
     assert.strictEqual(0, testData.length);
+  });
+
+  test('getInstanceModel - reorder instances', function() {
+    var model = [0, 1, 2];
+
+    var div = createTestHtml(
+        '<template repeat syntax="Test">' +
+        '{{}}</template>');
+    var template = div.firstChild;
+    var count = 0;
+
+    var delegate = {
+      getInstanceModel: function(template, model) {
+        count++;
+        return model;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(3, count);
+
+    model.reverse();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(3, count);
   });
 
   test('Basic', function() {
