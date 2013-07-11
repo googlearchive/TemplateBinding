@@ -497,64 +497,69 @@
     // simulate proper end-of-microtask behavior for Object.observe. Without
     // this, we'll continue delivering to a single observer without allowing
     // other observers in the same microtask to make progress.
-    var current;
-    var next;
 
-    function Runner() {
-      var self = this;
+    function Runner(nextRunner) {
+      this.nextRunner = nextRunner;
       this.value = false;
-      var lastValue = this.value;
+      this.lastValue = this.value;
+      this.scheduled = [];
+      this.scheduledIds = [];
+      this.running = false;
+      this.observer = new PathObserver(this, 'value', this.run, this);
+    }
 
-      var scheduled = [];
-      var scheduledIds = [];
-      var running = false;
-      var nextId = 1;
+    Runner.prototype = {
+      schedule: function(async, id) {
+        if (this.scheduledIds[id])
+          return;
 
-      this.schedule = function(async) {
-        if (!async.__scheduledId__)
-          async.__scheduledId__ = nextId++;
+        if (this.running)
+          return this.nextRunner.schedule(async, id);
 
-        if (scheduledIds[async.__scheduledId__])
-          return true;
-        if (running)
-          return false;
+        this.scheduledIds[id] = true;
+        this.scheduled.push(async);
 
-        scheduledIds[async.__scheduledId__] = true;
-        scheduled.push(async);
-        if (lastValue === self.value)
-          self.value = !self.value;
+        if (this.lastValue !== this.value)
+          return;
 
-        return true;
-      }
+        this.value = !this.value;
+      },
 
-      var observer = new PathObserver(this, 'value', function() {
-        running = true;
+      run: function() {
+        this.running = true;
 
-        for (var i = 0; i < scheduled.length; i++) {
-          var async = scheduled[i];
-          scheduledIds[async.__scheduledId__] = undefined;
+        for (var i = 0; i < this.scheduled.length; i++) {
+          var async = this.scheduled[i];
+          var id = async[idExpando];
+          this.scheduledIds[id] = false;
+
           if (typeof async === 'function')
             async();
           else
             async.resolve();
         }
 
-        scheduled = [];
-        scheduledIds = [];
-        lastValue = self.value;
+        this.scheduled = [];
+        this.scheduledIds = [];
+        this.lastValue = this.value;
 
-        current = next;
-        next = self;
-
-        running = false;
-      });
+        this.running = false;
+      }
     }
 
-    current = new Runner();
-    next = new Runner();
+    var runner = new Runner(new Runner());
 
-    function ensureScheduled(fn) {
-      current.schedule(fn) || next.schedule(fn);
+    var nextId = 1;
+    var idExpando = '__scheduledId__';
+
+    function ensureScheduled(async) {
+      var id = async[idExpando];
+      if (!async[idExpando]) {
+        id = nextId++;
+        async[idExpando] = id;
+      }
+
+      runner.schedule(async, id);
     }
 
     return ensureScheduled;
