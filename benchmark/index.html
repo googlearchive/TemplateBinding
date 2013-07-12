@@ -115,10 +115,10 @@ var testDiv = document.getElementById('testDiv');
 
 function changeBenchmark() {
   benchmark = window[benchmarkSelect.value];
-  configSelect.innerHTML = '';
+  configSelect.textContent = '';
   benchmark.configs.forEach(function(config) {
     var option = document.createElement('option');
-    option.innerHTML = config;
+    option.textContent = config;
     configSelect.appendChild(option);
   });
 }
@@ -133,8 +133,8 @@ var colors = [
 
 goButton.addEventListener('click', function() {
   goButton.disabled = true;
-  goButton.innerHTML = 'Running...';
-  ul.innerHTML = '';
+  goButton.textContent = 'Running...';
+  ul.textContent = '';
 
   var bindingDensities = bindingDensityInput.value.split(',').map(function(val) {
     return Number(val) / 100;
@@ -148,8 +148,8 @@ goButton.addEventListener('click', function() {
 
   testTypes.forEach(function(testType, i) {
     var li = document.createElement('li');
-    li.innerHTML = testType;
-    li.setAttribute('style', 'color: ' + colors[i]);
+    li.textContent = testType;
+    li.style.color = colors[i];
     ul.appendChild(li);
   });
 
@@ -159,12 +159,12 @@ goButton.addEventListener('click', function() {
 
     datasets = [];
 
-    timesCanvas.setAttribute('height', '400');
-    timesCanvas.setAttribute('width', '800');
+    timesCanvas.height = 400;
+    timesCanvas.width = 800;
     timesCanvas.setAttribute('style', '');
 
     var labels = bindingDensities.map(function(density) {
-      return (density * 100) + '%';
+      return density * 100 + '%';
     });
 
     var timesArray = [];
@@ -176,32 +176,32 @@ goButton.addEventListener('click', function() {
 
     var ctx = timesCanvas.getContext("2d");
     new Chart(ctx).Line({
-      labels : labels,
-      datasets : timesArray.map(function(times, i) {
+      labels: labels,
+      datasets: timesArray.map(function(times, i) {
         return {
-          fillColor : 'rgba(255, 255, 255, 0)',
-          strokeColor : colors[i],
-          pointColor : colors[i],
-          pointStrokeColor : "#fff",
-          data : times
+          fillColor: 'rgba(255, 255, 255, 0)',
+          strokeColor: colors[i],
+          pointColor: colors[i],
+          pointStrokeColor: "#fff",
+          data: times
         };
       })
     }, {
-      bezierCurve : false
+      bezierCurve: false
     });
 
     goButton.disabled = false;
-    goButton.innerHTML = 'Run Benchmarks';
+    goButton.textContent = 'Run Benchmarks';
     updateStatus();
   }
 
   function updateStatus(density, testType, runCount) {
     if (!testType) {
-      statusSpan.innerHTML = '';
+      statusSpan.textContent = '';
       return;
     }
 
-    statusSpan.innerHTML = testType + ' ' + (100 * density) +
+    statusSpan.textContent = testType + ' ' + (100 * density) +
         '% binding density, ' + runCount + ' runs';
   }
 
