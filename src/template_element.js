@@ -1274,7 +1274,7 @@
 
       if (!this.inputs.size) {
         // End iteration
-        templateIteratorTable.delete(this);
+        templateIteratorTable.delete(this.templateElement_);
         this.close();
       }
     },
