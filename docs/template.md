@@ -4,6 +4,9 @@
 
 MDV extends the capabilities of the [HTML Template Element](http://www.w3.org/TR/html-templates/). It enables `<template>` to create, manage and remove instances of its content by being bound to JavaScript data.
 
+MDV introduces the following attributes to the `<template>` tag: `bind`, `if`, `repeat`, `ref`. MDV also
+introduces the `{{` and `}}` syntax.
+
 ### Basic usage
 
 #### bind
