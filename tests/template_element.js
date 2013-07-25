@@ -162,6 +162,20 @@ suite('Template Element', function() {
     assert.strictEqual('foo', div.lastChild.textContent);
   });
 
+  test('Template-Empty If', function() {
+    var div = createTestHtml(
+        '<template if>{{ value }}</template>');
+    var m = { value: 'foo' };
+    recursivelySetTemplateModel(div, null);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo', div.lastChild.textContent);
+  });
+
   test('Template Repeat If', function() {
     var div = createTestHtml(
         '<template repeat="{{ foo }}" if="{{ bar }}">{{ }}</template>');
