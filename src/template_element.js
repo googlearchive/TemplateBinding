@@ -131,33 +131,14 @@
   }
 
   Node.prototype.bind = function(name, model, path) {
-    this.bindings = this.bindings || {};
-    var binding = this.bindings[name];
-    if (binding)
-      binding.close();
-
-    binding = this.createBinding(name, model, path);
-    this.bindings[name] = binding;
-    if (!binding) {
-      console.error('Unhandled binding to Node: ', this, name, model, path);
-      return;
-    }
-
-    return binding;
+    console.error('Unhandled binding to Node: ', this, name, model, path);
   };
 
-  // TODO(rafaelw): This isn't really the right design. If node.bind() is
-  // specified, there's no way to host objects to invoke a "virtual"
-  // createBinding on custom elements.
-  Node.prototype.createBinding = function() {};
-
   Node.prototype.unbind = function(name) {
-    if (!this.bindings)
-      return;
+    this.bindings = this.bindings || {};
     var binding = this.bindings[name];
-    if (!binding)
-      return;
-    binding.close();
+    if (binding && typeof binding.close === 'function')
+      binding.close();
     delete this.bindings[name];
   };
 
@@ -217,11 +198,12 @@
     }
   };
 
-  Text.prototype.createBinding = function(name, model, path) {
-    if (name === 'textContent')
-      return new NodeBinding(this, 'data', model, path);
+  Text.prototype.bind = function(name, model, path) {
+    if (name !== 'textContent')
+      return Node.prototype.bind.call(this, name, model, path);
 
-    return Node.prototype.createBinding.call(this, name, model, path);
+    this.unbind(name);
+    return this.bindings[name] = new NodeBinding(this, 'data', model, path);
   }
 
   function AttributeBinding(element, attributeName, model, path) {
@@ -250,8 +232,9 @@
     }
   });
 
-  Element.prototype.createBinding = function(name, model, path) {
-    return new AttributeBinding(this, name, model, path);
+  Element.prototype.bind = function(name, model, path) {
+    this.unbind(name);
+    return this.bindings[name] = new AttributeBinding(this, name, model, path);
   };
 
   var checkboxEventType;
@@ -381,29 +364,24 @@
     }
   });
 
-  HTMLInputElement.prototype.createBinding = function(name, model, path) {
-    if (name === 'value') {
-      // TODO(rafaelw): Maybe template should remove all binding instructions.
-      this.removeAttribute(name);
-      return new InputBinding(this, 'value', model, path)
-    }
+  HTMLInputElement.prototype.bind = function(name, model, path) {
+    if (name !== 'value' && name !== 'checked')
+      return HTMLElement.prototype.bind.call(this, name, model, path);
 
-    if (name === 'checked') {
-      this.removeAttribute(name);
-      return new CheckedBinding(this, model, path);
-    }
-
-    return HTMLElement.prototype.createBinding.call(this, name, model, path);
+    this.unbind(name);
+    this.removeAttribute(name);
+    return this.bindings[name] = name === 'value' ?
+      new InputBinding(this, 'value', model, path) :
+      new CheckedBinding(this, model, path);
   }
 
-  HTMLTextAreaElement.prototype.createBinding = function(name, model, path) {
-    if (name === 'value') {
-      // TODO(rafaelw): Maybe template should remove all binding instructions.
-      this.removeAttribute(name);
-      return new InputBinding(this, name, model, path)
-    }
+  HTMLTextAreaElement.prototype.bind = function(name, model, path) {
+    if (name !== 'value')
+      return HTMLElement.prototype.bind.call(this, name, model, path);
 
-    return HTMLElement.prototype.createBinding.call(this, name, model, path);
+    this.unbind(name);
+    this.removeAttribute(name);
+    return this.bindings[name] = new InputBinding(this, name, model, path);
   }
 
   function SelectedIndexBinding(element, model, path) {
@@ -435,14 +413,13 @@
     }
   });
 
-  HTMLSelectElement.prototype.createBinding = function(name, model, path) {
-    if (name.toLowerCase() === 'selectedindex') {
-      // TODO(rafaelw): Maybe template should remove all binding instructions.
-      this.removeAttribute(name);
-      return new SelectedIndexBinding(this, model, path);
-    }
+  HTMLSelectElement.prototype.bind = function(name, model, path) {
+    if (name.toLowerCase() !== 'selectedindex')
+      return HTMLElement.prototype.bind.call(this, name, model, path);
 
-    return HTMLElement.prototype.createBinding.call(this, name, model, path);
+    this.unbind(name);
+    this.removeAttribute(name);
+    return this.bindings[name] = new SelectedIndexBinding(this, model, path);
   }
 
   var BIND = 'bind';
@@ -809,18 +786,19 @@
   });
 
   mixin(HTMLTemplateElement.prototype, {
-    createBinding: function(name, model, path) {
-      if (name === BIND || name === REPEAT || name === IF) {
-        var iterator = templateIteratorTable.get(this);
-        if (!iterator) {
-          iterator = new TemplateIterator(this);
-          templateIteratorTable.set(this, iterator);
-        }
+    bind: function(name, model, path) {
+      if (name !== BIND && name !== REPEAT && name !== IF)
+        return HTMLElement.prototype.bind.call(this, name, model, path);
 
-        return new TemplateBinding(iterator, name, model, path || '');
+
+      var iterator = templateIteratorTable.get(this);
+      if (!iterator) {
+        iterator = new TemplateIterator(this);
+        templateIteratorTable.set(this, iterator);
       }
 
-      return HTMLElement.prototype.createBinding.call(this, name, model, path);
+      this.unbind(name);
+      return this.bindings[name] = new TemplateBinding(iterator, name, model, path || '');
     },
 
     createInstance: function(model, delegate, bound) {
