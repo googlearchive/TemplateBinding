@@ -791,12 +791,7 @@
         return HTMLElement.prototype.bind.call(this, name, model, path);
 
 
-      var iterator = templateIteratorTable.get(this);
-      if (!iterator) {
-        iterator = new TemplateIterator(this);
-        templateIteratorTable.set(this, iterator);
-      }
-
+      var iterator = TemplateIterator.getOrCreate(this);
       this.unbind(name);
       return this.bindings[name] =
           new TemplateBinding(iterator, name, model, path || '');
@@ -1004,18 +999,6 @@
     }
   }
 
-  function TemplateCloser(node) {
-    this.node = node;
-  }
-
-  TemplateCloser.prototype = {
-    close: function() {
-      var iterator = templateIteratorTable.get(this.node);
-      if (iterator)
-        iterator.close();
-    }
-  }
-
   function addMapBindings(node, bindings, model, delegate, bound) {
     if (!bindings)
       return;
@@ -1024,9 +1007,6 @@
       HTMLTemplateElement.decorate(node, bindings.templateRef);
       if (delegate) {
         templateBindingDelegateTable.set(node, delegate);
-      }
-      if (bound) {
-        bound.push(new TemplateCloser(node));
       }
     }
 
@@ -1215,7 +1195,19 @@
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
+    TemplateIterator.templateTable.set(this.templateElement_, this);
   }
+
+  // "private"
+  TemplateIterator.templateTable = new SideTable();
+
+  TemplateIterator.get = function(template) {
+    return TemplateIterator.templateTable.get(template);
+  }
+
+  TemplateIterator.getOrCreate = function(template) {
+    return TemplateIterator.get(template) || new TemplateIterator(template);
+  };
 
   TemplateIterator.prototype = {
     resolveInputs: function(values) {
@@ -1251,11 +1243,8 @@
       if (splices.length)
         this.handleSplices(splices);
 
-      if (!this.inputs.size) {
-        // End iteration
-        templateIteratorTable.delete(this.templateElement_);
+      if (!this.inputs.size)
         this.close();
-      }
     },
 
     getTerminatorAt: function(index) {
@@ -1267,7 +1256,7 @@
         return terminator;
       }
 
-      var subIterator = templateIteratorTable.get(terminator);
+      var subIterator = TemplateIterator.get(terminator);
       if (!subIterator)
         return terminator;
 
@@ -1329,7 +1318,6 @@
       var template = this.templateElement_;
       if (!template.parentNode || !template.ownerDocument.defaultView) {
         this.close();
-        templateIteratorTable.delete(this);
         return;
       }
 
@@ -1398,11 +1386,10 @@
 
       this.terminators.length = 0;
       this.inputs.close();
+      TemplateIterator.templateTable.delete(this.templateElement_);
       this.closed = true;
     }
   };
-
-  var templateIteratorTable = new SideTable();
 
   global.CompoundBinding = CompoundBinding;
 
