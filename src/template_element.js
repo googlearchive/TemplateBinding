@@ -762,13 +762,14 @@
     ensureScheduled(setModelFn);
   }
 
-  function TemplateBinding(node, property, model, path) {
+  function TemplateBinding(node, property, model, path, iterator) {
     this.closed = false;
     this.node = node;
     this.property = property;
     this.model = model;
     this.path = path;
-    this.node.inputs.bind(this.property, model, path || '');
+    this.iterator = iterator;
+    this.iterator.inputs.bind(this.property, model, path || '');
   }
 
   TemplateBinding.prototype = createObject({
@@ -778,7 +779,8 @@
     close: function() {
       if (this.closed)
         return;
-      this.node.inputs.unbind(this.property);
+      this.iterator.inputs.unbind(this.property);
+      this.iterator = undefined;
       this.node = undefined;
       this.model = undefined;
       this.closed = true;
@@ -794,7 +796,7 @@
       var iterator = TemplateIterator.getOrCreate(this);
       this.unbind(name);
       return this.bindings[name] =
-          new TemplateBinding(iterator, name, model, path || '');
+          new TemplateBinding(this, name, model, path || '', iterator);
     },
 
     createInstance: function(model, delegate, bound) {
