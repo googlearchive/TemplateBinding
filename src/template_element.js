@@ -160,9 +160,10 @@
     this.node = node;
     this.property = property;
     this.model = model;
-    this.path = path;
-    this.observer = new PathObserver(model, path,
-                                     this.boundValueChanged, this);
+    this.path = path || '';
+    this.observer = new PathObserver(this.model, this.path,
+                                     this.boundValueChanged,
+                                     this);
     this.boundValueChanged(this.value);
   }
 
@@ -767,9 +768,9 @@
     this.node = node;
     this.property = property;
     this.model = model;
-    this.path = path;
+    this.path = path || ''
     this.iterator = iterator;
-    this.iterator.inputs.bind(this.property, model, path || '');
+    this.iterator.inputs.bind(this.property, this.model, this.path);
   }
 
   TemplateBinding.prototype = createObject({
@@ -795,8 +796,9 @@
 
       var iterator = TemplateIterator.getOrCreate(this);
       this.unbind(name);
+
       return this.bindings[name] =
-          new TemplateBinding(this, name, model, path || '', iterator);
+          new TemplateBinding(this, name, model, path, iterator);
     },
 
     createInstance: function(model, delegate, bound) {
