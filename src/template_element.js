@@ -371,8 +371,8 @@
     this.unbind(name);
     this.removeAttribute(name);
     return this.bindings[name] = name === 'value' ?
-      new InputBinding(this, 'value', model, path) :
-      new CheckedBinding(this, model, path);
+        new InputBinding(this, 'value', model, path) :
+        new CheckedBinding(this, model, path);
   }
 
   HTMLTextAreaElement.prototype.bind = function(name, model, path) {
@@ -798,7 +798,8 @@
       }
 
       this.unbind(name);
-      return this.bindings[name] = new TemplateBinding(iterator, name, model, path || '');
+      return this.bindings[name] =
+          new TemplateBinding(iterator, name, model, path || '');
     },
 
     createInstance: function(model, delegate, bound) {
