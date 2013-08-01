@@ -837,7 +837,7 @@
           deepCloneIgnoreTemplateContent(content) : content.cloneNode(true);
 
       addMapBindings(instance, map, model, delegate, bound);
-      // TODO(rafaelw): We can do this more lazily, but setting a sentinal
+      // TODO(rafaelw): We can do this more lazily, but setting a sentinel
       // in the parent of the template element, and creating it when it's
       // asked for by walking back to find the iterating template.
       addTemplateInstanceRecord(instance, model);
@@ -946,16 +946,13 @@
 
   function newTokenCombinator(tokens) {
     return function(values) {
-      var newValue = '';
+      var newValue = tokens[0];
 
-      for (var i = 0, text = true; i < tokens.length; i++, text = !text) {
-        if (text) {
-          newValue += tokens[i];
-        } else {
-          var value = values[i];
-          if (value !== undefined)
-            newValue += value;
-        }
+      for (var i = 1; i < tokens.length; i += 2) {
+        var value = values[i];
+        if (value !== undefined)
+          newValue += value;
+        newValue += tokens[i + 1];
       }
 
       return newValue;
@@ -1277,7 +1274,7 @@
 
       if (!this.inputs.size) {
         // End iteration
-        templateIteratorTable.delete(this);
+        templateIteratorTable.delete(this.templateElement_);
         this.close();
       }
     },
