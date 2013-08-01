@@ -1358,12 +1358,14 @@
       }, this);
 
       instanceCache.forEach(function(instanceNodes) {
-        var bound = instanceNodes.bound;
+        this.closeInstanceBindings(instanceNodes.bound);
+      }, this);
+    },
 
-        for (var i = 0; i < bound.length; i++) {
-          bound[i].close();
-        }
-      });
+    closeInstanceBindings: function(bound) {
+      for (var i = 0; i < bound.length; i++) {
+        bound[i].close();
+      }
     },
 
     unobserve: function() {
@@ -1379,9 +1381,7 @@
         return;
       this.unobserve();
       for (var i = 1; i < this.terminators.length; i += 2) {
-        var bound = this.terminators[i];
-        for (var j = 0; j < bound.length; j++)
-          bound[j].close();
+        this.closeInstanceBindings(this.terminators[i]);
       }
 
       this.terminators.length = 0;
