@@ -965,6 +965,7 @@
       if (isTemplateNode) {
         if (name === IF) {
           ifFound = true;
+          value = value || '{{}}';  // Accept 'naked' if.
         } else if (name === BIND || name === REPEAT) {
           bindFound = true;
           value = value || '{{}}';  // Accept 'naked' bind & repeat.
