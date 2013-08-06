@@ -857,6 +857,12 @@
 
       var nextRef = ref.ref;
       return nextRef ? nextRef : ref;
+    },
+
+    clear: function() {
+      this.unbind('bind');
+      this.unbind('if');
+      this.unbind('repeat');
     }
   });
 
