@@ -84,6 +84,10 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
+
+    div.firstChild.clear();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
   });
 
   test('Template bind, no parent', function() {
@@ -132,6 +136,10 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
+
+    div.firstChild.clear();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
   });
 
   test('Template Bind If, 2', function() {
@@ -160,6 +168,24 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('foo', div.lastChild.textContent);
+
+    div.firstChild.clear();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('Template-Empty If', function() {
+    var div = createTestHtml(
+        '<template if>{{ value }}</template>');
+    var m = { value: 'foo' };
+    recursivelySetTemplateModel(div, null);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo', div.lastChild.textContent);
   });
 
   test('Template Repeat If', function() {
@@ -176,6 +202,10 @@ suite('Template Element', function() {
     assert.strictEqual('1', div.childNodes[1].textContent);
     assert.strictEqual('2', div.childNodes[2].textContent);
     assert.strictEqual('3', div.childNodes[3].textContent);
+
+    div.firstChild.clear();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
   });
 
   test('TextTemplateWithNullStringBinding', function() {
@@ -328,6 +358,11 @@ suite('Template Element', function() {
     model.splice(1, 1);
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(3, div.childNodes.length);
+
+
+    div.firstChild.clear();
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
   });
 
   test('Repeat - Reuse Instances', function() {

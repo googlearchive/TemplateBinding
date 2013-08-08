@@ -65,6 +65,13 @@ suite('Text bindings', function() {
     // TODO(rafaelw): Throw on binding to unavailable property?
   });
 
+  test('Text - No Path', function() {
+    var text = document.createTextNode('hi');
+    var model = 1;
+    text.bind('textContent', model);
+    assert.strictEqual('1', text.data);
+  });
+
   test('Path unreachable', function() {
     var text = testDiv.appendChild(document.createTextNode('hi'));
     var model = {};
@@ -104,6 +111,14 @@ suite('Element attribute bindings', function() {
     model.a = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('', el.getAttribute('foo'));
+  });
+
+  test('No path', function() {
+    var el = testDiv.appendChild(document.createElement('div'));
+    var model = 1;
+    el.bind('foo', model);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('1', el.getAttribute('foo'));
   });
 
   test('Dashes', function() {
