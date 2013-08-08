@@ -28,7 +28,7 @@
       libLocation + 'src/template_element.css">');
 
   [
-    'third_party/ChangeSummary/change_summary.js',
+    'third_party/ObserveJS/src/observe.js',
     'src/template_element.js',
     'third_party/esprima/esprima.js',
     'util/expression_syntax.js'
