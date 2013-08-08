@@ -129,15 +129,15 @@ _Using `<template>` to produce DOM structures:_
 
 MDV is designed to as two primitives which could eventually become standardized and implemented natively in browsers. The following two documents specify their behavior, API and use.
 
-* [`Node.bind`](https://github.com/Polymer/mdv/blob/master/docs/node_bind.md): Which describes how DOM nodes are bound to data values
-* [`<template>` instantiation](https://github.com/Polymer/mdv/blob/master/docs/template.md): Which describes how `<template>` manages instance fragments.
+* [`Node.bind`](http://www.polymer-project.org/platform/mdv/node_bind.html): Which describes how DOM nodes are bound to data values
+* [`<template>` instantiation](http://www.polymer-project.org/platform/mdv/template.html): Which describes how `<template>` manages instance fragments.
 
 ### Extending MDV
 
 MDV is mainly concerned with being robust and efficient in interacting with application data and keeping the DOM in sync , but more advanced behaviors can be accomplished via one or both of the following:
 
-* [A Binding Delegate API](https://github.com/Polymer/mdv/blob/master/docs/syntax_api.md)
-* [Expression Syntax](https://github.com/Polymer/mdv/blob/master/docs/expression_syntax.md)
+* [A Binding Delegate API](http://www.polymer-project.org/platform/mdv/syntax_api.html)
+* [Expression Syntax](http://www.polymer-project.org/platform/mdv/expression_syntax.html)
 
 ### Advanced Topics
 
