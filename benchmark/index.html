@@ -15,13 +15,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <head>
-  <title>MDV Benchmarks</title>
+  <title>Template instantiation benchmarks</title>
   <meta charset="utf-8">
-  <script src="../mdv.js"></script>
+  <script src="../load.js"></script>
   <script src="../node_modules/handlebars/dist/handlebars.js"></script>
-  <script src="../third_party/ObserveJS/benchmark/chartjs/Chart.js"></script>
-  <script src="../third_party/ObserveJS/benchmark/benchmark.js"></script>
-  <script src="mdv_benchmark.js"></script>
+  <script src="../../ObserveJS/benchmark/chartjs/Chart.js"></script>
+  <script src="../../ObserveJS/benchmark/benchmark.js"></script>
+  <script src="benchmark.js"></script>
   <style>
     * {
       font-family: arial, helvetica, sans-serif;
@@ -35,7 +35,7 @@ limitations under the License.
   </style>
 </head>
 <body>
-<h1>MDV Benchmarks</h1>
+<h1>Template instantiation benchmarks</h1>
 
 Width: <select id="widthSelect">
   <option selected>2
@@ -154,7 +154,7 @@ goButton.addEventListener('click', function() {
   });
 
   function benchmarkComplete(results) {
-    if (Observer._allObserversCount > 2)
+    if (Observer._allObserversCount > 4)
       alert('Error. All Observer Count: ' + Observer._allObserversCount);
 
     datasets = [];

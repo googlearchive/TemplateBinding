@@ -30,7 +30,7 @@ function doTeardown() {
   document.body.removeChild(testDiv);
   unbindAll(testDiv);
   Platform.performMicrotaskCheckpoint();
-  assert.strictEqual(2, Observer._allObserversCount);
+  assert.strictEqual(4, Observer._allObserversCount);
 }
 
 function createTestHtml(s) {
@@ -52,7 +52,7 @@ function recursivelySetTemplateModel(node, model, delegate) {
   });
 }
 
-suite('Template Element', function() {
+suite('Template Instantiation', function() {
 
   setup(doSetup)
 
@@ -1782,7 +1782,7 @@ suite('Template Element', function() {
 });
 
 
-suite('Template Syntax', function() {
+suite('Binding Delegate API', function() {
 
   setup(doSetup)
 
@@ -1850,7 +1850,7 @@ suite('Template Syntax', function() {
     var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
 
     var div = createTestHtml(
-        '<template repeat syntax="Test">' +
+        '<template repeat>' +
         '{{ foo }}</template>');
     var template = div.firstChild;
 
@@ -1897,7 +1897,7 @@ suite('Template Syntax', function() {
     var model = [0, 1, 2];
 
     var div = createTestHtml(
-        '<template repeat syntax="Test">' +
+        '<template repeat>' +
         '{{}}</template>');
     var template = div.firstChild;
     var count = 0;
