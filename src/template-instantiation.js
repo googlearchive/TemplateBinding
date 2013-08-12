@@ -757,7 +757,7 @@
   function createInstanceBindingMap(node) {
     var map = getBindings(node);
     if (isTemplate(node)) {
-      map = map || {};
+      map = map || [];
       map.templateRef = node;
       map.hasSubTemplate = true;
     }
@@ -768,7 +768,7 @@
       if (!childMap)
         continue;
 
-      map = map || {};
+      map = map || [];
       map.children = map.children || {};
       map.children[index] = childMap;
       if (childMap.hasSubTemplate)
