@@ -554,12 +554,6 @@
 
       var nextRef = ref.ref;
       return nextRef ? nextRef : ref;
-    },
-
-    clear: function() {
-      this.unbind('bind');
-      this.unbind('if');
-      this.unbind('repeat');
     }
   });
 
@@ -975,8 +969,11 @@
     // avoid lots of calls to getTerminatorAt(), or cache its result.
     insertInstanceAt: function(index, fragment, instanceNodes, bound) {
       var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator = fragment ? fragment.lastChild || previousTerminator :
-          instanceNodes[instanceNodes.length - 1] || previousTerminator;
+      var terminator = previousTerminator;
+      if (fragment)
+        terminator = fragment.lastChild || terminator;
+      else if (instanceNodes)
+        terminator = instanceNodes[instanceNodes.length - 1] || terminator;
 
       this.terminators.splice(index*2, 0, terminator, bound);
       var parent = this.templateElement_.parentNode;
@@ -984,11 +981,10 @@
 
       if (fragment) {
         parent.insertBefore(fragment, insertBeforeNode);
-        return;
+      } else if (instanceNodes) {
+        for (var i = 0; i < instanceNodes.length; i++)
+          parent.insertBefore(instanceNodes[i], insertBeforeNode);
       }
-
-      for (var i = 0; i < instanceNodes.length; i++)
-        parent.insertBefore(instanceNodes[i], insertBeforeNode);
     },
 
     extractInstanceAt: function(index) {
@@ -1056,9 +1052,11 @@
           } else {
             bound = [];
             var actualModel = this.getInstanceModel(template, model, delegate);
-            fragment = this.templateElement_.createInstance(actualModel,
-                                                            delegate,
-                                                            bound);
+            if (model !== undefined) {
+              fragment = this.templateElement_.createInstance(actualModel,
+                                                              delegate,
+                                                              bound);
+            }
           }
 
           this.insertInstanceAt(addIndex, fragment, instanceNodes, bound);

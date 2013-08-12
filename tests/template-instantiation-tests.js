@@ -80,14 +80,20 @@ suite('Template Instantiation', function() {
   test('Template', function() {
     var div = createTestHtml(
         '<template bind={{}}>text</template>');
-    recursivelySetTemplateModel(div);
+    var template = div.firstChild;
+    template.model = {};
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
 
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
+
+    template.model = null;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
   });
 
   test('Template bind, no parent', function() {
@@ -118,7 +124,8 @@ suite('Template Instantiation', function() {
   test('Template-Empty Bind', function() {
     var div = createTestHtml(
         '<template bind>text</template>');
-    recursivelySetTemplateModel(div);
+    var template = div.firstChild;
+    template.model = {};
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
@@ -128,7 +135,8 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template bind if="{{ foo }}">text</template>');
     var m = { foo: 0 };
-    recursivelySetTemplateModel(div, m);
+    var template = div.firstChild;
+    template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
@@ -137,7 +145,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
 
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -160,7 +168,8 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template if="{{ foo }}">{{ value }}</template>');
     var m = { foo: 0, value: 'foo' };
-    recursivelySetTemplateModel(div, m);
+    var template = div.firstChild;
+    template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
@@ -169,7 +178,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('foo', div.lastChild.textContent);
 
-    div.firstChild.clear();
+   template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -192,7 +201,8 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template repeat="{{ foo }}" if="{{ bar }}">{{ }}</template>');
     var m = { bar: 0, foo: [1, 2, 3] };
-    recursivelySetTemplateModel(div, m);
+    var template = div.firstChild;
+    template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
@@ -203,7 +213,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual('2', div.childNodes[2].textContent);
     assert.strictEqual('3', div.childNodes[3].textContent);
 
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -236,7 +246,8 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template bind="{{ data }}">a{{b}}c</template>');
     var model =  { data: {b: 'B'} };
-    recursivelySetTemplateModel(div, model);
+    var template = div.firstChild;
+    template.model = model;
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
@@ -250,7 +261,7 @@ suite('Template Instantiation', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('aXc', div.lastChild.textContent);
 
-    model.data = undefined;
+    model.data = null;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('ac', div.lastChild.textContent);
   });
@@ -342,7 +353,8 @@ suite('Template Instantiation', function() {
         '<template repeat="{{}}"">text</template>');
 
     var model = [0, 1, 2];
-    recursivelySetTemplateModel(div, model);
+    var template = div.firstChild;
+    template.model = model;
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
@@ -359,8 +371,7 @@ suite('Template Instantiation', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(3, div.childNodes.length);
 
-
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
