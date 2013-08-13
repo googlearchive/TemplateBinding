@@ -1184,7 +1184,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual('Item 2', div.childNodes[i++].textContent);
   });
 
-  test('Attribute Template Optgroup/Option', function() {
+  test('Attribute Template Optgroup/Option - selectedIndex', function() {
     var div = createTestHtml(
         '<template bind>' +
           '<select selectedIndex="{{ selected }}">' +
@@ -1217,6 +1217,31 @@ suite('Template Instantiation', function() {
     assert.strictEqual('0', optgroup.childNodes[1].textContent);
     assert.strictEqual('OPTION', optgroup.childNodes[2].tagName);
     assert.strictEqual('1', optgroup.childNodes[2].textContent);
+  });
+
+  test('Attribute Template Optgroup/Option - value', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<select value="{{ selected }}">' +
+            '<option template repeat="{{ items }}" value="{{ value }}">{{ name }}</option>' +
+          '</select>' +
+        '</template>');
+
+    var m = {
+      selected: 'b',
+      items: [
+        { name: 'A', value: 'a' },
+        { name: 'B', value: 'b' },
+        { name: 'C', value: 'c' }
+      ]
+    };
+
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    var select = div.firstChild.nextSibling;
+    assert.strictEqual(4, select.childNodes.length);
+    assert.strictEqual('b', select.value);
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {
