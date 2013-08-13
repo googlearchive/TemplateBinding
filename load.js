@@ -28,8 +28,8 @@
       libLocation + 'src/template_element.css">');
 
   [
-    '../ObserveJS/src/observe.js',
-    '../Node-bind/src/node-bind.js',
-    'src/template-instantiation.js'
+    '../observe-js/src/observe.js',
+    '../NodeBind/src/NodeBind.js',
+    'src/TemplateInstances.js'
   ].forEach(write);
 })();

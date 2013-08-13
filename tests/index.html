@@ -16,7 +16,7 @@ limitations under the License.
 -->
 <html>
 <head>
-<title>Template-instantiation tests</title>
+<title>TemplateInstances tests</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="../node_modules/mocha/mocha.css">
 <script src="../node_modules/chai/chai.js"></script>
@@ -31,9 +31,9 @@ var parserHasNativeTemplate = function() {
 
 var forceCollectObservers = true;
 </script>
-<script src="../../ObserveJS/src/observe.js"></script>
-<script src="../../Node-bind/src/node-bind.js"></script>
-<script src="../src/template-instantiation.js"></script>
+<script src="../../observe-js/src/observe.js"></script>
+<script src="../../NodeBind/src/NodeBind.js"></script>
+<script src="../src/TemplateInstances.js"></script>
 </head>
 <body>
 <script>
@@ -46,7 +46,7 @@ mocha.setup({
 var assert = chai.assert;
 
 </script>
-<script src="template-instantiation-tests.js"></script>
+<script src="tests.js"></script>
 <div id="mocha"></div>
 <script>
 mocha.run();
