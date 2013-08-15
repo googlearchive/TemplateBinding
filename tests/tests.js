@@ -30,7 +30,7 @@ function doTeardown() {
   document.body.removeChild(testDiv);
   unbindAll(testDiv);
   Platform.performMicrotaskCheckpoint();
-  assert.strictEqual(2, Observer._allObserversCount);
+  assert.strictEqual(4, Observer._allObserversCount);
 }
 
 function createTestHtml(s) {
@@ -52,7 +52,7 @@ function recursivelySetTemplateModel(node, model, delegate) {
   });
 }
 
-suite('Template Element', function() {
+suite('Template Instantiation', function() {
 
   setup(doSetup)
 
@@ -80,14 +80,20 @@ suite('Template Element', function() {
   test('Template', function() {
     var div = createTestHtml(
         '<template bind={{}}>text</template>');
-    recursivelySetTemplateModel(div);
+    var template = div.firstChild;
+    template.model = {};
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
 
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
+
+    template.model = null;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
   });
 
   test('Template bind, no parent', function() {
@@ -118,7 +124,8 @@ suite('Template Element', function() {
   test('Template-Empty Bind', function() {
     var div = createTestHtml(
         '<template bind>text</template>');
-    recursivelySetTemplateModel(div);
+    var template = div.firstChild;
+    template.model = {};
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
@@ -128,7 +135,8 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind if="{{ foo }}">text</template>');
     var m = { foo: 0 };
-    recursivelySetTemplateModel(div, m);
+    var template = div.firstChild;
+    template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
@@ -137,7 +145,7 @@ suite('Template Element', function() {
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('text', div.lastChild.textContent);
 
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -160,7 +168,8 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template if="{{ foo }}">{{ value }}</template>');
     var m = { foo: 0, value: 'foo' };
-    recursivelySetTemplateModel(div, m);
+    var template = div.firstChild;
+    template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
@@ -169,7 +178,7 @@ suite('Template Element', function() {
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('foo', div.lastChild.textContent);
 
-    div.firstChild.clear();
+   template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -192,7 +201,8 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template repeat="{{ foo }}" if="{{ bar }}">{{ }}</template>');
     var m = { bar: 0, foo: [1, 2, 3] };
-    recursivelySetTemplateModel(div, m);
+    var template = div.firstChild;
+    template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
@@ -203,7 +213,7 @@ suite('Template Element', function() {
     assert.strictEqual('2', div.childNodes[2].textContent);
     assert.strictEqual('3', div.childNodes[3].textContent);
 
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -236,7 +246,8 @@ suite('Template Element', function() {
     var div = createTestHtml(
         '<template bind="{{ data }}">a{{b}}c</template>');
     var model =  { data: {b: 'B'} };
-    recursivelySetTemplateModel(div, model);
+    var template = div.firstChild;
+    template.model = model;
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
@@ -250,7 +261,7 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('aXc', div.lastChild.textContent);
 
-    model.data = undefined;
+    model.data = null;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('ac', div.lastChild.textContent);
   });
@@ -342,7 +353,8 @@ suite('Template Element', function() {
         '<template repeat="{{}}"">text</template>');
 
     var model = [0, 1, 2];
-    recursivelySetTemplateModel(div, model);
+    var template = div.firstChild;
+    template.model = model;
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
@@ -359,8 +371,7 @@ suite('Template Element', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(3, div.childNodes.length);
 
-
-    div.firstChild.clear();
+    template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
@@ -1173,7 +1184,7 @@ suite('Template Element', function() {
     assert.strictEqual('Item 2', div.childNodes[i++].textContent);
   });
 
-  test('Attribute Template Optgroup/Option', function() {
+  test('Attribute Template Optgroup/Option - selectedIndex', function() {
     var div = createTestHtml(
         '<template bind>' +
           '<select selectedIndex="{{ selected }}">' +
@@ -1206,6 +1217,31 @@ suite('Template Element', function() {
     assert.strictEqual('0', optgroup.childNodes[1].textContent);
     assert.strictEqual('OPTION', optgroup.childNodes[2].tagName);
     assert.strictEqual('1', optgroup.childNodes[2].textContent);
+  });
+
+  test('Attribute Template Optgroup/Option - value', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<select value="{{ selected }}">' +
+            '<option template repeat="{{ items }}" value="{{ value }}">{{ name }}</option>' +
+          '</select>' +
+        '</template>');
+
+    var m = {
+      selected: 'b',
+      items: [
+        { name: 'A', value: 'a' },
+        { name: 'B', value: 'b' },
+        { name: 'C', value: 'c' }
+      ]
+    };
+
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+
+    var select = div.firstChild.nextSibling;
+    assert.strictEqual(4, select.childNodes.length);
+    assert.strictEqual('b', select.value);
   });
 
   test('NestedIterateTableMixedSemanticNative', function() {
@@ -1782,7 +1818,7 @@ suite('Template Element', function() {
 });
 
 
-suite('Template Syntax', function() {
+suite('Binding Delegate API', function() {
 
   setup(doSetup)
 
@@ -1850,7 +1886,7 @@ suite('Template Syntax', function() {
     var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
 
     var div = createTestHtml(
-        '<template repeat syntax="Test">' +
+        '<template repeat>' +
         '{{ foo }}</template>');
     var template = div.firstChild;
 
@@ -1897,7 +1933,7 @@ suite('Template Syntax', function() {
     var model = [0, 1, 2];
 
     var div = createTestHtml(
-        '<template repeat syntax="Test">' +
+        '<template repeat>' +
         '{{}}</template>');
     var template = div.firstChild;
     var count = 0;

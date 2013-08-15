@@ -22,8 +22,6 @@
 
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
-  var filter = Array.prototype.filter.call.bind(Array.prototype.filter);
-
   function getTreeScope(node) {
     while (node.parentNode) {
       node = node.parentNode;
@@ -125,303 +123,6 @@
           }
       };
   }();
-
-  function isNodeInDocument(node) {
-    return node.ownerDocument.contains(node);
-  }
-
-  Node.prototype.bind = function(name, model, path) {
-    console.error('Unhandled binding to Node: ', this, name, model, path);
-  };
-
-  Node.prototype.unbind = function(name) {
-    this.bindings = this.bindings || {};
-    var binding = this.bindings[name];
-    if (binding && typeof binding.close === 'function')
-      binding.close();
-    delete this.bindings[name];
-  };
-
-  Node.prototype.unbindAll = function() {
-    if (!this.bindings)
-      return;
-    var names = Object.keys(this.bindings);
-    for (var i = 0; i < names.length; i++) {
-      var binding = this.bindings[names[i]];
-      if (binding)
-        binding.close();
-    }
-
-    this.bindings = {};
-  };
-
-  function NodeBinding(node, property, model, path) {
-    this.closed = false;
-    this.node = node;
-    this.property = property;
-    this.model = model;
-    this.path = path || '';
-    this.observer = new PathObserver(this.model, this.path,
-                                     this.boundValueChanged,
-                                     this);
-    this.boundValueChanged(this.value);
-  }
-
-  NodeBinding.prototype = {
-    boundValueChanged: function(value) {
-      this.node[this.property] = this.sanitizeBoundValue(value);
-    },
-
-    sanitizeBoundValue: function(value) {
-      return value == undefined ? '' : String(value);
-    },
-
-    close: function() {
-      if (this.closed)
-        return;
-      this.observer.close();
-      this.observer = undefined;
-      this.node = undefined;
-      this.model = undefined;
-      this.closed = true;
-    },
-
-    get value() {
-      return this.observer.value;
-    },
-
-    set value(value) {
-      PathObserver.setValueAtPath(this.model, this.path, value);
-    },
-
-    reset: function() {
-      this.observer.reset();
-    }
-  };
-
-  Text.prototype.bind = function(name, model, path) {
-    if (name !== 'textContent')
-      return Node.prototype.bind.call(this, name, model, path);
-
-    this.unbind(name);
-    return this.bindings[name] = new NodeBinding(this, 'data', model, path);
-  }
-
-  function AttributeBinding(element, attributeName, model, path) {
-    this.conditional = attributeName[attributeName.length - 1] == '?';
-    if (this.conditional) {
-      element.removeAttribute(attributeName);
-      attributeName = attributeName.slice(0, -1);
-    }
-
-    NodeBinding.call(this, element, attributeName, model, path);
-  }
-
-  AttributeBinding.prototype = createObject({
-    __proto__: NodeBinding.prototype,
-
-    boundValueChanged: function(value) {
-      if (this.conditional) {
-        if (value)
-          this.node.setAttribute(this.property, '');
-        else
-          this.node.removeAttribute(this.property);
-        return;
-      }
-
-      this.node.setAttribute(this.property, this.sanitizeBoundValue(value));
-    }
-  });
-
-  Element.prototype.bind = function(name, model, path) {
-    this.unbind(name);
-    return this.bindings[name] = new AttributeBinding(this, name, model, path);
-  };
-
-  var checkboxEventType;
-  (function() {
-    // Attempt to feature-detect which event (change or click) is fired first
-    // for checkboxes.
-    var div = document.createElement('div');
-    var checkbox = div.appendChild(document.createElement('input'));
-    checkbox.setAttribute('type', 'checkbox');
-    var first;
-    var count = 0;
-    checkbox.addEventListener('click', function(e) {
-      count++;
-      first = first || 'click';
-    });
-    checkbox.addEventListener('change', function() {
-      count++;
-      first = first || 'change';
-    });
-
-    var event = document.createEvent('MouseEvent');
-    event.initMouseEvent("click", true, true, window, 0, 0, 0, 0, 0, false,
-        false, false, false, 0, null);
-    checkbox.dispatchEvent(event);
-    // WebKit/Blink don't fire the change event if the element is outside the
-    // document, so assume 'change' for that case.
-    checkboxEventType = count == 1 ? 'change' : first;
-  })();
-
-  function getEventForInputType(element) {
-    switch (element.type) {
-      case 'checkbox':
-        return checkboxEventType;
-      case 'radio':
-      case 'select-multiple':
-      case 'select-one':
-        return 'change';
-      default:
-        return 'input';
-    }
-  }
-
-  function InputBinding(node, property, model, path) {
-    NodeBinding.call(this, node, property, model, path);
-    this.eventType = getEventForInputType(this.node);
-    this.boundNodeValueToModel = this.nodeValueChanged.bind(this);
-    this.node.addEventListener(this.eventType, this.boundNodeValueToModel,
-                               true);
-  }
-
-  InputBinding.prototype = createObject({
-    __proto__: NodeBinding.prototype,
-
-    nodeValueChanged: function() {
-      this.value = this.node[this.property];
-      this.reset();
-      this.postUpdateBinding();
-      Platform.performMicrotaskCheckpoint();
-    },
-
-    postUpdateBinding: function() {},
-
-    close: function() {
-      if (this.closed)
-        return;
-
-      this.node.removeEventListener(this.eventType,
-                                    this.boundNodeValueToModel,
-                                    true);
-      NodeBinding.prototype.close.call(this);
-    }
-  });
-
-  // |element| is assumed to be an HTMLInputElement with |type| == 'radio'.
-  // Returns an array containing all radio buttons other than |element| that
-  // have the same |name|, either in the form that |element| belongs to or,
-  // if no form, in the document tree to which |element| belongs.
-  //
-  // This implementation is based upon the HTML spec definition of a
-  // "radio button group":
-  //   http://www.whatwg.org/specs/web-apps/current-work/multipage/number-state.html#radio-button-group
-  //
-  function getAssociatedRadioButtons(element) {
-    if (!isNodeInDocument(element))
-      return [];
-    if (element.form) {
-      return filter(element.form.elements, function(el) {
-        return el != element &&
-            el.tagName == 'INPUT' &&
-            el.type == 'radio' &&
-            el.name == element.name;
-      });
-    } else {
-      var radios = element.ownerDocument.querySelectorAll(
-          'input[type="radio"][name="' + element.name + '"]');
-      return filter(radios, function(el) {
-        return el != element && !el.form;
-      });
-    }
-  }
-
-  function CheckedBinding(element, model, path) {
-    InputBinding.call(this, element, 'checked', model, path);
-  }
-
-  CheckedBinding.prototype = createObject({
-    __proto__: InputBinding.prototype,
-
-    sanitizeBoundValue: function(value) {
-      return Boolean(value);
-    },
-
-    postUpdateBinding: function() {
-      // Only the radio button that is getting checked gets an event. We
-      // therefore find all the associated radio buttons and update their
-      // CheckedBinding manually.
-      if (this.node.tagName === 'INPUT' &&
-          this.node.type === 'radio') {
-        getAssociatedRadioButtons(this.node).forEach(function(radio) {
-          var checkedBinding = radio.bindings.checked;
-          if (checkedBinding) {
-            // Set the value directly to avoid an infinite call stack.
-            checkedBinding.value = false;
-          }
-        });
-      }
-    }
-  });
-
-  HTMLInputElement.prototype.bind = function(name, model, path) {
-    if (name !== 'value' && name !== 'checked')
-      return HTMLElement.prototype.bind.call(this, name, model, path);
-
-    this.unbind(name);
-    this.removeAttribute(name);
-    return this.bindings[name] = name === 'value' ?
-        new InputBinding(this, 'value', model, path) :
-        new CheckedBinding(this, model, path);
-  }
-
-  HTMLTextAreaElement.prototype.bind = function(name, model, path) {
-    if (name !== 'value')
-      return HTMLElement.prototype.bind.call(this, name, model, path);
-
-    this.unbind(name);
-    this.removeAttribute(name);
-    return this.bindings[name] = new InputBinding(this, name, model, path);
-  }
-
-  function SelectedIndexBinding(element, model, path) {
-    InputBinding.call(this, element, 'selectedIndex', model, path);
-  }
-
-  SelectedIndexBinding.prototype = createObject({
-    __proto__: InputBinding.prototype,
-
-    boundValueChanged: function(value) {
-      var newValue = Number(value);
-      if (newValue <= this.node.length) {
-        this.node[this.property] = newValue;
-        return;
-      }
-
-      // The binding may wish to bind to an <option> which has not yet been
-      // produced by a child <template>. Delay a maximum of two times: once for
-      // each of <optgroup> and <option>
-      var maxRetries = 2;
-      var self = this;
-      function delaySetSelectedIndex() {
-        if (newValue > self.node.length && maxRetries--)
-          ensureScheduled(delaySetSelectedIndex);
-        else
-          self.node[self.property] = newValue;
-      }
-      ensureScheduled(delaySetSelectedIndex);
-    }
-  });
-
-  HTMLSelectElement.prototype.bind = function(name, model, path) {
-    if (name.toLowerCase() !== 'selectedindex')
-      return HTMLElement.prototype.bind.call(this, name, model, path);
-
-    this.unbind(name);
-    this.removeAttribute(name);
-    return this.bindings[name] = new SelectedIndexBinding(this, model, path);
-  }
 
   var BIND = 'bind';
   var REPEAT = 'repeat';
@@ -768,15 +469,12 @@
     this.node = node;
     this.property = property;
     this.model = model;
-    this.path = path || ''
+    this.path = path || '';
     this.iterator = iterator;
     this.iterator.inputs.bind(this.property, this.model, this.path);
   }
 
   TemplateBinding.prototype = createObject({
-    __proto__: NodeBinding.prototype,
-    get value() {},
-    boundValueChanged: function() {},
     close: function() {
       if (this.closed)
         return;
@@ -792,7 +490,6 @@
     bind: function(name, model, path) {
       if (name !== BIND && name !== REPEAT && name !== IF)
         return HTMLElement.prototype.bind.call(this, name, model, path);
-
 
       var iterator = TemplateIterator.getOrCreate(this);
       this.unbind(name);
@@ -857,12 +554,6 @@
 
       var nextRef = ref.ref;
       return nextRef ? nextRef : ref;
-    },
-
-    clear: function() {
-      this.unbind('bind');
-      this.unbind('if');
-      this.unbind('repeat');
     }
   });
 
@@ -1072,7 +763,7 @@
         continue;
 
       map = map || [];
-      map.children = map.children || [];
+      map.children = map.children || {};
       map.children[index] = childMap;
       if (childMap.hasSubTemplate)
         map.hasSubTemplate = true;
@@ -1278,8 +969,11 @@
     // avoid lots of calls to getTerminatorAt(), or cache its result.
     insertInstanceAt: function(index, fragment, instanceNodes, bound) {
       var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator = fragment ? fragment.lastChild || previousTerminator :
-          instanceNodes[instanceNodes.length - 1] || previousTerminator;
+      var terminator = previousTerminator;
+      if (fragment)
+        terminator = fragment.lastChild || terminator;
+      else if (instanceNodes)
+        terminator = instanceNodes[instanceNodes.length - 1] || terminator;
 
       this.terminators.splice(index*2, 0, terminator, bound);
       var parent = this.templateElement_.parentNode;
@@ -1287,11 +981,10 @@
 
       if (fragment) {
         parent.insertBefore(fragment, insertBeforeNode);
-        return;
+      } else if (instanceNodes) {
+        for (var i = 0; i < instanceNodes.length; i++)
+          parent.insertBefore(instanceNodes[i], insertBeforeNode);
       }
-
-      for (var i = 0; i < instanceNodes.length; i++)
-        parent.insertBefore(instanceNodes[i], insertBeforeNode);
     },
 
     extractInstanceAt: function(index) {
@@ -1359,9 +1052,11 @@
           } else {
             bound = [];
             var actualModel = this.getInstanceModel(template, model, delegate);
-            fragment = this.templateElement_.createInstance(actualModel,
-                                                            delegate,
-                                                            bound);
+            if (model !== undefined) {
+              fragment = this.templateElement_.createInstance(actualModel,
+                                                              delegate,
+                                                              bound);
+            }
           }
 
           this.insertInstanceAt(addIndex, fragment, instanceNodes, bound);
