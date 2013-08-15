@@ -30,6 +30,6 @@
   [
     '../observe-js/src/observe.js',
     '../NodeBind/src/NodeBind.js',
-    'src/TemplateInstances.js'
+    'src/TemplateBinding.js'
   ].forEach(write);
 })();
