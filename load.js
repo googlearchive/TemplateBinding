@@ -13,7 +13,7 @@
 // limitations under the License.
 
 (function() {
-  var thisFile = 'mdv.js';
+  var thisFile = 'load.js';
   var libLocation = '';
 
   function write(inSrc) {
@@ -28,9 +28,8 @@
       libLocation + 'src/template_element.css">');
 
   [
-    'third_party/ChangeSummary/change_summary.js',
-    'src/template_element.js',
-    'third_party/esprima/esprima.js',
-    'util/expression_syntax.js'
+    '../observe-js/src/observe.js',
+    '../NodeBind/src/NodeBind.js',
+    'src/TemplateBinding.js'
   ].forEach(write);
 })();

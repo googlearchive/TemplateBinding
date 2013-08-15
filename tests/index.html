@@ -16,14 +16,22 @@ limitations under the License.
 -->
 <html>
 <head>
-<title>MDV Tests</title>
+<title>TemplateInstances tests</title>
 <meta charset="utf-8">
 <link rel="stylesheet" href="../node_modules/mocha/mocha.css">
 <script src="../node_modules/chai/chai.js"></script>
 <script src="../node_modules/mocha/mocha.js"></script>
-<script src="setup.js"></script>
+<script>
+var parserHasNativeTemplate = function() {
+  var div = document.createElement('div');
+  div.innerHTML = '<table><template>';
+  return div.firstChild.firstChild &&
+         div.firstChild.firstChild.tagName == 'TEMPLATE';
+}();
 
-<script src="../mdv.js"></script>
+var forceCollectObservers = true;
+</script>
+<script src="../load.js"></script>
 </head>
 <body>
 <script>
@@ -36,9 +44,7 @@ mocha.setup({
 var assert = chai.assert;
 
 </script>
-<script src="node_bindings.js"></script>
-<script src="template_element.js"></script>
-<script src="expression_syntax.js"></script>
+<script src="tests.js"></script>
 <div id="mocha"></div>
 <script>
 mocha.run();

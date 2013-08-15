@@ -1,7 +1,7 @@
-[submodule "third_party/ChangeSummary"]
-	path = third_party/ChangeSummary
-	url = https://github.com/rafaelw/ChangeSummary.git
-	branch = master
+[submodule "third_party/ObserveJS"]
+	path = third_party/ObserveJS
+	url = https://github.com/Polymer/ObserveJS.git
+	branch = stable
 [submodule "third_party/mocha"]
 	path = third_party/mocha
 	url = https://github.com/visionmedia/mocha.git
