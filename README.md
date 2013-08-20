@@ -160,6 +160,10 @@ MDV builds upon recently added primitives to the Web Platform:
 
 Not all browsers currently implement all the required primitives. MDV attempts to polyfil their absence, but targeting browsers which do not support all three requires understanding patterns of use which should be prefered or avoided to ensure proper behavior.
 
+## Supported browsers
+ 
+* All evergreen browsers are supported, which includes Chrome on Android and Mobile Safari. [polymer-project.org/compatibility.html](http://www.polymer-project.org/compatibility.html)
+
 <p class="alert">
   <b>IMPORTANT</b>: The Deploying MDV documentation has yet to be created.
 </p>
