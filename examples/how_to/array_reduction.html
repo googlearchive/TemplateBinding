@@ -33,7 +33,7 @@
         path: 'selected',
         initial: true,
         reduce: function(prev, current) {
-          return prev && !current;
+          return prev && !current.selected;
         }
       });
 
@@ -42,8 +42,9 @@
       var reduction2 = ArrayReduction.defineProperty(model, 'sum', {
         array: model.items,
         path: 'amount',
+        initial: 0,
         reduce: function(prev, current) {
-          return Number(prev) + Number(current);
+          return prev + Number(current.amount);
         }
       });
 
