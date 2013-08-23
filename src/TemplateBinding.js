@@ -103,25 +103,36 @@
     }
   }
 
-  var SideTable;
-  "undefined" != typeof WeakMap && navigator.userAgent.indexOf("Firefox/") < 0 ? SideTable = WeakMap : function() {
-      var a = Object.defineProperty, b = Object.hasOwnProperty, c = new Date().getTime() % 1e9;
-      SideTable = function() {
-          this.name = "__st" + (1e9 * Math.random() >>> 0) + (c++ + "__");
-      }, SideTable.prototype = {
-          set: function(b, c) {
-              a(b, this.name, {
-                  value: c,
-                  writable: !0
-              });
-          },
-          get: function(a) {
-              return b.call(a, this.name) ? a[this.name] : void 0;
-          },
-          "delete": function(a) {
-              this.set(a, void 0);
-          }
-      };
+  var SideTable = function() {
+    if (typeof WeakMap !== 'undefined' &&
+        navigator.userAgent.indexOf("Firefox/") < 0) {
+      return WeakMap;
+    }
+
+    var unique = new Date().getTime() % 1e9;
+
+    // Note: This implementation reads through to the prototype (unlike
+    // WeakMap). All uses in this file should not depend on associating
+    // different values with the same property up the prototype chain.
+    function SideTable() {
+      this.name = "__st" + (1e9 * Math.random() >>> 0) + (unique++ + "__");
+    }
+
+    SideTable.prototype = {
+      set: function(key, value) {
+        key[this.name] = value;
+      },
+
+      get: function(key) {
+        return key[this.name];
+      },
+
+      "delete": function(key) {
+        key[this.name] = undefined;
+      }
+    }
+
+    return SideTable;
   }();
 
   var BIND = 'bind';
