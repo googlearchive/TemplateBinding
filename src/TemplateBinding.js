@@ -568,15 +568,44 @@
     }
   });
 
-  function isSimpleBinding(tokens) {
-    // tokens ==? ['', path, '']
-    return tokens.length == 3 && tokens[0].length == 0 && tokens[2].length == 0;
-  }
+  function BindingTokens() {}
+
+  BindingTokens.prototype = createObject({
+    __proto__: [],
+
+    get combinator() {
+      if (!this.combinator_)
+        this.combinator_ = this.createCombinator();
+      return this.combinator_;
+    },
+
+    createCombinator: function() {
+      var tokens = this;
+
+      return function(values) {
+        var newValue = tokens[0];
+
+        for (var i = 1; i < tokens.length; i += 2) {
+          var value = values[i];
+          if (value !== undefined)
+            newValue += value;
+          newValue += tokens[i + 1];
+        }
+
+        return newValue;
+      };
+    },
+
+    // true IFF tokens == ['', path, '']
+    isSimplePath: function() {
+      return this.length == 3 && this[0].length == 0 && this[2].length == 0;
+    }
+  });
 
   // Returns
   //   a) undefined if there are no mustaches.
   //   b) [TEXT, (PATH, TEXT)+] if there is at least one mustache.
-  function parseMustacheTokens(s) {
+  BindingTokens.parse = function(s) {
     if (!s || !s.length)
       return;
 
@@ -595,7 +624,7 @@
         break;
       }
 
-      tokens = tokens || [];
+      tokens = tokens || new BindingTokens;
       tokens.push(s.slice(lastIndex, startIndex)); // TEXT
       tokens.push(s.slice(startIndex + 2, endIndex).trim()); // PATH
       lastIndex = endIndex + 2;
@@ -630,27 +659,10 @@
     }
   }
 
-  function newTokenCombinator(tokens) {
-    return function(values) {
-      var newValue = tokens[0];
-
-      for (var i = 1; i < tokens.length; i += 2) {
-        var value = values[i];
-        if (value !== undefined)
-          newValue += value;
-        newValue += tokens[i + 1];
-      }
-
-      return newValue;
-    };
-  }
-
   function setupBinding(node, name, tokens, model, delegate) {
-    if (isSimpleBinding(tokens)) {
+    if (tokens.isSimplePath(tokens)) {
       return bindOrDelegate(node, name, model, tokens[1], delegate);
     }
-
-    tokens.combinator = tokens.combinator || newTokenCombinator(tokens);
 
     var replacementBinding = new CompoundBinding(tokens.combinator);
     replacementBinding.scheduled = true;
@@ -684,7 +696,7 @@
         }
       }
 
-      var tokens = parseMustacheTokens(value);
+      var tokens = BindingTokens.parse(value);
       if (!tokens)
         continue;
 
@@ -695,7 +707,7 @@
     // Treat <template if> as <template bind if>
     if (ifFound && !bindFound) {
       bindings = bindings || [];
-      bindings.push(BIND, parseMustacheTokens('{{}}'));
+      bindings.push(BIND, BindingTokens.parse('{{}}'));
     }
 
     return bindings;
@@ -706,7 +718,7 @@
       return parseAttributeBindings(node);
 
     if (node.nodeType === Node.TEXT_NODE) {
-      var tokens = parseMustacheTokens(node.data);
+      var tokens = BindingTokens.parse(node.data);
       if (tokens)
         return ['textContent', tokens];
     }
