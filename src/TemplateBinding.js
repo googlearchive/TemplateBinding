@@ -580,16 +580,16 @@
     },
 
     createCombinator: function() {
-      var tokens = this;
+      var self = this;
 
       return function(values) {
-        var newValue = tokens[0];
+        var newValue = self[0];
 
-        for (var i = 1; i < tokens.length; i += 2) {
-          var value = values[i];
+        for (var i = 1; i < self.length; i += 2) {
+          var value = self.pathCount > 1 ? values[(i-1)/ 2] : values;
           if (value !== undefined)
             newValue += value;
-          newValue += tokens[i + 1];
+          newValue += self[i + 1];
         }
 
         return newValue;
@@ -599,6 +599,35 @@
     // true IFF tokens == ['', path, '']
     isSimplePath: function() {
       return this.length == 3 && this[0].length == 0 && this[2].length == 0;
+    },
+
+    startBinding: function() {
+      this.pathCount = this.pathCount || (this.length - 1)/2;
+      if (this.pathCount > 1)
+        this.binding = new CompoundPathObserver(undefined, undefined, undefined,
+                                                this.combinator);
+    },
+
+    bind: function(name, model, path) {
+      if (this.pathCount > 1) {
+        this.binding.addPath(model, path);
+        return;
+      }
+
+      if (this.binding)
+        return;
+      this.binding = new PathObserver(model, path, undefined, undefined,
+                                      undefined,
+                                      this.combinator);
+    },
+
+    getBinding: function() {
+      var binding = this.binding;
+      this.binding = undefined;
+      if (this.pathCount > 1)
+        binding.start();
+
+      return binding;
     }
   });
 
@@ -664,13 +693,11 @@
       return bindOrDelegate(node, name, model, tokens[1], delegate);
     }
 
-    var replacementBinding = new CompoundBinding(tokens.combinator);
-    replacementBinding.scheduled = true;
+    tokens.startBinding();
     for (var i = 1; i < tokens.length; i = i + 2) {
-      bindOrDelegate(replacementBinding, i, model, tokens[i], delegate);
+      bindOrDelegate(tokens, i, model, tokens[i], delegate);
     }
-    replacementBinding.resolve();
-    return node.bind(name, replacementBinding, 'value');
+    return node.bind(name, tokens.getBinding(), 'value');
   }
 
   function parseAttributeBindings(element) {
