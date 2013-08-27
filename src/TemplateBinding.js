@@ -571,22 +571,20 @@
   function BindingTokens() {}
 
   BindingTokens.prototype = createObject({
-    __proto__: [],
+    __proto__: Array.prototype,
 
-    get combinator() {
-      if (!this.combinator_)
-        this.combinator_ = this.createCombinator();
-      return this.combinator_;
-    },
+    finishedParsing: function() {
+      this.hasOnePath = this.length == 3;
 
-    createCombinator: function() {
+      // true IFF tokens == ['', path, '']
+      this.isSimplePath = this.hasOnePath && this[0] == '' && this[2] == '';
+
       var self = this;
-
-      return function(values) {
+      this.combinator = function(values) {
         var newValue = self[0];
 
         for (var i = 1; i < self.length; i += 2) {
-          var value = self.pathCount > 1 ? values[(i-1)/ 2] : values;
+          var value = self.hasOnePath ? values : values[(i-1)/ 2];
           if (value !== undefined)
             newValue += value;
           newValue += self[i + 1];
@@ -596,20 +594,14 @@
       };
     },
 
-    // true IFF tokens == ['', path, '']
-    isSimplePath: function() {
-      return this.length == 3 && this[0].length == 0 && this[2].length == 0;
-    },
-
     startBinding: function() {
-      this.pathCount = this.pathCount || (this.length - 1)/2;
-      if (this.pathCount > 1)
+      if (!this.hasOnePath)
         this.binding = new CompoundPathObserver(undefined, undefined, undefined,
                                                 this.combinator);
     },
 
     bind: function(name, model, path) {
-      if (this.pathCount > 1) {
+      if (!this.hasOnePath) {
         this.binding.addPath(model, path);
         return;
       }
@@ -624,7 +616,7 @@
     getBinding: function() {
       var binding = this.binding;
       this.binding = undefined;
-      if (this.pathCount > 1)
+      if (!this.hasOnePath)
         binding.start();
 
       return binding;
@@ -662,6 +654,7 @@
     if (lastIndex === length)
       tokens.push(''); // TEXT
 
+    tokens.finishedParsing();
     return tokens;
   }
 
@@ -689,7 +682,7 @@
   }
 
   function setupBinding(node, name, tokens, model, delegate) {
-    if (tokens.isSimplePath(tokens)) {
+    if (tokens.isSimplePath) {
       return bindOrDelegate(node, name, model, tokens[1], delegate);
     }
 
