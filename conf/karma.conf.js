@@ -78,6 +78,7 @@ module.exports = function(karma) {
       'karma-mocha',
       'karma-chrome-launcher',
       'karma-firefox-launcher',
+      'karma-ie-launcher',
       'karma-script-launcher',
       'karma-crbot-reporter'
     ]
