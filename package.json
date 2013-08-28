@@ -21,7 +21,7 @@
     "chai": "*",
     "mocha": ">=1.9",
     "grunt": "*",
-    "grunt-karma": "~0.5.0",
+    "grunt-karma": "*",
     "karma-mocha": "*",
     "karma-script-launcher": "*",
     "karma-crbot-reporter": "*",

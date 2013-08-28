@@ -1,19 +1,18 @@
 module.exports = function(karma) {
   karma.configure({
     // base path, that will be used to resolve files and exclude
-    basePath: '../',
+    basePath: '../../',
 
     // list of files / patterns to load in the browser
     files: [
-      'node_modules/chai/chai.js',
-      'conf/mocha.conf.js',
-      'tests/setup.js',
-      'mdv.js',
-      'tests/*.js',
-      {pattern: 'src/*.css', included: false},
-      {pattern: 'src/*.js', included: false},
-      {pattern: 'util/*.js', included: false},
-      {pattern: 'third_party/**/*.js', included: false}
+      'TemplateBinding/node_modules/chai/chai.js',
+      'TemplateBinding/conf/mocha.conf.js',
+      'TemplateBinding/load.js',
+      'TemplateBinding/tests/*.js',
+      {pattern: 'NodeBind/src/*.js', included: false},
+      {pattern: 'TemplateBinding/src/*.css', included: false},
+      {pattern: 'TemplateBinding/src/*.js', included: false},
+      {pattern: 'observe-js/src/*.js', included: false}
     ],
 
     // list of files to exclude
