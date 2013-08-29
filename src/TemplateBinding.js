@@ -904,9 +904,6 @@
     this.terminators = [];
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
-    this.ifObserver = undefined;
-    this.bindObserver = undefined;
-    this.repeatObserver = undefined;
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
     this.templateElement_.iterator_ = this;
   }
