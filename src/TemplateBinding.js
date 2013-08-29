@@ -106,8 +106,6 @@
   var BIND = 'bind';
   var REPEAT = 'repeat';
   var IF = 'if';
-  var GET_BINDING = 'getBinding';
-  var GET_INSTANCE_MODEL = 'getInstanceModel';
 
   var templateAttributeDirectives = {
     'template': true,
@@ -478,7 +476,12 @@
       var instance = map.hasSubTemplate ?
           deepCloneIgnoreTemplateContent(content) : content.cloneNode(true);
 
-      addMapBindings(instance, map, model, delegate, bound);
+      var delegateGetBindingFn =
+          delegate && typeof delegate.getBinding === 'function' ?
+          delegate.getBinding : undefined;
+
+      addMapBindings(instance, map, model, delegate, delegateGetBindingFn,
+                     bound);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
       // in the parent of the template element, and creating it when it's
       // asked for by walking back to find the iterating template.
@@ -614,11 +617,9 @@
     return tokens;
   }
 
-  function bindOrDelegate(node, name, model, path, delegate) {
-    var delegateBinding;
-    var delegateFunction = delegate && delegate[GET_BINDING];
-    if (delegateFunction && typeof delegateFunction == 'function') {
-      delegateBinding = delegateFunction(model, path, name, node);
+  function bindOrDelegate(node, name, model, path, delegateGetBindingFn) {
+    if (delegateGetBindingFn) {
+      var delegateBinding = delegateGetBindingFn(model, path, name, node);
       if (delegateBinding) {
         model = delegateBinding;
         path = 'value';
@@ -628,23 +629,23 @@
     return node.bind(name, model, path);
   }
 
-  function processBindings(bindings, node, model, delegate, bound) {
+  function processBindings(bindings, node, model, delegateGetBindingFn, bound) {
     for (var i = 0; i < bindings.length; i += 2) {
       var binding = setupBinding(node, bindings[i], bindings[i + 1], model,
-                                 delegate);
+                                 delegateGetBindingFn);
       if (bound)
         bound.push(binding);
     }
   }
 
-  function setupBinding(node, name, tokens, model, delegate) {
+  function setupBinding(node, name, tokens, model, delegateGetBindingFn) {
     if (tokens.isSimplePath) {
-      return bindOrDelegate(node, name, model, tokens[1], delegate);
+      return bindOrDelegate(node, name, model, tokens[1], delegateGetBindingFn);
     }
 
     tokens.startBinding();
     for (var i = 1; i < tokens.length; i = i + 2) {
-      bindOrDelegate(tokens, i, model, tokens[i], delegate);
+      bindOrDelegate(tokens, i, model, tokens[i], delegateGetBindingFn);
     }
     return node.bind(name, tokens.getBinding(), 'value');
   }
@@ -700,7 +701,8 @@
     }
   }
 
-  function addMapBindings(node, bindings, model, delegate, bound) {
+  function addMapBindings(node, bindings, model, delegate, delegateGetBindingFn,
+                          bound) {
     if (!bindings)
       return;
 
@@ -712,23 +714,29 @@
     }
 
     if (bindings.length)
-      processBindings(bindings, node, model, delegate, bound);
+      processBindings(bindings, node, model, delegateGetBindingFn, bound);
 
     if (!bindings.children)
       return;
 
     var i = 0;
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      addMapBindings(child, bindings.children[i++], model, delegate, bound);
+      addMapBindings(child, bindings.children[i++], model, delegate,
+                     delegateGetBindingFn,
+                     bound);
     }
   }
 
   function addBindings(node, model, delegate) {
     assert(node);
 
+    var delegateGetBindingFn =
+        delegate && typeof delegate.getBinding === 'function' ?
+        delegate.getBinding : undefined;
+
     var bindings = getBindings(node);
     if (bindings)
-      processBindings(bindings, node, model, delegate);
+      processBindings(bindings, node, model, delegateGetBindingFn);
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
       addBindings(child, model, delegate);
@@ -1001,14 +1009,6 @@
       return instanceNodes;
     },
 
-    getInstanceModel: function(template, model, delegate) {
-      var delegateFunction = delegate && delegate[GET_INSTANCE_MODEL];
-      if (delegateFunction && typeof delegateFunction == 'function')
-        return delegateFunction(template, model);
-      else
-        return model;
-    },
-
     handleSplices: function(splices) {
       if (this.closed)
         return;
@@ -1020,6 +1020,10 @@
       }
 
       var delegate = template.bindingDelegate;
+      var delegateInstanceModelFn =
+          delegate && typeof delegate.getInstanceModel === 'function' ?
+          delegate.getInstanceModel : undefined;
+
 
       var instanceCache = new Map;
       var removeDelta = 0;
@@ -1045,9 +1049,11 @@
             bound = instanceNodes.bound;
           } else {
             bound = [];
-            var actualModel = this.getInstanceModel(template, model, delegate);
+            if (delegateInstanceModelFn)
+              model = delegateInstanceModelFn(template, model);
+
             if (model !== undefined) {
-              fragment = this.templateElement_.createInstance(actualModel,
+              fragment = this.templateElement_.createInstance(model,
                                                               delegate,
                                                               bound);
             }
