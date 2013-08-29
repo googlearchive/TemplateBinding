@@ -456,7 +456,10 @@
       if (name !== BIND && name !== REPEAT && name !== IF)
         return HTMLElement.prototype.bind.call(this, name, model, path);
 
-      var iterator = TemplateIterator.getOrCreate(this);
+      var iterator = this.iterator_;
+      if (!iterator) {
+        iterator = this.iterator_ = new TemplateIterator(this);
+      }
       this.unbind(name);
 
       return this.bindings[name] =
@@ -901,17 +904,12 @@
     this.terminators = [];
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
+    this.ifObserver = undefined;
+    this.bindObserver = undefined;
+    this.repeatObserver = undefined;
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
     this.templateElement_.iterator_ = this;
   }
-
-  TemplateIterator.get = function(template) {
-    return template.iterator_;
-  }
-
-  TemplateIterator.getOrCreate = function(template) {
-    return TemplateIterator.get(template) || new TemplateIterator(template);
-  };
 
   TemplateIterator.prototype = {
     resolveInputs: function(values) {
@@ -960,7 +958,7 @@
         return terminator;
       }
 
-      var subIterator = TemplateIterator.get(terminator);
+      var subIterator = terminator.iterator_;
       if (!subIterator)
         return terminator;
 
