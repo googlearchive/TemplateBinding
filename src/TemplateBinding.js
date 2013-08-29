@@ -103,38 +103,6 @@
     }
   }
 
-  var SideTable = function() {
-    if (typeof WeakMap !== 'undefined' &&
-        navigator.userAgent.indexOf("Firefox/") < 0) {
-      return WeakMap;
-    }
-
-    var unique = new Date().getTime() % 1e9;
-
-    // Note: This implementation reads through to the prototype (unlike
-    // WeakMap). All uses in this file should not depend on associating
-    // different values with the same property up the prototype chain.
-    function SideTable() {
-      this.name = "__st" + (1e9 * Math.random() >>> 0) + (unique++ + "__");
-    }
-
-    SideTable.prototype = {
-      set: function(key, value) {
-        key[this.name] = value;
-      },
-
-      get: function(key) {
-        return key[this.name];
-      },
-
-      "delete": function(key) {
-        key[this.name] = undefined;
-      }
-    }
-
-    return SideTable;
-  }();
-
   var BIND = 'bind';
   var REPEAT = 'repeat';
   var IF = 'if';
@@ -301,16 +269,11 @@
     });
   }
 
-  var templateContentsTable = new SideTable();
-  var templateContentsOwnerTable = new SideTable();
-  var templateInstanceRefTable = new SideTable();
-  var contentBindingMapTable = new SideTable();
-
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
   function getTemplateContentsOwner(doc) {
     if (!doc.defaultView)
       return doc;
-    var d = templateContentsOwnerTable.get(doc);
+    var d = doc.templateContentsOwner_;
     if (!d) {
       // TODO(arv): This should either be a Document or HTMLDocument depending
       // on doc.
@@ -318,7 +281,7 @@
       while (d.lastChild) {
         d.removeChild(d.lastChild);
       }
-      templateContentsOwnerTable.set(doc, d);
+      doc.templateContentsOwner_ = d;
     }
     return d;
   }
@@ -397,13 +360,13 @@
     if (!isNative) {
       fixTemplateElementPrototype(templateElement);
       var doc = getTemplateContentsOwner(templateElement.ownerDocument);
-      templateContentsTable.set(templateElement, doc.createDocumentFragment());
+      template.content_ = doc.createDocumentFragment();
     }
 
     if (opt_instanceRef) {
       // template is contained within an instance, its direct content must be
       // empty
-      templateInstanceRefTable.set(templateElement, opt_instanceRef);
+      templateElement.instanceRef_ = opt_instanceRef;
     } else if (liftContents) {
       liftNonNativeTemplateChildrenIntoContent(templateElement,
                                                el,
@@ -425,7 +388,7 @@
 
   var contentDescriptor = {
     get: function() {
-      return templateContentsTable.get(this);
+      return this.content_;
     },
     enumerable: true,
     configurable: true
@@ -458,21 +421,14 @@
     }
   }
 
-  var templateModelTable = new SideTable();
-  var templateBindingDelegateTable = new SideTable();
-  var templateSetModelFnTable = new SideTable();
-
   function ensureSetModelScheduled(template) {
-    var setModelFn = templateSetModelFnTable.get(template);
-    if (!setModelFn) {
-      setModelFn = function() {
+    if (!template.setModelFn_) {
+      template.setModelFn_ = function() {
         addBindings(template, template.model, template.bindingDelegate);
       };
-
-      templateSetModelFnTable.set(template, setModelFn);
     }
 
-    ensureScheduled(setModelFn);
+    ensureScheduled(template.setModelFn_);
   }
 
   function TemplateBinding(node, property, model, path, iterator) {
@@ -511,12 +467,12 @@
 
     createInstance: function(model, delegate, bound) {
       var content = this.ref.content;
-      var map = contentBindingMapTable.get(content);
+      var map = content.bindingMap_;
       if (!map) {
         // TODO(rafaelw): Setup a MutationObserver on content to detect
         // when the instanceMap is invalid.
         map = createInstanceBindingMap(content) || [];
-        contentBindingMapTable.set(content, map);
+        content.bindingMap_ = map;
       }
 
       var instance = map.hasSubTemplate ?
@@ -531,20 +487,20 @@
     },
 
     get model() {
-      return templateModelTable.get(this);
+      return this.model_;
     },
 
     set model(model) {
-      templateModelTable.set(this, model);
+      this.model_ = model;
       ensureSetModelScheduled(this);
     },
 
     get bindingDelegate() {
-      return templateBindingDelegateTable.get(this);
+      return this.bindingDelegate_;
     },
 
     set bindingDelegate(bindingDelegate) {
-      templateBindingDelegateTable.set(this, bindingDelegate);
+      this.bindingDelegate_ = bindingDelegate;
       ensureSetModelScheduled(this);
     },
 
@@ -558,7 +514,7 @@
       }
 
       if (!ref)
-        ref = templateInstanceRefTable.get(this);
+        ref = this.instanceRef_;
 
       if (!ref)
         return this;
@@ -751,7 +707,7 @@
     if (bindings.templateRef) {
       HTMLTemplateElement.decorate(node, bindings.templateRef);
       if (delegate) {
-        templateBindingDelegateTable.set(node, delegate);
+        node.bindingDelegate_ = delegate;
       }
     }
 
@@ -832,16 +788,14 @@
                                               fragment.lastChild, model);
     var node = instanceRecord.firstNode;
     while (node) {
-      templateInstanceTable.set(node, instanceRecord);
+      node.templateInstance_ = instanceRecord;
       node = node.nextSibling;
     }
   }
 
-  var templateInstanceTable = new SideTable();
-
   Object.defineProperty(Node.prototype, 'templateInstance', {
     get: function() {
-      var instance = templateInstanceTable.get(this);
+      var instance = this.templateInstance_;
       return instance ? instance :
           (this.parentNode ? this.parentNode.templateInstance : undefined);
     }
@@ -940,14 +894,11 @@
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
     this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
-    TemplateIterator.templateTable.set(this.templateElement_, this);
+    this.templateElement_.iterator_ = this;
   }
 
-  // "private"
-  TemplateIterator.templateTable = new SideTable();
-
   TemplateIterator.get = function(template) {
-    return TemplateIterator.templateTable.get(template);
+    return template.iterator_;
   }
 
   TemplateIterator.getOrCreate = function(template) {
@@ -1135,7 +1086,7 @@
 
       this.terminators.length = 0;
       this.inputs.close();
-      TemplateIterator.templateTable.delete(this.templateElement_);
+      this.templateElement_.iterator_ = undefined;
       this.closed = true;
     }
   };
