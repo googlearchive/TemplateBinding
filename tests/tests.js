@@ -1329,7 +1329,7 @@ suite('Template Instantiation', function() {
           '<template repeat="{{}}" id=t1>' +
             '<li>{{name}}' +
               '<ul>' +
-                '<template ref=t1 repaet="{{items}}"></template>' +
+                '<template ref=t1 repeat="{{items}}"></template>' +
               '</ul>' +
             '</li>' +
           '</template>' +
