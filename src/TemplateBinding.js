@@ -530,65 +530,10 @@
     }
   });
 
-  function BindingTokens() {}
-
-  BindingTokens.prototype = createObject({
-    __proto__: Array.prototype,
-
-    finishedParsing: function() {
-      this.hasOnePath = this.length == 3;
-
-      // true IFF tokens == ['', path, '']
-      this.isSimplePath = this.hasOnePath && this[0] == '' && this[2] == '';
-
-      var self = this;
-      this.combinator = function(values) {
-        var newValue = self[0];
-
-        for (var i = 1; i < self.length; i += 2) {
-          var value = self.hasOnePath ? values : values[(i-1)/ 2];
-          if (value !== undefined)
-            newValue += value;
-          newValue += self[i + 1];
-        }
-
-        return newValue;
-      };
-    },
-
-    startBinding: function() {
-      if (!this.hasOnePath)
-        this.binding = new CompoundPathObserver(undefined, undefined, undefined,
-                                                this.combinator);
-    },
-
-    bind: function(name, model, path) {
-      if (!this.hasOnePath) {
-        this.binding.addPath(model, path);
-        return;
-      }
-
-      if (this.binding)
-        return;
-      this.binding = new PathObserver(model, path, undefined, undefined,
-                                      undefined,
-                                      this.combinator);
-    },
-
-    getBinding: function() {
-      var binding = this.binding;
-      this.binding = undefined;
-      if (!this.hasOnePath)
-        binding.start();
-
-      return binding;
-    }
-  });
-
   // Returns
   //   a) undefined if there are no mustaches.
   //   b) [TEXT, (PATH, TEXT)+] if there is at least one mustache.
-  BindingTokens.parse = function(s) {
+  function parseMustaches(s) {
     if (!s || !s.length)
       return;
 
@@ -607,7 +552,7 @@
         break;
       }
 
-      tokens = tokens || new BindingTokens;
+      tokens = tokens || [];
       tokens.push(s.slice(lastIndex, startIndex)); // TEXT
       tokens.push(s.slice(startIndex + 2, endIndex).trim()); // PATH
       lastIndex = endIndex + 2;
@@ -616,41 +561,81 @@
     if (lastIndex === length)
       tokens.push(''); // TEXT
 
-    tokens.finishedParsing();
-    return tokens;
-  }
+    tokens.hasOnePath = tokens.length === 3;
+    tokens.isSimplePath = tokens.hasOnePath &&
+                          tokens[0] == '' &&
+                          tokens[2] == '';
 
-  function bindOrDelegate(node, name, model, path, delegateGetBindingFn) {
-    if (delegateGetBindingFn) {
-      var delegateBinding = delegateGetBindingFn(model, path, name, node);
-      if (delegateBinding) {
-        model = delegateBinding;
-        path = 'value';
+    tokens.combinator = function(values) {
+      var newValue = tokens[0];
+
+      for (var i = 1; i < tokens.length; i += 2) {
+        var value = tokens.hasOnePath ? values : values[(i-1)/ 2];
+        if (value !== undefined)
+          newValue += value;
+        newValue += tokens[i + 1];
       }
+
+      return newValue;
     }
 
-    return node.bind(name, model, path);
+    return tokens;
   }
 
   function processBindings(bindings, node, model, delegateGetBindingFn, bound) {
     for (var i = 0; i < bindings.length; i += 2) {
-      var binding = setupBinding(node, bindings[i], bindings[i + 1], model,
-                                 delegateGetBindingFn);
+      var name = bindings[i];
+      var tokens = bindings[i + 1];
+      var bindingModel = model;
+      var bindingPath = tokens[1];
+      if (tokens.hasOnePath) {
+        var dm = delegateGetBindingFn && delegateGetBindingFn(bindingModel,
+                                                              bindingPath,
+                                                              name,
+                                                              node);
+        if (dm !== undefined) {
+          bindingModel = dm;
+          bindingPath = 'value';
+        }
+
+        if (!tokens.isSimplePath) {
+          bindingModel = new PathObserver(bindingModel, bindingPath, undefined,
+                                          undefined,
+                                          undefined,
+                                          tokens.combinator);
+          bindingPath = 'value';
+        }
+      } else {
+        var observer = new CompoundPathObserver(undefined,
+                                                undefined,
+                                                undefined,
+                                                tokens.combinator);
+
+
+        for (var i = 1; i < tokens.length; i = i + 2) {
+          var subModel = model;
+          var subPath = tokens[i];
+          var dm = delegateGetBindingFn && delegateGetBindingFn(subModel,
+                                                                subPath,
+                                                                name,
+                                                                node);
+          if (dm !== undefined) {
+            subModel = dm;
+            subPath = 'value';
+          }
+
+          observer.addPath(subModel, subPath);
+        }
+
+        observer.start();
+        bindingModel = observer;
+        bindingPath = 'value';
+      }
+
+      var binding = node.bind(name, bindingModel, bindingPath);
       if (bound)
         bound.push(binding);
     }
-  }
-
-  function setupBinding(node, name, tokens, model, delegateGetBindingFn) {
-    if (tokens.isSimplePath) {
-      return bindOrDelegate(node, name, model, tokens[1], delegateGetBindingFn);
-    }
-
-    tokens.startBinding();
-    for (var i = 1; i < tokens.length; i = i + 2) {
-      bindOrDelegate(tokens, i, model, tokens[i], delegateGetBindingFn);
-    }
-    return node.bind(name, tokens.getBinding(), 'value');
   }
 
   function parseAttributeBindings(element) {
@@ -676,7 +661,7 @@
         }
       }
 
-      var tokens = BindingTokens.parse(value);
+      var tokens = parseMustaches(value);
       if (!tokens)
         continue;
 
@@ -687,7 +672,7 @@
     // Treat <template if> as <template bind if>
     if (ifFound && !bindFound) {
       bindings = bindings || [];
-      bindings.push(BIND, BindingTokens.parse('{{}}'));
+      bindings.push(BIND, parseMustaches('{{}}'));
     }
 
     return bindings;
@@ -698,7 +683,7 @@
       return parseAttributeBindings(node);
 
     if (node.nodeType === Node.TEXT_NODE) {
-      var tokens = BindingTokens.parse(node.data);
+      var tokens = parseMustaches(node.data);
       if (tokens)
         return ['textContent', tokens];
     }
