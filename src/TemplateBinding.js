@@ -358,7 +358,7 @@
     if (!isNative) {
       fixTemplateElementPrototype(templateElement);
       var doc = getTemplateContentsOwner(templateElement.ownerDocument);
-      template.content_ = doc.createDocumentFragment();
+      templateElement.content_ = doc.createDocumentFragment();
     }
 
     if (opt_instanceRef) {
