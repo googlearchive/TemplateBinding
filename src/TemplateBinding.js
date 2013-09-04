@@ -470,21 +470,19 @@
       var content = this.ref.content;
       var map = content.bindingMap_;
       if (!map) {
+        var delegatePrepareBindingFn =
+            delegate && typeof delegate.prepareBinding === 'function' ?
+            delegate.prepareBinding : undefined;
         // TODO(rafaelw): Setup a MutationObserver on content to detect
         // when the instanceMap is invalid.
-        map = createInstanceBindingMap(content) || [];
+        map = createInstanceBindingMap(content, delegatePrepareBindingFn) || [];
         content.bindingMap_ = map;
       }
 
       var instance = map.hasSubTemplate ?
           deepCloneIgnoreTemplateContent(content) : content.cloneNode(true);
 
-      var delegateGetBindingFn =
-          delegate && typeof delegate.getBinding === 'function' ?
-          delegate.getBinding : undefined;
-
-      addMapBindings(instance, map, model, delegate, delegateGetBindingFn,
-                     bound);
+      addMapBindings(instance, map, model, delegate, bound);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
       // in the parent of the template element, and creating it when it's
       // asked for by walking back to find the iterating template.
@@ -532,8 +530,8 @@
 
   // Returns
   //   a) undefined if there are no mustaches.
-  //   b) [TEXT, (PATH, TEXT)+] if there is at least one mustache.
-  function parseMustaches(s) {
+  //   b) [TEXT, (PATH, DELEGATE_FN, TEXT)+] if there is at least one mustache.
+  function parseMustaches(s, name, node, delegatePrepareBindingFn) {
     if (!s || !s.length)
       return;
 
@@ -554,26 +552,30 @@
 
       tokens = tokens || [];
       tokens.push(s.slice(lastIndex, startIndex)); // TEXT
-      tokens.push(s.slice(startIndex + 2, endIndex).trim()); // PATH
+      var pathString = s.slice(startIndex + 2, endIndex).trim();
+      tokens.push(Path.get(pathString)); // PATH
+      var delegateFn = delegatePrepareBindingFn &&
+                       delegatePrepareBindingFn(pathString, name, node)
+      tokens.push(delegateFn); // DELEGATE_FN
       lastIndex = endIndex + 2;
     }
 
     if (lastIndex === length)
       tokens.push(''); // TEXT
 
-    tokens.hasOnePath = tokens.length === 3;
+    tokens.hasOnePath = tokens.length === 4;
     tokens.isSimplePath = tokens.hasOnePath &&
                           tokens[0] == '' &&
-                          tokens[2] == '';
+                          tokens[3] == '';
 
     tokens.combinator = function(values) {
       var newValue = tokens[0];
 
-      for (var i = 1; i < tokens.length; i += 2) {
-        var value = tokens.hasOnePath ? values : values[(i-1)/ 2];
+      for (var i = 1; i < tokens.length; i += 3) {
+        var value = tokens.hasOnePath ? values : values[(i - 1) / 3];
         if (value !== undefined)
           newValue += value;
-        newValue += tokens[i + 1];
+        newValue += tokens[i + 2];
       }
 
       return newValue;
@@ -582,20 +584,21 @@
     return tokens;
   }
 
-  function processBindings(bindings, node, model, delegateGetBindingFn, bound) {
+  var valuePath = Path.get('value');
+
+  function processBindings(bindings, node, model, bound) {
     for (var i = 0; i < bindings.length; i += 2) {
       var name = bindings[i];
       var tokens = bindings[i + 1];
       var bindingModel = model;
       var bindingPath = tokens[1];
       if (tokens.hasOnePath) {
-        var dm = delegateGetBindingFn && delegateGetBindingFn(bindingModel,
-                                                              bindingPath,
-                                                              name,
-                                                              node);
-        if (dm !== undefined) {
-          bindingModel = dm;
-          bindingPath = 'value';
+        var delegateFn = tokens[2];
+        var delegateBinding = delegateFn && delegateFn(model, name, node);
+
+        if (delegateBinding !== undefined) {
+          bindingModel = delegateBinding;
+          bindingPath = valuePath;
         }
 
         if (!tokens.isSimplePath) {
@@ -603,7 +606,7 @@
                                           undefined,
                                           undefined,
                                           tokens.combinator);
-          bindingPath = 'value';
+          bindingPath = valuePath;
         }
       } else {
         var observer = new CompoundPathObserver(undefined,
@@ -612,16 +615,15 @@
                                                 tokens.combinator);
 
 
-        for (var i = 1; i < tokens.length; i = i + 2) {
+        for (var i = 1; i < tokens.length; i = i + 3) {
           var subModel = model;
           var subPath = tokens[i];
-          var dm = delegateGetBindingFn && delegateGetBindingFn(subModel,
-                                                                subPath,
-                                                                name,
-                                                                node);
-          if (dm !== undefined) {
-            subModel = dm;
-            subPath = 'value';
+          var delegateFn = tokens[i + 1];
+          var delegateBinding = delegateFn && delegateFn(subModel, name, node);
+
+          if (delegateBinding !== undefined) {
+            subModel = delegateBinding;
+            subPath = valuePath;
           }
 
           observer.addPath(subModel, subPath);
@@ -629,7 +631,7 @@
 
         observer.start();
         bindingModel = observer;
-        bindingPath = 'value';
+        bindingPath = valuePath;
       }
 
       var binding = node.bind(name, bindingModel, bindingPath);
@@ -638,7 +640,7 @@
     }
   }
 
-  function parseAttributeBindings(element) {
+  function parseAttributeBindings(element, delegatePrepareBindingFn) {
     assert(element);
 
     var bindings;
@@ -661,7 +663,8 @@
         }
       }
 
-      var tokens = parseMustaches(value);
+      var tokens = parseMustaches(value, name, element,
+                                  delegatePrepareBindingFn);
       if (!tokens)
         continue;
 
@@ -672,25 +675,26 @@
     // Treat <template if> as <template bind if>
     if (ifFound && !bindFound) {
       bindings = bindings || [];
-      bindings.push(BIND, parseMustaches('{{}}'));
+      bindings.push(BIND, parseMustaches('{{}}', BIND, element,
+                                         delegatePrepareBindingFn));
     }
 
     return bindings;
   }
 
-  function getBindings(node) {
+  function getBindings(node, delegatePrepareBindingFn) {
     if (node.nodeType === Node.ELEMENT_NODE)
-      return parseAttributeBindings(node);
+      return parseAttributeBindings(node, delegatePrepareBindingFn);
 
     if (node.nodeType === Node.TEXT_NODE) {
-      var tokens = parseMustaches(node.data);
+      var tokens = parseMustaches(node.data, 'textContent', node,
+                                  delegatePrepareBindingFn);
       if (tokens)
         return ['textContent', tokens];
     }
   }
 
-  function addMapBindings(node, bindings, model, delegate, delegateGetBindingFn,
-                          bound) {
+  function addMapBindings(node, bindings, model, delegate, bound) {
     if (!bindings)
       return;
 
@@ -702,29 +706,27 @@
     }
 
     if (bindings.length)
-      processBindings(bindings, node, model, delegateGetBindingFn, bound);
+      processBindings(bindings, node, model, bound);
 
     if (!bindings.children)
       return;
 
     var i = 0;
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      addMapBindings(child, bindings.children[i++], model, delegate,
-                     delegateGetBindingFn,
-                     bound);
+      addMapBindings(child, bindings.children[i++], model, delegate, bound);
     }
   }
 
   function addBindings(node, model, delegate) {
     assert(node);
 
-    var delegateGetBindingFn =
-        delegate && typeof delegate.getBinding === 'function' ?
-        delegate.getBinding : undefined;
+    var delegatePrepareBindingFn =
+        delegate && typeof delegate.prepareBinding === 'function' ?
+        delegate.prepareBinding : undefined;
 
-    var bindings = getBindings(node);
+    var bindings = getBindings(node, delegatePrepareBindingFn);
     if (bindings)
-      processBindings(bindings, node, model, delegateGetBindingFn);
+      processBindings(bindings, node, model);
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
       addBindings(child, model, delegate);
@@ -743,8 +745,8 @@
     return clone;
   }
 
-  function createInstanceBindingMap(node) {
-    var map = getBindings(node);
+  function createInstanceBindingMap(node, delegatePrepareBindingFn) {
+    var map = getBindings(node, delegatePrepareBindingFn);
     if (isTemplate(node)) {
       map = map || [];
       map.templateRef = node;
@@ -753,7 +755,7 @@
 
     var child = node.firstChild, index = 0;
     for (; child; child = child.nextSibling, index++) {
-      var childMap = createInstanceBindingMap(child);
+      var childMap = createInstanceBindingMap(child, delegatePrepareBindingFn);
       if (!childMap)
         continue;
 

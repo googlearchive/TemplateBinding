@@ -1703,12 +1703,15 @@ suite('Template Instantiation', function() {
     var count = 0;
     var expectedAge = 42;
     var delegate = {
-      getBinding: function(model, path, name, node) {
+      prepareBinding: function(path, name, node) {
         if (name != 'textContent' || path != 'age')
           return;
 
-        assert.strictEqual(expectedAge, model.age);
-        count++;
+        return function(model) {
+          assert.strictEqual(expectedAge, model.age);
+          count++;
+          return model;
+        }
       }
     };
 
@@ -1754,9 +1757,12 @@ suite('Template Instantiation', function() {
 
   test('CreateInstance', function() {
     var delegate = {
-      getBinding: function(model, path, name, node) {
-        if (path.trim() == 'replaceme')
+      prepareBinding: function(path, name, node) {
+        if (path != 'replaceme')
+          return;
+        return function() {
           return { value: 'replaced' };
+        }
       }
     };
 
@@ -1826,46 +1832,65 @@ suite('Binding Delegate API', function() {
 
   test('Registration', function() {
     var model = { foo: 'bar'};
+    var prepareBindData = {
+      type: 'prepare',
+      path: '',
+      name: 'bind',
+      nodeType: Node.ELEMENT_NODE,
+      tagName: 'TEMPLATE'
+    };
+    var bindFnBindData = {
+      type: 'bindFn',
+      model: model,
+      name: 'bind',
+      nodeType: Node.ELEMENT_NODE,
+      tagName: 'TEMPLATE'
+    };
+    var prepareTextContentData = {
+      type: 'prepare',
+      path: 'foo',
+      name: 'textContent',
+      nodeType: Node.TEXT_NODE,
+      tagName: undefined
+    };
+    var bindFnTextContentData = {
+      type: 'bindFn',
+      model: model,
+      name: 'textContent',
+      nodeType: Node.TEXT_NODE,
+      tagName: undefined
+    };
+
     var testData = [
-      {
-        model: model,
-        path: '',
-        name: 'bind',
-        nodeType: Node.ELEMENT_NODE,
-        tagName: 'TEMPLATE'
-      },
-      {
-        model: model,
-        path: 'foo',
-        name: 'textContent',
-        nodeType: Node.TEXT_NODE,
-        tagName: undefined
-      },
-      {
-        model: model,
-        path: '',
-        name: 'bind',
-        nodeType: Node.ELEMENT_NODE,
-        tagName: 'TEMPLATE'
-      },
-      {
-        model: model,
-        path: 'foo',
-        name: 'textContent',
-        nodeType: Node.TEXT_NODE,
-        tagName: undefined
-      },
+      prepareBindData,
+      bindFnBindData,
+      prepareTextContentData,
+      prepareBindData,
+      bindFnTextContentData,
+      bindFnBindData,
+      prepareTextContentData,
+      bindFnTextContentData
     ];
 
     var delegate = {
-      getBinding: function(model, path, name, node) {
+      prepareBinding: function(path, name, node) {
         var data = testData.shift();
 
-        assert.strictEqual(data.model, model);
+        assert.strictEqual(data.type, 'prepare');
         assert.strictEqual(data.path, path);
         assert.strictEqual(data.name, name);
         assert.strictEqual(data.nodeType, node.nodeType);
         assert.strictEqual(data.tagName, node.tagName);
+
+        return function(model, name, node) {
+          var data = testData.shift();
+
+          assert.strictEqual(data.type, 'bindFn');
+          assert.strictEqual(data.model, model);
+          assert.strictEqual(data.name, name);
+          assert.strictEqual(data.nodeType, node.nodeType);
+          assert.strictEqual(data.tagName, node.tagName);
+        }
       }
     };
 
@@ -1958,18 +1983,19 @@ suite('Binding Delegate API', function() {
     var model = { foo: 2, bar: 4 };
 
     var delegate = {
-      getBinding: function(model, path, name, node) {
+      prepareBinding: function(path, name, node) {
         var match = path.match(/2x:(.*)/);
         if (match == null)
           return;
 
-        path = match[1].trim();
-        var binding = new CompoundBinding(function(values) {
-          return values['value'] * 2;
-        });
-
-        binding.bind('value', model, path);
-        return binding;
+        path = Path.get(match[1].trim());
+        function timesTwo(value) {
+          return value * 2;
+        }
+        return function(model) {
+          return new PathObserver(model, path, undefined, undefined, undefined,
+                                  timesTwo);
+        };
       }
     };
 
