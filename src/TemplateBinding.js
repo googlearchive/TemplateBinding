@@ -1012,11 +1012,13 @@
         return;
       }
 
-      var delegate = template.bindingDelegate;
-      var delegateInstanceModelFn =
-          delegate && typeof delegate.getInstanceModel === 'function' ?
-          delegate.getInstanceModel : undefined;
-
+      if (this.instanceModelFn_ === undefined) {
+        var delegate = template.bindingDelegate;
+        if (delegate && typeof delegate.prepareInstanceModel === 'function')
+          this.instanceModelFn_ = delegate.prepareInstanceModel(template);
+        if (typeof this.instanceModelFn_ !== 'function')
+          this.instanceModelFn_ = false;
+      }
 
       var instanceCache = new Map;
       var removeDelta = 0;
@@ -1042,8 +1044,8 @@
             bound = instanceNodes.bound;
           } else {
             bound = [];
-            if (delegateInstanceModelFn)
-              model = delegateInstanceModelFn(template, model);
+            if (this.instanceModelFn_)
+              model = this.instanceModelFn_(model);
 
             if (model !== undefined) {
               fragment = this.templateElement_.createInstance(model,

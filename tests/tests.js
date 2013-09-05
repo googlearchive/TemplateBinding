@@ -1918,28 +1918,31 @@ suite('Binding Delegate API', function() {
     var testData = [
       {
         template: template,
+      },
+      {
         model: model[0],
         altModel: { foo: 'a' }
       },
       {
-        template: template,
         model: model[1],
         altModel: { foo: 'b' }
       },
       {
-        template: template,
         model: model[2],
         altModel: { foo: 'c' }
       }
     ];
 
     var delegate = {
-      getInstanceModel: function(template, model) {
+      prepareInstanceModel: function(template) {
         var data = testData.shift();
-
         assert.strictEqual(data.template, template);
-        assert.strictEqual(data.model, model);
-        return data.altModel;
+
+        return function(model) {
+          data = testData.shift();
+          assert.strictEqual(data.model, model);
+          return data.altModel;
+        }
       }
     };
 
@@ -1961,22 +1964,28 @@ suite('Binding Delegate API', function() {
         '<template repeat>' +
         '{{}}</template>');
     var template = div.firstChild;
-    var count = 0;
+    var prepareCount = 0;
+    var callCount = 0;
 
     var delegate = {
-      getInstanceModel: function(template, model) {
-        count++;
-        return model;
+      prepareInstanceModel: function(template) {
+        prepareCount++;
+        return function(model) {
+          callCount++;
+          return model;
+        };
       }
     };
 
     recursivelySetTemplateModel(div, model, delegate);
     Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(3, count);
+    assert.strictEqual(1, prepareCount);
+    assert.strictEqual(3, callCount);
 
     model.reverse();
     Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(3, count);
+    assert.strictEqual(1, prepareCount);
+    assert.strictEqual(3, callCount);
   });
 
   test('Basic', function() {
