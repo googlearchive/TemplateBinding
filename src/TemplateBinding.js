@@ -429,41 +429,92 @@
     ensureScheduled(template.setModelFn_);
   }
 
-  function TemplateBinding(node, property, model, path, iterator) {
-    this.closed = false;
-    this.node = node;
-    this.property = property;
-    this.model = model;
-    this.path = path || '';
-    this.iterator = iterator;
-    this.iterator.inputs.bind(this.property, this.model, this.path);
-  }
-
-  TemplateBinding.prototype = createObject({
-    close: function() {
-      if (this.closed)
-        return;
-      this.iterator.inputs.unbind(this.property);
-      this.iterator = undefined;
-      this.node = undefined;
-      this.model = undefined;
-      this.closed = true;
-    }
-  });
-
   mixin(HTMLTemplateElement.prototype, {
     bind: function(name, model, path) {
-      if (name !== BIND && name !== REPEAT && name !== IF)
-        return HTMLElement.prototype.bind.call(this, name, model, path);
+      if (!this.iterator_)
+        this.iterator_ = new TemplateIterator(this);
 
-      var iterator = this.iterator_;
-      if (!iterator) {
-        iterator = this.iterator_ = new TemplateIterator(this);
+      this.bindings = this.bindings || {};
+      if (name === 'bind') {
+        this.iterator_.hasBind = true;
+        this.iterator_.bindModel = model;
+        this.iterator_.bindPath = path;
+        if (!this.iterator_.depsChanging) {
+          this.iterator_.depsChanging = true;
+          ensureScheduled(this.iterator_);
+        }
+
+        return this.bindings.bind = this.iterator_;
       }
-      this.unbind(name);
 
-      return this.bindings[name] =
-          new TemplateBinding(this, name, model, path, iterator);
+      if (name === 'repeat') {
+        this.iterator_.hasRepeat = true;
+        this.iterator_.repeatModel = model;
+        this.iterator_.repeatPath = path;
+        if (!this.iterator_.depsChanging) {
+          this.iterator_.depsChanging = true;
+          ensureScheduled(this.iterator_);
+        }
+        return this.bindings.repeat = this.iterator_;
+      }
+
+      if (name === 'if') {
+        this.iterator_.hasIf = true;
+        this.iterator_.ifModel = model;
+        this.iterator_.ifPath = path;
+        if (!this.iterator_.depsChanging) {
+          this.iterator_.depsChanging = true;
+          ensureScheduled(this.iterator_);
+        }
+        return this.bindings.if = this.iterator_;
+      }
+
+      return HTMLElement.prototype.bind.call(this, name, model, path);
+    },
+
+    unbind: function(name) {
+      if (name === 'bind') {
+        if (!this.iterator_)
+          return;
+
+        this.iterator_.hasBind = false;
+        this.iterator_.bindModel = undefined;
+        this.iterator_.bindPath = undefined;
+        if (!this.iterator_.depsChanging) {
+          this.iterator_.depsChanging = true;
+          ensureScheduled(this.iterator_);
+        }
+
+        return this.bindings.bind = undefined;
+      }
+
+      if (name === 'repeat') {
+        if (!this.iterator_)
+          return;
+        this.iterator_.hasRepeat = false;
+        this.iterator_.repeatModel = undefined;
+        this.iterator_.repeatPath = undefined;
+        if (!this.iterator_.depsChanging) {
+          this.iterator_.depsChanging = true;
+          ensureScheduled(this.iterator_);
+        }
+        return this.bindings.repeat = undefined;
+      }
+
+      if (name === 'if') {
+        if (!this.iterator_)
+          return;
+        this.iterator_.hasIf = false;
+        this.iterator_.ifModel = undefined;
+        this.iterator_.ifPath = undefined;
+        if (!this.iterator_.depsChanging) {
+          this.iterator_.depsChanging = true;
+          ensureScheduled(this.iterator_);
+        }
+        return this.bindings.if = undefined;
+      }
+
+      return HTMLElement.prototype.unbind.call(this, name, model, path);
     },
 
     createInstance: function(model, delegate, bound) {
@@ -799,115 +850,77 @@
     }
   });
 
-  function CompoundBinding(combinator) {
-    this.observers = {};
-    this.values = {};
-    this.value = undefined;
-    this.size = 0;
-    this.combinator_ = combinator;
-    this.closed = false;
-    this.scheduled = false;
-  }
-
-  CompoundBinding.prototype = {
-    set combinator(combinator) {
-      this.combinator_ = combinator;
-      this.scheduleResolve();
-    },
-
-    pathValueChanged: function(value, oldValue, name) {
-      this.values[name] = value;
-      this.scheduleResolve();
-    },
-
-    bind: function(name, model, path) {
-      this.unbind(name);
-
-      this.size++;
-      var observer = new PathObserver(model, path, this.pathValueChanged,
-                                      this,
-                                      name);
-      this.observers[name] = observer;
-      this.pathValueChanged(observer.value, undefined, name);
-    },
-
-    unbind: function(name, suppressResolve) {
-      if (!this.observers[name])
-        return;
-
-      this.size--;
-      this.observers[name].close();
-      delete this.observers[name];
-      delete this.values[name];
-      if (!suppressResolve)
-        this.scheduleResolve();
-    },
-
-    // TODO(rafaelw): Is this the right processing model?
-    // TODO(rafaelw): Consider having a seperate ChangeSummary for
-    // CompoundBindings so to excess dirtyChecks.
-    scheduleResolve: function() {
-      if (this.scheduled)
-        return;
-      this.scheduled = true;
-      ensureScheduled(this);
-    },
-
-    resolve: function() {
-      if (this.closed)
-        return;
-
-      if (!this.combinator_) {
-        throw Error('CompoundBinding attempted to resolve without a ' +
-                    'combinator');
-      }
-
-      this.value = this.combinator_(this.values);
-      this.scheduled = false;
-    },
-
-    unobserved: function() {
-      this.close();
-    },
-
-    close: function() {
-      if (this.closed)
-        return;
-
-      Object.keys(this.observers).forEach(function(name) {
-        this.unbind(name, true);
-      }, this);
-
-      this.closed = true;
-      this.value = undefined;
-    }
-  };
-
   function TemplateIterator(templateElement) {
     this.closed = false;
     this.templateElement_ = templateElement;
+
     // Flattened array of tuples:
     //   <instanceTerminatorNode, [bindingsSetupByInstance]>
     this.terminators = [];
+
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
-    this.inputs = new CompoundBinding(this.resolveInputs.bind(this));
-    this.templateElement_.iterator_ = this;
+
+    this.depsChanged = false;
+    this.hasRepeat = false;
+    this.repeatModel = undefined;
+    this.repeatPath = undefined;
+    this.hasBind = false;
+    this.bindModel = undefined;
+    this.bindPath = undefined;
+    this.hasIf = false;
+    this.ifModel = undefined;
+    this.ifPath = undefined;
   }
 
   TemplateIterator.prototype = {
-    resolveInputs: function(values) {
-      if (this.closed)
-        return;
+    resolve: function() {
+      this.depsChanging = false;
+      if (this.valueObserver) {
+        this.valueObserver.close();
+        this.valueObserver = undefined;
+      }
 
-      if (IF in values && !values[IF])
-        this.valueChanged(undefined);
-      else if (REPEAT in values)
-        this.valueChanged(values[REPEAT]);
-      else if (BIND in values || IF in values)
-        this.valueChanged([values[BIND]]);
-      else
-        this.valueChanged(undefined);
+      if (!this.hasRepeat && !this.hasBind) {
+        this.valueChanged();
+        return;
+      }
+
+      var isRepeat = this.hasRepeat === true;
+      var model = isRepeat ? this.repeatModel : this.bindModel;
+      var path = isRepeat ? this.repeatPath : this.bindPath;
+
+      if (!this.hasIf) {
+        var valueFn = this.hasRepeat ? undefined : function(value) {
+          return [value];
+        };
+
+        this.valueObserver = new PathObserver(model,
+                                              path,
+                                              this.valueChanged,
+                                              this,
+                                              undefined,
+                                              valueFn);
+      } else {
+        var valueFn = function(values) {
+          var modelValue = values[0];
+          var ifValue = values[1]
+          if (!ifValue)
+            return;
+          return isRepeat ? modelValue : [ modelValue ];
+        };
+
+        this.valueObserver = new CompoundPathObserver(this.valueChanged,
+                                                      this,
+                                                      undefined,
+                                                      valueFn);
+
+        this.valueObserver.addPath(model, path);
+        this.valueObserver.addPath(this.ifModel, this.ifPath);
+        this.valueObserver.start();
+      }
+
+      this.valueChanged(this.valueObserver.value);
     },
 
     valueChanged: function(value) {
@@ -928,9 +941,6 @@
 
       if (splices.length)
         this.handleSplices(splices);
-
-      if (!this.inputs.size)
-        this.close();
     },
 
     getTerminatorAt: function(index) {
@@ -1073,13 +1083,13 @@
       }
 
       this.terminators.length = 0;
-      this.inputs.close();
+      if (this.valueObserver)
+        this.valueObserver.close();
+      this.valueObserver = undefined;
       this.templateElement_.iterator_ = undefined;
       this.closed = true;
     }
   };
-
-  global.CompoundBinding = CompoundBinding;
 
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
