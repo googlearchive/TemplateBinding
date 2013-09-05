@@ -785,7 +785,7 @@
 
   function deepCloneIgnoreTemplateContent(node, delegate) {
     var clone = node.cloneNode(false);
-    if (isTemplate(clone)) {
+    if (node.isTemplate_) {
       return clone;
     }
 
@@ -799,6 +799,7 @@
   function createInstanceBindingMap(node, delegatePrepareBindingFn) {
     var map = getBindings(node, delegatePrepareBindingFn);
     if (isTemplate(node)) {
+      node.isTemplate_ = true;
       map = map || [];
       map.templateRef = node;
       map.hasSubTemplate = true;
