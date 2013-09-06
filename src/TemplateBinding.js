@@ -665,11 +665,10 @@
                                                 undefined,
                                                 tokens.combinator);
 
-
-        for (var i = 1; i < tokens.length; i = i + 3) {
+        for (var j = 1; j < tokens.length; j += 3) {
           var subModel = model;
-          var subPath = tokens[i];
-          var delegateFn = tokens[i + 1];
+          var subPath = tokens[j];
+          var delegateFn = tokens[j + 1];
           var delegateBinding = delegateFn && delegateFn(subModel, name, node);
 
           if (delegateBinding !== undefined) {

@@ -2021,4 +2021,23 @@ suite('Binding Delegate API', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('4 + 16 + ', div.lastChild.textContent);
   });
+
+  test('issue-141', function() {
+    debugger;
+    var div = createTestHtml(
+        '<template bind>' +
+          '<div foo="{{foo1}} {{foo2}}" bar="{{bar}}"></div>' +
+        '</template>');
+
+    var model = {
+      foo1: 'foo1Value',
+      foo2: 'foo2Value',
+      bar: 'barValue'
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.equal('barValue', div.lastChild.getAttribute('bar'));
+  });
 });
