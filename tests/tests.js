@@ -1363,11 +1363,19 @@ suite('Template Instantiation', function() {
       }
     ];
 
-    recursivelySetTemplateModel(div, m);
-
+    var ul = div.firstChild;
+    var t = ul.firstChild;
+    t.model = m;
     Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(ul.childNodes.length, 2);
+    var ul2 = ul.childNodes[1].childNodes[1];
+    assert.strictEqual(ul2.childNodes.length, 2);
+    var ul3 = ul2.childNodes[1].childNodes[1]
+    assert.strictEqual(ul3.childNodes.length, 1);
+
     m.splice(0, 1);
     Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(ul.childNodes.length, 1);
   });
 
   test('DeepNested', function() {
