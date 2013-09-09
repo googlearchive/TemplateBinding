@@ -734,6 +734,23 @@ suite('Template Instantiation', function() {
     assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
   });
 
+  test('BindWithDynamicRef', function() {
+    var id = 't' + Math.round(100 * Math.random());
+    var div = createTestHtml(
+        '<template id="' + id +'">' +
+          'Hi {{ name }}' +
+        '</template>' +
+        '<template ref="{{ id }}" bind="{{}}"></template>');
+
+    var t1 = div.firstChild;
+    var t2 = div.childNodes[1];
+    var model = {name: 'Fry', id: id };
+    recursivelySetTemplateModel(div, model);
+
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
+  });
+
   test('BindChanged', function() {
     var model = {
       XX: {name: 'Leela', title: 'Captain'},

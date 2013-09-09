@@ -514,7 +514,7 @@
         return this.bindings.if = undefined;
       }
 
-      return HTMLElement.prototype.unbind.call(this, name, model, path);
+      return HTMLElement.prototype.unbind.call(this, name);
     },
 
     createInstance: function(model, delegate, bound) {
