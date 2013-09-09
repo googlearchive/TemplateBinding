@@ -2048,7 +2048,6 @@ suite('Binding Delegate API', function() {
   });
 
   test('issue-141', function() {
-    debugger;
     var div = createTestHtml(
         '<template bind>' +
           '<div foo="{{foo1}} {{foo2}}" bar="{{bar}}"></div>' +
