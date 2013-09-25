@@ -1846,8 +1846,43 @@ suite('Template Instantiation', function() {
     assert.strictEqual(1, template3.content.childNodes.length);
     assert.strictEqual('Hello', template3.content.firstChild.textContent);
   });
-});
 
+  test('issue-285', function() {
+    var div = createTestHtml(
+        '<template>' +
+          '<template bind if="{{show}}">' +
+            '<template id=del repeat="{{items}}">' +
+              '{{}}' +
+            '</template>' +
+          '</template>' +
+        '</template>');
+
+    var template = div.firstChild;
+
+    var model = { 
+      show: true,
+      items: [1]
+    };
+
+    div.appendChild(template.createInstance(model, {
+      prepareInstanceModel: function(template) {
+        if (template.id == 'del') {
+          return function(val) {
+            return val*2;
+          };
+        }
+      }
+    }));
+
+    Platform.performMicrotaskCheckpoint();
+    assert.equal('2', template.nextSibling.nextSibling.nextSibling.textContent);
+    model.show = false;
+    Platform.performMicrotaskCheckpoint();
+    model.show = true;
+    Platform.performMicrotaskCheckpoint();
+    assert.equal('2', template.nextSibling.nextSibling.nextSibling.textContent);
+  });
+});
 
 suite('Binding Delegate API', function() {
 

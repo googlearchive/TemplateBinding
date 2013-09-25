@@ -1006,13 +1006,14 @@
         return;
 
       var template = this.templateElement_;
+      var delegate = template.bindingDelegate;
+
       if (!template.parentNode || !template.ownerDocument.defaultView) {
         this.close();
         return;
       }
 
       if (this.instanceModelFn_ === undefined) {
-        var delegate = template.bindingDelegate;
         if (delegate && typeof delegate.prepareInstanceModel === 'function')
           this.instanceModelFn_ = delegate.prepareInstanceModel(template);
         if (typeof this.instanceModelFn_ !== 'function')
