@@ -27,6 +27,7 @@
     "karma-safari-launcher": "*",
     "karma-script-launcher": "*",
     "karma-crbot-reporter": "*",
-    "handlebars": "*"
+    "handlebars": "*",
+    "grunt-contrib-concat": "~0.3.0"
   }
 }
