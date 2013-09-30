@@ -1,4 +1,4 @@
 .DS_Store
 node_modules
 tools
-build/TemplateBinding.min.js
+TemplateBinding.min.js
