@@ -29,11 +29,9 @@ module.exports = function(grunt) {
     },
     concat: {
       modules: {
-        options: {
-          nonull: true
-        },
         src: grunt.file.readJSON('build.json'),
-        dest: 'TemplateBinding.min.js'
+        dest: 'TemplateBinding.min.js',
+        nonull: true
       }
     }
   });
