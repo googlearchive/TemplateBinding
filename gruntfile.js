@@ -14,23 +14,6 @@
 
 module.exports = function(grunt) {
 
-  grunt.registerMultiTask('wrap', 'Wraps source files with strict IIFE',
-      function() {
-    var data = this.data;
-    var path = require('path');
-    var dest = grunt.template.process(data.dest);
-    var files = grunt.file.expandFiles(this.file.src);
-    var header = '(function() {\n\'use strict\';\n';
-    var footer = '\n}).call(this);\n';
-
-    var result = '';
-    files.forEach(function(f) {
-      result += grunt.file.read(f) + '\n';
-    });
-
-    grunt.file.write(dest, header + result + footer);
-  });
-
   grunt.initConfig({
     karma: {
       options: {
@@ -44,17 +27,19 @@ module.exports = function(grunt) {
       TemplateBinding: {
       }
     },
-    wrap: {
+    concat: {
       modules: {
         src: grunt.file.readJSON('build.json'),
-        dest: 'src/mdv.combined.js'
+        dest: 'TemplateBinding.min.js',
+        nonull: true
       }
     }
   });
 
   grunt.loadNpmTasks('grunt-karma');
+  grunt.loadNpmTasks('grunt-contrib-concat');
 
-  grunt.registerTask('default', 'wrap');
+  grunt.registerTask('default', 'concat');
   grunt.registerTask('test', ['karma:TemplateBinding']);
   grunt.registerTask('test-buildbot', ['karma:buildbot']);
 };
