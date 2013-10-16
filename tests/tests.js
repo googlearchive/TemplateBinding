@@ -1859,7 +1859,7 @@ suite('Template Instantiation', function() {
 
     var template = div.firstChild;
 
-    var model = { 
+    var model = {
       show: true,
       items: [1]
     };
@@ -1890,7 +1890,7 @@ suite('Binding Delegate API', function() {
 
   teardown(doTeardown);
 
-  test('Registration', function() {
+  test('prepareBinding', function() {
     var model = { foo: 'bar'};
     var prepareBindData = {
       type: 'prepare',
@@ -1967,7 +1967,7 @@ suite('Binding Delegate API', function() {
     assert.strictEqual(0, testData.length);
   });
 
-  test('getInstanceModel', function() {
+  test('prepareInstanceModel', function() {
     var model = [{ foo: 1 }, { foo: 2 }, { foo: 3 }];
 
     var div = createTestHtml(
@@ -2017,7 +2017,7 @@ suite('Binding Delegate API', function() {
     assert.strictEqual(0, testData.length);
   });
 
-  test('getInstanceModel - reorder instances', function() {
+  test('prepareInstanceModel - reorder instances', function() {
     var model = [0, 1, 2];
 
     var div = createTestHtml(
@@ -2046,6 +2046,64 @@ suite('Binding Delegate API', function() {
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, prepareCount);
     assert.strictEqual(3, callCount);
+  });
+
+  test('prepareInstancePositionChanged', function() {
+    var model = ['a', 'b', 'c'];
+
+    var div = createTestHtml(
+        '<template repeat>' +
+        '{{}}</template>');
+    var template = div.firstChild;
+
+    var testData = [
+      {
+        template: template,
+      },
+      {
+        model: model[0],
+        index: 0
+      },
+      {
+        model: model[1],
+        index: 1
+      },
+      {
+        model: model[2],
+        index: 2
+      },
+      // After splice
+      {
+        model: model[2],
+        index: 1
+      }
+    ];
+
+    var delegate = {
+      prepareInstancePositionChanged: function(template) {
+        var data = testData.shift();
+        assert.strictEqual(data.template, template);
+
+        return function(templateInstance, index) {
+          data = testData.shift();
+          assert.strictEqual(data.model, templateInstance.model);
+          assert.strictEqual(data.index, index);
+        }
+      }
+    };
+
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('TEMPLATE', div.childNodes[0].tagName);
+    assert.strictEqual('a', div.childNodes[1].textContent);
+    assert.strictEqual('b', div.childNodes[2].textContent);
+    assert.strictEqual('c', div.childNodes[3].textContent);
+
+    model.splice(1, 1);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.strictEqual(0, testData.length);
   });
 
   test('Basic', function() {
