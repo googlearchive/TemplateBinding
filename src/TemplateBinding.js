@@ -708,7 +708,7 @@
       // <template> where certain attributes might trigger side-effects -- and
       // for IE which sanitizes certain attributes, disallowing mustache
       // replacements in their text.
-      while (name.length && name[0] === '_') {
+      while (name[0] === '_') {
         name = name.substring(1);
       }
 

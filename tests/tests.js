@@ -2161,7 +2161,7 @@ suite('Binding Delegate API', function() {
 
 suite('Compat', function() {
   test('underbar bindings', function() {
-        var div = createTestHtml(
+    var div = createTestHtml(
         '<template bind>' +
           '<div _style="color: {{ color }};"></div>' +
           '<img _src="{{ url }}">' +
