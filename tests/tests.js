@@ -2158,3 +2158,37 @@ suite('Binding Delegate API', function() {
     assert.equal('barValue', div.lastChild.getAttribute('bar'));
   });
 });
+
+suite('Compat', function() {
+  test('underbar bindings', function() {
+        var div = createTestHtml(
+        '<template bind>' +
+          '<div _style="color: {{ color }};"></div>' +
+          '<img _src="{{ url }}">' +
+          '<a _href="{{ url2 }}">Link</a>' +
+          '<input type="number" _value="{{ number }}">' +
+        '</template>');
+
+    var model = {
+      color: 'red',
+      url: 'pic.jpg',
+      url2: 'link.html',
+      number: 4
+    };
+
+    recursivelySetTemplateModel(div, model);
+    Platform.performMicrotaskCheckpoint();
+
+    var subDiv = div.firstChild.nextSibling;
+    assert.equal('color: red;', subDiv.getAttribute('style'));
+
+    var img = subDiv.nextSibling;
+    assert.equal('pic.jpg', img.getAttribute('src'));
+
+    var a = img.nextSibling;
+    assert.equal('link.html', a.getAttribute('href'));
+
+    var input = a.nextSibling;
+    assert.equal(4, input.value);
+  });
+});

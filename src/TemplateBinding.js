@@ -703,6 +703,15 @@
       var name = attr.name;
       var value = attr.value;
 
+      // Allow bindings expressed in attributes to be prefixed with underbars.
+      // We do this to allow correct semantics for browsers that don't implement
+      // <template> where certain attributes might trigger side-effects -- and
+      // for IE which sanitizes certain attributes, disallowing mustache
+      // replacements in their text.
+      while (name.length && name[0] === '_') {
+        name = name.substring(1);
+      }
+
       if (isTemplateNode) {
         if (name === IF) {
           ifFound = true;
