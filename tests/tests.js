@@ -1902,7 +1902,6 @@ suite('Binding Delegate API', function() {
     var bindFnBindData = {
       type: 'bindFn',
       model: model,
-      name: 'bind',
       nodeType: Node.ELEMENT_NODE,
       tagName: 'TEMPLATE'
     };
@@ -1916,7 +1915,6 @@ suite('Binding Delegate API', function() {
     var bindFnTextContentData = {
       type: 'bindFn',
       model: model,
-      name: 'textContent',
       nodeType: Node.TEXT_NODE,
       tagName: undefined
     };
@@ -1942,12 +1940,11 @@ suite('Binding Delegate API', function() {
         assert.strictEqual(data.nodeType, node.nodeType);
         assert.strictEqual(data.tagName, node.tagName);
 
-        return function(model, name, node) {
+        return function(model, node) {
           var data = testData.shift();
 
           assert.strictEqual(data.type, 'bindFn');
           assert.strictEqual(data.model, model);
-          assert.strictEqual(data.name, name);
           assert.strictEqual(data.nodeType, node.nodeType);
           assert.strictEqual(data.tagName, node.tagName);
         }

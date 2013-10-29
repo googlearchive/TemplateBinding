@@ -645,7 +645,7 @@
       var bindingPath = tokens[1];
       if (tokens.hasOnePath) {
         var delegateFn = tokens[2];
-        var delegateBinding = delegateFn && delegateFn(model, name, node);
+        var delegateBinding = delegateFn && delegateFn(model, node);
 
         if (delegateBinding !== undefined) {
           bindingModel = delegateBinding;
