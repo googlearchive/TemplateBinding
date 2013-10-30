@@ -530,8 +530,7 @@
         content.bindingMap_ = map;
       }
 
-      var instance = map.hasSubTemplate ?
-          deepCloneIgnoreTemplateContent(content) : content.cloneNode(true);
+      var instance = deepCloneIgnoreTemplateContent(content);
 
       addMapBindings(instance, map, model, delegate, bound);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
@@ -810,7 +809,6 @@
       node.isTemplate_ = true;
       map = map || [];
       map.templateRef = node;
-      map.hasSubTemplate = true;
     }
 
     var child = node.firstChild, index = 0;
@@ -822,8 +820,6 @@
       map = map || [];
       map.children = map.children || {};
       map.children[index] = childMap;
-      if (childMap.hasSubTemplate)
-        map.hasSubTemplate = true;
     }
 
     return map;
