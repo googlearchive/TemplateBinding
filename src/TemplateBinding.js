@@ -790,14 +790,14 @@
       addBindings(child, model, delegate);
   }
 
-  function deepCloneIgnoreTemplateContent(node, delegate) {
+  function deepCloneIgnoreTemplateContent(node) {
     var clone = node.cloneNode(false);
     if (node.isTemplate_) {
       return clone;
     }
 
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      clone.appendChild(deepCloneIgnoreTemplateContent(child, delegate))
+      clone.appendChild(deepCloneIgnoreTemplateContent(child))
     }
 
     return clone;
