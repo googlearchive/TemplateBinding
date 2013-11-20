@@ -268,7 +268,8 @@
   }
 
   // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
-  function getTemplateContentsOwner(doc) {
+  function getOrCreateTemplateContentsOwner(template) {
+    var doc = template.ownerDocument
     if (!doc.defaultView)
       return doc;
     var d = doc.templateContentsOwner_;
@@ -282,6 +283,20 @@
       doc.templateContentsOwner_ = d;
     }
     return d;
+  }
+
+  function getTemplateStagingDocument(template) {
+    if (!template.stagingDocument_) {
+      var owner = template.content.ownerDocument;
+      if (!owner.stagingDocument_) {
+        owner.stagingDocument_ = owner.implementation.createHTMLDocument('');
+        console.log('created');
+      }
+
+      template.stagingDocument_ = owner.stagingDocument_;
+    }
+
+    return template.stagingDocument_;
   }
 
   // For non-template browsers, the parser will disallow <template> in certain
@@ -357,7 +372,7 @@
 
     if (!isNative) {
       fixTemplateElementPrototype(templateElement);
-      var doc = getTemplateContentsOwner(templateElement.ownerDocument);
+      var doc = getOrCreateTemplateContentsOwner(templateElement);
       templateElement.content_ = doc.createDocumentFragment();
     }
 
@@ -530,7 +545,8 @@
         content.bindingMap_ = map;
       }
 
-      var instance = deepCloneIgnoreTemplateContent(content);
+      var stagingDocument = getTemplateStagingDocument(this);
+      var instance = deepCloneIgnoreTemplateContent(content, stagingDocument);
 
       addMapBindings(instance, map, model, delegate, bound);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
@@ -790,14 +806,14 @@
       addBindings(child, model, delegate);
   }
 
-  function deepCloneIgnoreTemplateContent(node) {
-    var clone = node.cloneNode(false);
+  function deepCloneIgnoreTemplateContent(node, stagingDocument) {
+    var clone = stagingDocument.importNode(node, false);
     if (node.isTemplate_) {
       return clone;
     }
 
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      clone.appendChild(deepCloneIgnoreTemplateContent(child))
+      clone.appendChild(deepCloneIgnoreTemplateContent(child, stagingDocument))
     }
 
     return clone;
