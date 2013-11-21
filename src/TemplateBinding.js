@@ -287,10 +287,10 @@
 
   function getTemplateStagingDocument(template) {
     if (!template.stagingDocument_) {
-      var owner = template.content.ownerDocument;
+      var owner = template.ownerDocument;
       if (!owner.stagingDocument_) {
         owner.stagingDocument_ = owner.implementation.createHTMLDocument('');
-        console.log('created');
+        owner.stagingDocument_.stagingDocument_ = owner.stagingDocument_;
       }
 
       template.stagingDocument_ = owner.stagingDocument_;
