@@ -2117,8 +2117,7 @@ suite('Binding Delegate API', function() {
           return value * 2;
         }
         return function(model) {
-          return new PathObserver(model, path, undefined, undefined, undefined,
-                                  timesTwo);
+          return new PathObserver(model, path, undefined, undefined, timesTwo);
         };
       }
     };

@@ -670,13 +670,11 @@
         if (!tokens.isSimplePath) {
           bindingModel = new PathObserver(bindingModel, bindingPath, undefined,
                                           undefined,
-                                          undefined,
                                           tokens.combinator);
           bindingPath = valuePath;
         }
       } else {
         var observer = new CompoundPathObserver(undefined,
-                                                undefined,
                                                 undefined,
                                                 tokens.combinator);
 
@@ -920,7 +918,6 @@
                                               path,
                                               this.valueChanged,
                                               this,
-                                              undefined,
                                               valueFn);
       } else {
         var valueFn = function(values) {
@@ -933,7 +930,6 @@
 
         this.valueObserver = new CompoundPathObserver(this.valueChanged,
                                                       this,
-                                                      undefined,
                                                       valueFn);
 
         this.valueObserver.addPath(model, path);
