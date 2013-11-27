@@ -437,7 +437,7 @@
   function ensureSetModelScheduled(template) {
     if (!template.setModelFn_) {
       template.setModelFn_ = function() {
-        addBindings(template, template.model, template.bindingDelegate);
+        addBindings(template, template.model, template.prepareBindingFn_);
       };
     }
 
@@ -532,23 +532,20 @@
       return HTMLElement.prototype.unbind.call(this, name);
     },
 
-    createInstance: function(model, delegate, bound) {
+    createInstance: function(model, bound) {
       var content = this.ref.content;
       var map = content.bindingMap_;
       if (!map) {
-        var delegatePrepareBindingFn =
-            delegate && typeof delegate.prepareBinding === 'function' ?
-            delegate.prepareBinding : undefined;
         // TODO(rafaelw): Setup a MutationObserver on content to detect
         // when the instanceMap is invalid.
-        map = createInstanceBindingMap(content, delegatePrepareBindingFn) || [];
+        map = createInstanceBindingMap(content, this.prepareBindingFn_) || [];
         content.bindingMap_ = map;
       }
 
       var stagingDocument = getTemplateStagingDocument(this);
       var instance = deepCloneIgnoreTemplateContent(content, stagingDocument);
 
-      addMapBindings(instance, map, model, delegate, bound);
+      addMapBindings(instance, map, model, this.bindingDelegate_, bound);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
       // in the parent of the template element, and creating it when it's
       // asked for by walking back to find the iterating template.
@@ -569,8 +566,27 @@
       return this.bindingDelegate_;
     },
 
-    set bindingDelegate(bindingDelegate) {
+    setBindingDelegate_: function(bindingDelegate) {
       this.bindingDelegate_ = bindingDelegate;
+
+      function delegateFn(name) {
+        var fn = bindingDelegate && bindingDelegate[name];
+        if (typeof fn != 'function')
+          return;
+
+        return function() {
+          return fn.apply(bindingDelegate, arguments);
+        };
+      }
+
+      this.prepareBindingFn_ = delegateFn('prepareBinding');
+      this.prepareInstanceModelFn_ = delegateFn('prepareInstanceModel');
+      this.prepareInstancePositionChangedFn_ =
+          delegateFn('prepareInstancePositionChanged');
+    },
+
+    set bindingDelegate(bindingDelegate) {
+      this.setBindingDelegate_(bindingDelegate);
       ensureSetModelScheduled(this);
     },
 
@@ -597,7 +613,7 @@
   // Returns
   //   a) undefined if there are no mustaches.
   //   b) [TEXT, (PATH, DELEGATE_FN, TEXT)+] if there is at least one mustache.
-  function parseMustaches(s, name, node, delegatePrepareBindingFn) {
+  function parseMustaches(s, name, node, prepareBindingFn) {
     if (!s || !s.length)
       return;
 
@@ -620,8 +636,8 @@
       tokens.push(s.slice(lastIndex, startIndex)); // TEXT
       var pathString = s.slice(startIndex + 2, endIndex).trim();
       tokens.push(Path.get(pathString)); // PATH
-      var delegateFn = delegatePrepareBindingFn &&
-                       delegatePrepareBindingFn(pathString, name, node)
+      var delegateFn = prepareBindingFn &&
+                       prepareBindingFn(pathString, name, node)
       tokens.push(delegateFn); // DELEGATE_FN
       lastIndex = endIndex + 2;
     }
@@ -703,7 +719,7 @@
     }
   }
 
-  function parseAttributeBindings(element, delegatePrepareBindingFn) {
+  function parseAttributeBindings(element, prepareBindingFn) {
     assert(element);
 
     var bindings;
@@ -736,7 +752,7 @@
       }
 
       var tokens = parseMustaches(value, name, element,
-                                  delegatePrepareBindingFn);
+                                  prepareBindingFn);
       if (!tokens)
         continue;
 
@@ -748,19 +764,19 @@
     if (ifFound && !bindFound) {
       bindings = bindings || [];
       bindings.push(BIND, parseMustaches('{{}}', BIND, element,
-                                         delegatePrepareBindingFn));
+                                         prepareBindingFn));
     }
 
     return bindings;
   }
 
-  function getBindings(node, delegatePrepareBindingFn) {
+  function getBindings(node, prepareBindingFn) {
     if (node.nodeType === Node.ELEMENT_NODE)
-      return parseAttributeBindings(node, delegatePrepareBindingFn);
+      return parseAttributeBindings(node, prepareBindingFn);
 
     if (node.nodeType === Node.TEXT_NODE) {
       var tokens = parseMustaches(node.data, 'textContent', node,
-                                  delegatePrepareBindingFn);
+                                  prepareBindingFn);
       if (tokens)
         return ['textContent', tokens];
     }
@@ -773,7 +789,7 @@
     if (bindings.templateRef) {
       HTMLTemplateElement.decorate(node, bindings.templateRef);
       if (delegate) {
-        node.bindingDelegate_ = delegate;
+        node.setBindingDelegate_(delegate);
       }
     }
 
@@ -789,19 +805,15 @@
     }
   }
 
-  function addBindings(node, model, delegate) {
+  function addBindings(node, model, prepareBindingFn) {
     assert(node);
 
-    var delegatePrepareBindingFn =
-        delegate && typeof delegate.prepareBinding === 'function' ?
-        delegate.prepareBinding : undefined;
-
-    var bindings = getBindings(node, delegatePrepareBindingFn);
+    var bindings = getBindings(node, prepareBindingFn);
     if (bindings)
       processBindings(bindings, node, model);
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
-      addBindings(child, model, delegate);
+      addBindings(child, model, prepareBindingFn);
   }
 
   function deepCloneIgnoreTemplateContent(node, stagingDocument) {
@@ -817,8 +829,8 @@
     return clone;
   }
 
-  function createInstanceBindingMap(node, delegatePrepareBindingFn) {
-    var map = getBindings(node, delegatePrepareBindingFn);
+  function createInstanceBindingMap(node, prepareBindingFn) {
+    var map = getBindings(node, prepareBindingFn);
     if (isTemplate(node)) {
       node.isTemplate_ = true;
       map = map || [];
@@ -827,7 +839,7 @@
 
     var child = node.firstChild, index = 0;
     for (; child; child = child.nextSibling, index++) {
-      var childMap = createInstanceBindingMap(child, delegatePrepareBindingFn);
+      var childMap = createInstanceBindingMap(child, prepareBindingFn);
       if (!childMap)
         continue;
 
@@ -1018,11 +1030,8 @@
       return instanceNodes;
     },
 
-    getDelegateFunction: function(delegate, name, template) {
-      if (!delegate || typeof delegate[name] !== 'function')
-        return null;
-
-      var fn = delegate[name](template);
+    getDelegateFn: function(fn) {
+      fn = fn && fn(this.templateElement_);
       return typeof fn === 'function' ? fn : null;
     },
 
@@ -1031,7 +1040,6 @@
         return;
 
       var template = this.templateElement_;
-      var delegate = template.bindingDelegate;
 
       if (!template.parentNode || !template.ownerDocument.defaultView) {
         this.close();
@@ -1039,15 +1047,13 @@
       }
 
       if (this.instanceModelFn_ === undefined) {
-        this.instanceModelFn_ = this.getDelegateFunction(delegate,
-                                                         'prepareInstanceModel',
-                                                         template);
+        this.instanceModelFn_ =
+            this.getDelegateFn(template.prepareInstanceModelFn_);
       }
 
       if (this.instancePositionChangedFn_ === undefined) {
         this.instancePositionChangedFn_ =
-            this.getDelegateFunction(delegate, 'prepareInstancePositionChanged',
-                                     template);
+            this.getDelegateFn(template.prepareInstancePositionChangedFn_);
       }
 
       var instanceCache = new Map;
@@ -1078,9 +1084,7 @@
               model = this.instanceModelFn_(model);
 
             if (model !== undefined) {
-              fragment = this.templateElement_.createInstance(model,
-                                                              delegate,
-                                                              bound);
+              fragment = this.templateElement_.createInstance(model, bound);
             }
           }
 

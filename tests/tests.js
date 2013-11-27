@@ -1805,7 +1805,8 @@ suite('Template Instantiation', function() {
     };
 
     var host = testDiv.appendChild(document.createElement('div'));
-    var instance = outer.createInstance(model, delegate);
+    outer.bindingDelegate = delegate;
+    var instance = outer.createInstance(model);
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
 
     host.appendChild(instance);
@@ -1864,7 +1865,7 @@ suite('Template Instantiation', function() {
       items: [1]
     };
 
-    div.appendChild(template.createInstance(model, {
+    template.bindingDelegate = {
       prepareInstanceModel: function(template) {
         if (template.id == 'del') {
           return function(val) {
@@ -1872,7 +1873,8 @@ suite('Template Instantiation', function() {
           };
         }
       }
-    }));
+    };
+    div.appendChild(template.createInstance(model));
 
     Platform.performMicrotaskCheckpoint();
     assert.equal('2', template.nextSibling.nextSibling.nextSibling.textContent);
@@ -1931,9 +1933,12 @@ suite('Binding Delegate API', function() {
     ];
 
     var delegate = {
+      self: "self",
+
       prepareBinding: function(path, name, node) {
         var data = testData.shift();
 
+        assert.strictEqual("self", this.self);
         assert.strictEqual(data.type, 'prepare');
         assert.strictEqual(data.path, path);
         assert.strictEqual(data.name, name);
@@ -1991,8 +1996,12 @@ suite('Binding Delegate API', function() {
     ];
 
     var delegate = {
+      self: "self",
+
       prepareInstanceModel: function(template) {
         var data = testData.shift();
+
+        assert.strictEqual("self", this.self);
         assert.strictEqual(data.template, template);
 
         return function(model) {
@@ -2077,8 +2086,12 @@ suite('Binding Delegate API', function() {
     ];
 
     var delegate = {
+      self: "self",
+
       prepareInstancePositionChanged: function(template) {
         var data = testData.shift();
+
+        assert.strictEqual("self", this.self);
         assert.strictEqual(data.template, template);
 
         return function(templateInstance, index) {
