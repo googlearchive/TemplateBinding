@@ -668,54 +668,56 @@
 
   var valuePath = Path.get('value');
 
-  function processBindings(bindings, node, model, bound) {
-    for (var i = 0; i < bindings.length; i += 2) {
-      var name = bindings[i];
-      var tokens = bindings[i + 1];
-      var bindingModel = model;
-      var bindingPath = tokens[1];
-      if (tokens.hasOnePath) {
-        var delegateFn = tokens[2];
-        var delegateBinding = delegateFn && delegateFn(model, node);
+  function processBinding(name, tokens, node, model, bound) {
+    var bindingModel;
+    var bindingPath;
 
-        if (delegateBinding !== undefined) {
-          bindingModel = delegateBinding;
-          bindingPath = valuePath;
-        }
+    if (!tokens.hasOnePath) {
+      bindingModel = new CompoundPathObserver(undefined, undefined,
+                                              tokens.combinator);
+    }
 
-        if (!tokens.isSimplePath) {
-          bindingModel = new PathObserver(bindingModel, bindingPath, undefined,
-                                          undefined,
-                                          tokens.combinator);
-          bindingPath = valuePath;
-        }
-      } else {
-        var observer = new CompoundPathObserver(undefined,
-                                                undefined,
-                                                tokens.combinator);
+    if (!tokens.isSimplePath)
+      bindingPath = valuePath;
 
-        for (var j = 1; j < tokens.length; j += 3) {
-          var subModel = model;
-          var subPath = tokens[j];
-          var delegateFn = tokens[j + 1];
-          var delegateBinding = delegateFn && delegateFn(subModel, name, node);
+    for (var i = 1; i < tokens.length; i += 3) {
+      var type = tokens[i];
+      var localModel = model;
+      var localPath = tokens[i];
+      var delegateFn = tokens[i + 1];
 
-          if (delegateBinding !== undefined) {
-            subModel = delegateBinding;
-            subPath = valuePath;
-          }
-
-          observer.addPath(subModel, subPath);
-        }
-
-        observer.start();
-        bindingModel = observer;
-        bindingPath = valuePath;
+      var delegateValue = delegateFn && delegateFn(model, node);
+      if (delegateValue !== undefined) {
+        localModel = delegateValue;
+        localPath = valuePath;
       }
 
-      var binding = node.bind(name, bindingModel, bindingPath);
-      if (bound)
-        bound.push(binding);
+      if (!tokens.hasOnePath) {
+        bindingModel.addPath(localModel, localPath);
+        continue;
+      }
+
+      if (tokens.isSimplePath) {
+        bindingModel = localModel;
+        bindingPath = localPath;
+      } else {
+        bindingModel = new PathObserver(localModel, localPath, undefined,
+                                        undefined,
+                                        tokens.combinator);
+      }
+    }
+
+    if (!tokens.hasOnePath)
+      bindingModel.start();
+
+    var binding = node.bind(name, bindingModel, bindingPath);
+    if (bound)
+      bound.push(binding);
+  }
+
+  function processBindings(bindings, node, model, bound) {
+    for (var i = 0; i < bindings.length; i += 2) {
+      processBinding(bindings[i], bindings[i + 1], node, model, bound);
     }
   }
 
