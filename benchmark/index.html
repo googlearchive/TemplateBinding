@@ -21,6 +21,8 @@ limitations under the License.
   <script src="../node_modules/handlebars/dist/handlebars.js"></script>
   <script src="../../observe-js/benchmark/chartjs/Chart.js"></script>
   <script src="../../observe-js/benchmark/benchmark.js"></script>
+  <script src="../../polymer-expressions/third_party/esprima/esprima.js"></script>
+  <script src="../../polymer-expressions/src/polymer-expressions.js"></script>
   <script src="benchmark.js"></script>
   <style>
     * {
@@ -69,6 +71,8 @@ MDV: <input id="mdvCheckbox" type="checkbox" checked>
 Handlebars: <input id="handlebarsCheckbox" type="checkbox" checked>
 
 <button id="go">Run Benchmarks</button><br>
+Compound Bindings: <input id="compoundBindings" type="checkbox">
+Expressions: <input id="expressions" type="checkbox">
 
 <span id="statusSpan"></span>
 
@@ -103,6 +107,9 @@ var instanceCountSelect = document.getElementById('instanceCountSelect');
 var mdvCheckbox = document.getElementById('mdvCheckbox');
 var handlebarsCheckbox = document.getElementById('handlebarsCheckbox');
 
+var compoundCheckbox = document.getElementById('compoundBindings');
+var expressionCheckbox = document.getElementById('expressions');
+
 var bindingDensityInput = document.getElementById('bindingDensityInput');
 
 var statusSpan = document.getElementById('statusSpan');
@@ -130,6 +137,16 @@ var colors = [
 ].map(function(rgb) {
   return 'rgba(' + rgb.join(',') + ',.7)';
 });
+
+expressionCheckbox.addEventListener('click', function() {
+  if (expressionCheckbox.checked)
+    handlebarsCheckbox.checked = false;
+})
+
+handlebarsCheckbox.addEventListener('click', function() {
+  if (handlebarsCheckbox.checked)
+    expressionCheckbox.checked = false;
+})
 
 goButton.addEventListener('click', function() {
   goButton.disabled = true;
@@ -210,7 +227,9 @@ goButton.addEventListener('click', function() {
   var decoration = Number(decorationSelect.value);
   var instanceCount = Number(instanceCountSelect.value);
 
-  var test = new MDVBenchmark(testDiv, width, depth, decoration, instanceCount);
+  var test = new MDVBenchmark(testDiv, width, depth, decoration, instanceCount,
+                              compoundBindings.checked,
+                              expressionCheckbox.checked);
   var runner = new BenchmarkRunner(test,
                                    bindingDensities,
                                    testTypes,

@@ -29,7 +29,7 @@
       return newObject;
     };
 
-  var attribNames = [
+  var attrNames = [
     'foo',
     'bar',
     'baz',
@@ -40,7 +40,13 @@
     'fog',
     'hat',
     'pig'
-  ]
+  ];
+  attrNames.next = 0;
+  function getNextAttrName() {
+    if (attrNames.next == attrNames.length)
+      attrNames.next = 0;
+    return attrNames[attrNames.next++];
+  }
 
   var propNames = [
     'a',
@@ -54,14 +60,59 @@
     'i',
     'j'
   ];
+  propNames.next = 0;
+  function getNextPropName() {
+    if (propNames.next == propNames.length)
+      propNames.next = 0;
+    return propNames[propNames.next++];
+  }
 
-  function MDVBenchmark(testDiv, width, depth, decoration,
-                        instanceCount) {
+  var elementTypes = [
+    'div',
+    'p',
+    'span',
+    'h1',
+    'h2'
+  ];
+  elementTypes.next = 0;
+  function getNextElementType() {
+    if (elementTypes.next == elementTypes.length)
+      elementTypes.next = 0;
+    return elementTypes[elementTypes.next++];
+  }
+
+  function nextBindingText(isStatic, expression) {
+    if (isStatic)
+      return 'I am Text!';
+
+    if (expression) {
+      return '{{ ' + getNextPropName() + ' + ' +
+                     getNextPropName() + ' }}';
+    }
+
+    return '{{ ' + getNextPropName() + ' }}';
+  }
+
+  function nextBinding(isStatic, compound, expression) {
+    if (isStatic)
+      return nextBindingText(isStatic);
+    if (compound) {
+      return nextBindingText(false, expression) + ' ' +
+             nextBindingText(false, expression);
+    }
+
+    return nextBindingText(false, expression);
+  }
+
+  function MDVBenchmark(testDiv, width, depth, decoration, instanceCount,
+                        compoundBindings, expressions) {
     Benchmark.call(this);
     this.testDiv = testDiv;
     this.width = width;
     this.depth = depth;
     this.decoration = decoration;
+    this.compoundBindings = compoundBindings;
+    this.expressions = expressions;
 
     this.valueCounter = 1;
     this.ping = this.objectArray(instanceCount);
@@ -89,14 +140,9 @@
       return array;
     },
 
-    nextBindingText: function() {
-      if (this.bindingCounter++ > this.bindingCount)
-        return 'I am Text!';
-
-      if (this.propNameCounter >= propNames.length)
-        this.propNameCounter = 0;
-
-      return '{{ ' + propNames[this.propNameCounter++] + ' }}';
+    getBindingText: function() {
+      return nextBinding(this.bindingCounter++ > this.bindingCount,
+                         this.compoundBindings, this.expressions);
     },
 
     decorate: function(element) {
@@ -104,12 +150,12 @@
         return;
 
       if (element.nodeType === Node.TEXT_NODE) {
-        element.textContent = this.nextBindingText();
+        element.textContent = this.getBindingText();
         return;
       }
 
       for (var i = 0; i < this.decoration; i++) {
-        element.setAttribute(attribNames[i], this.nextBindingText());
+        element.setAttribute(getNextAttrName(), this.getBindingText());
       }
     },
 
@@ -121,7 +167,8 @@
       this.decorate(text);
 
       for (var i = 0; i < width; i++) {
-        var div = parent.appendChild(document.createElement('div'));
+        var el = document.createElement(getNextElementType());
+        var div = parent.appendChild(el);
         this.buildFragment(div, width, depth - 1);
         this.decorate(div);
       }
@@ -154,6 +201,9 @@
       testDiv.innerHTML = '';
       this.template = testDiv.appendChild(document.createElement('template'));
       HTMLTemplateElement.decorate(this.template);
+      if (this.expressions)
+        this.template.bindingDelegate = new PolymerExpressions;
+
       this.template.content.appendChild(this.fragment.cloneNode(true));
       this.template.setAttribute('repeat', '');
     },
