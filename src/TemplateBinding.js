@@ -879,7 +879,7 @@
     // Called as a result ensureScheduled (above).
     resolve: function() {
       if (this.ifObserver) {
-        var ifValue = this.ifObserver.reset();
+        var ifValue = this.ifObserver.discardChanges();
         if (!ifValue) {
           this.valueChanged(); // remove any instances
           return;
@@ -888,9 +888,9 @@
 
       var iterateValue;
       if (this.repeatObserver)
-        iterateValue = this.repeatObserver.reset();
+        iterateValue = this.repeatObserver.discardChanges();
       else if (this.bindObserver)
-        iterateValue = [this.bindObserver.reset()];
+        iterateValue = [this.bindObserver.discardChanges()];
 
       return this.valueChanged(iterateValue);
     },
