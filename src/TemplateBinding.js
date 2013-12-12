@@ -161,7 +161,8 @@
       this.scheduled = [];
       this.scheduledIds = [];
       this.running = false;
-      this.observer = new PathObserver(this, 'value', this.run, this);
+      this.observer = new PathObserver(this, 'value');
+      this.observer.open(this.run, this);
     }
 
     Runner.prototype = {
@@ -445,46 +446,36 @@
   }
 
   mixin(HTMLTemplateElement.prototype, {
-    bind: function(name, model, path) {
+    bind: function(name, observer) {
       if (!this.iterator_)
         this.iterator_ = new TemplateIterator(this);
 
       this.bindings = this.bindings || {};
       if (name === 'bind') {
-        this.iterator_.hasBind = true;
-        this.iterator_.bindModel = model;
-        this.iterator_.bindPath = path;
-        if (!this.iterator_.depsChanging) {
-          this.iterator_.depsChanging = true;
-          ensureScheduled(this.iterator_);
-        }
-
+        observer.open(this.iterator_.depsChanged, this.iterator_);
+        this.unbind(name);
+        this.iterator_.bindObserver = observer;
+        this.iterator_.depsChanged();
         return this.bindings.bind = this.iterator_;
       }
 
       if (name === 'repeat') {
-        this.iterator_.hasRepeat = true;
-        this.iterator_.repeatModel = model;
-        this.iterator_.repeatPath = path;
-        if (!this.iterator_.depsChanging) {
-          this.iterator_.depsChanging = true;
-          ensureScheduled(this.iterator_);
-        }
+        observer.open(this.iterator_.depsChanged, this.iterator_);
+        this.unbind(name);
+        this.iterator_.repeatObserver = observer;
+        this.iterator_.depsChanged();
         return this.bindings.repeat = this.iterator_;
       }
 
       if (name === 'if') {
-        this.iterator_.hasIf = true;
-        this.iterator_.ifModel = model;
-        this.iterator_.ifPath = path;
-        if (!this.iterator_.depsChanging) {
-          this.iterator_.depsChanging = true;
-          ensureScheduled(this.iterator_);
-        }
+        observer.open(this.iterator_.depsChanged, this.iterator_);
+        this.unbind(name);
+        this.iterator_.ifObserver = observer;
+        this.iterator_.depsChanged();
         return this.bindings.if = this.iterator_;
       }
 
-      return HTMLElement.prototype.bind.call(this, name, model, path);
+      return HTMLElement.prototype.bind.call(this, name, observer);
     },
 
     unbind: function(name) {
@@ -492,47 +483,39 @@
         if (!this.iterator_)
           return;
 
-        this.iterator_.hasBind = false;
-        this.iterator_.bindModel = undefined;
-        this.iterator_.bindPath = undefined;
-        if (!this.iterator_.depsChanging) {
-          this.iterator_.depsChanging = true;
-          ensureScheduled(this.iterator_);
-        }
-
+        if (this.iterator_.bindObserver)
+          this.iterator_.bindObserver.close();
+        this.iterator_.bindObserver = undefined;
+        this.iterator_.depsChanged();
         return this.bindings.bind = undefined;
       }
 
       if (name === 'repeat') {
         if (!this.iterator_)
           return;
-        this.iterator_.hasRepeat = false;
-        this.iterator_.repeatModel = undefined;
-        this.iterator_.repeatPath = undefined;
-        if (!this.iterator_.depsChanging) {
-          this.iterator_.depsChanging = true;
-          ensureScheduled(this.iterator_);
-        }
+
+        if (this.iterator_.repeatObserver)
+          this.iterator_.repeatObserver.close();
+        this.iterator_.repeatObserver = undefined;
+        this.iterator_.depsChanged();
         return this.bindings.repeat = undefined;
       }
 
       if (name === 'if') {
         if (!this.iterator_)
           return;
-        this.iterator_.hasIf = false;
-        this.iterator_.ifModel = undefined;
-        this.iterator_.ifPath = undefined;
-        if (!this.iterator_.depsChanging) {
-          this.iterator_.depsChanging = true;
-          ensureScheduled(this.iterator_);
-        }
+
+        if (this.iterator_.ifObserver)
+          this.iterator_.ifObserver.close();
+        this.iterator_.ifObserver = undefined;
+        this.iterator_.depsChanged();
         return this.bindings.if = undefined;
       }
 
       return HTMLElement.prototype.unbind.call(this, name);
     },
 
-    createInstance: function(model, bound) {
+    createInstance: function(model, instanceBindings) {
       var content = this.ref.content;
       var map = content.bindingMap_;
       if (!map) {
@@ -545,7 +528,8 @@
       var stagingDocument = getTemplateStagingDocument(this);
       var instance = deepCloneIgnoreTemplateContent(content, stagingDocument);
 
-      addMapBindings(instance, map, model, this.bindingDelegate_, bound);
+      addMapBindings(instance, map, model, this.bindingDelegate_,
+                     instanceBindings);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
       // in the parent of the template element, and creating it when it's
       // asked for by walking back to find the iterating template.
@@ -664,60 +648,47 @@
     }
 
     return tokens;
+  };
+
+  function processSinglePathBinding(name, tokens, node, model) {
+    var delegateFn = tokens[2];
+    var delegateValue = delegateFn && delegateFn(model, node);
+    if (Observer.isObservable(delegateValue))
+      return delegateValue;
+
+    var observer = new PathObserver(model, tokens[1]);
+    return tokens.isSimplePath ? observer :
+        new ObserverTransform(observer, tokens.combinator);
   }
 
-  var valuePath = Path.get('value');
-
-  function processBinding(name, tokens, node, model, bound) {
-    var bindingModel;
-    var bindingPath;
-
-    if (!tokens.hasOnePath) {
-      bindingModel = new CompoundPathObserver(undefined, undefined,
-                                              tokens.combinator);
-    }
-
-    if (!tokens.isSimplePath)
-      bindingPath = valuePath;
+  function processBinding(name, tokens, node, model) {
+    var observer = new CompoundObserver();
 
     for (var i = 1; i < tokens.length; i += 3) {
-      var type = tokens[i];
-      var localModel = model;
-      var localPath = tokens[i];
       var delegateFn = tokens[i + 1];
-
       var delegateValue = delegateFn && delegateFn(model, node);
-      if (delegateValue !== undefined) {
-        localModel = delegateValue;
-        localPath = valuePath;
-      }
 
-      if (!tokens.hasOnePath) {
-        bindingModel.addPath(localModel, localPath);
-        continue;
-      }
-
-      if (tokens.isSimplePath) {
-        bindingModel = localModel;
-        bindingPath = localPath;
+      if (Observer.isObservable(delegateValue)) {
+        observer.addObserver(delegateValue);
       } else {
-        bindingModel = new PathObserver(localModel, localPath, undefined,
-                                        undefined,
-                                        tokens.combinator);
+        observer.addPath(model, tokens[i]);
       }
     }
 
-    if (!tokens.hasOnePath)
-      bindingModel.start();
-
-    var binding = node.bind(name, bindingModel, bindingPath);
-    if (bound)
-      bound.push(binding);
+    return new ObserverTransform(observer, tokens.combinator);
   }
 
-  function processBindings(bindings, node, model, bound) {
+  function processBindings(bindings, node, model, instanceBindings) {
     for (var i = 0; i < bindings.length; i += 2) {
-      processBinding(bindings[i], bindings[i + 1], node, model, bound);
+      var name = bindings[i]
+      var tokens = bindings[i + 1];
+      var observer = tokens.hasOnePath ?
+          processSinglePathBinding(name, tokens, node, model) :
+          processBinding(name, tokens, node, model);
+
+      var binding = node.bind(name, observer);
+      if (instanceBindings)
+        instanceBindings.push(binding);
     }
   }
 
@@ -784,7 +755,7 @@
     }
   }
 
-  function addMapBindings(node, bindings, model, delegate, bound) {
+  function addMapBindings(node, bindings, model, delegate, instanceBindings) {
     if (!bindings)
       return;
 
@@ -796,14 +767,15 @@
     }
 
     if (bindings.length)
-      processBindings(bindings, node, model, bound);
+      processBindings(bindings, node, model, instanceBindings);
 
     if (!bindings.children)
       return;
 
     var i = 0;
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      addMapBindings(child, bindings.children[i++], model, delegate, bound);
+      addMapBindings(child, bindings.children[i++], model, delegate,
+                     instanceBindings);
     }
   }
 
@@ -894,64 +866,33 @@
     this.iteratedValue = undefined;
     this.arrayObserver = undefined;
 
-    this.depsChanged = false;
-    this.hasRepeat = false;
-    this.repeatModel = undefined;
-    this.repeatPath = undefined;
-    this.hasBind = false;
-    this.bindModel = undefined;
-    this.bindPath = undefined;
-    this.hasIf = false;
-    this.ifModel = undefined;
-    this.ifPath = undefined;
+    this.repeatObserver = undefined;
+    this.bindObserver = undefined;
+    this.ifObserver = undefined;
   }
 
   TemplateIterator.prototype = {
+    depsChanged: function() {
+      ensureScheduled(this);
+    },
+
+    // Called as a result ensureScheduled (above).
     resolve: function() {
-      this.depsChanging = false;
-      if (this.valueObserver) {
-        this.valueObserver.close();
-        this.valueObserver = undefined;
+      if (this.ifObserver) {
+        var ifValue = this.ifObserver.reset();
+        if (!ifValue) {
+          this.valueChanged(); // remove any instances
+          return;
+        }
       }
 
-      if (!this.hasRepeat && !this.hasBind) {
-        this.valueChanged();
-        return;
-      }
+      var iterateValue;
+      if (this.repeatObserver)
+        iterateValue = this.repeatObserver.reset();
+      else if (this.bindObserver)
+        iterateValue = [this.bindObserver.reset()];
 
-      var isRepeat = this.hasRepeat === true;
-      var model = isRepeat ? this.repeatModel : this.bindModel;
-      var path = isRepeat ? this.repeatPath : this.bindPath;
-
-      if (!this.hasIf) {
-        var valueFn = this.hasRepeat ? undefined : function(value) {
-          return [value];
-        };
-
-        this.valueObserver = new PathObserver(model,
-                                              path,
-                                              this.valueChanged,
-                                              this,
-                                              valueFn);
-      } else {
-        var valueFn = function(values) {
-          var modelValue = values[0];
-          var ifValue = values[1]
-          if (!ifValue)
-            return;
-          return isRepeat ? modelValue : [ modelValue ];
-        };
-
-        this.valueObserver = new CompoundPathObserver(this.valueChanged,
-                                                      this,
-                                                      valueFn);
-
-        this.valueObserver.addPath(model, path);
-        this.valueObserver.addPath(this.ifModel, this.ifPath);
-        this.valueObserver.start();
-      }
-
-      this.valueChanged(this.valueObserver.value);
+      return this.valueChanged(iterateValue);
     },
 
     valueChanged: function(value) {
@@ -963,8 +904,8 @@
       this.iteratedValue = value;
 
       if (this.iteratedValue) {
-        this.arrayObserver =
-            new ArrayObserver(this.iteratedValue, this.handleSplices, this);
+        this.arrayObserver = new ArrayObserver(this.iteratedValue);
+        this.arrayObserver.open(this.handleSplices, this);
       }
 
       var splices = ArrayObserver.calculateSplices(this.iteratedValue || [],
@@ -992,7 +933,8 @@
 
     // TODO(rafaelw): If we inserting sequences of instances we can probably
     // avoid lots of calls to getTerminatorAt(), or cache its result.
-    insertInstanceAt: function(index, fragment, instanceNodes, bound) {
+    insertInstanceAt: function(index, fragment, instanceNodes,
+                               instanceBindings) {
       var previousTerminator = this.getTerminatorAt(index - 1);
       var terminator = previousTerminator;
       if (fragment)
@@ -1000,7 +942,7 @@
       else if (instanceNodes)
         terminator = instanceNodes[instanceNodes.length - 1] || terminator;
 
-      this.terminators.splice(index*2, 0, terminator, bound);
+      this.terminators.splice(index*2, 0, terminator, instanceBindings);
       var parent = this.templateElement_.parentNode;
       var insertBeforeNode = previousTerminator.nextSibling;
 
@@ -1016,7 +958,7 @@
       var instanceNodes = [];
       var previousTerminator = this.getTerminatorAt(index - 1);
       var terminator = this.getTerminatorAt(index);
-      instanceNodes.bound = this.terminators[index*2 + 1];
+      instanceNodes.instanceBindings = this.terminators[index*2 + 1];
       this.terminators.splice(index*2, 2);
 
       var parent = this.templateElement_.parentNode;
@@ -1076,26 +1018,28 @@
           var model = this.iteratedValue[addIndex];
           var fragment = undefined;
           var instanceNodes = instanceCache.get(model);
-          var bound;
+          var instanceBindings;
           if (instanceNodes) {
             instanceCache.delete(model);
-            bound = instanceNodes.bound;
+            instanceBindings = instanceNodes.instanceBindings;
           } else {
-            bound = [];
+            instanceBindings = [];
             if (this.instanceModelFn_)
               model = this.instanceModelFn_(model);
 
             if (model !== undefined) {
-              fragment = this.templateElement_.createInstance(model, bound);
+              fragment = this.templateElement_.createInstance(model,
+                                                              instanceBindings);
             }
           }
 
-          this.insertInstanceAt(addIndex, fragment, instanceNodes, bound);
+          this.insertInstanceAt(addIndex, fragment, instanceNodes,
+                                instanceBindings);
         }
       }, this);
 
       instanceCache.forEach(function(instanceNodes) {
-        this.closeInstanceBindings(instanceNodes.bound);
+        this.closeInstanceBindings(instanceNodes.instanceBindings);
       }, this);
 
       if (this.instancePositionChangedFn_)
@@ -1148,9 +1092,9 @@
       }
     },
 
-    closeInstanceBindings: function(bound) {
-      for (var i = 0; i < bound.length; i++) {
-        bound[i].close();
+    closeInstanceBindings: function(instanceBindings) {
+      for (var i = 0; i < instanceBindings.length; i++) {
+        instanceBindings[i].close();
       }
     },
 
@@ -1171,9 +1115,16 @@
       }
 
       this.terminators.length = 0;
-      if (this.valueObserver)
-        this.valueObserver.close();
-      this.valueObserver = undefined;
+      if (this.bindObserver)
+        this.bindObserver.close();
+      this.bindObserver = undefined;
+      if (this.repeatObserver)
+        this.repeatObserver.close();
+      this.repeatObserver = undefined;
+      if (this.ifObserver)
+        this.ifObserver.close();
+      this.ifObserver = undefined;
+
       this.templateElement_.iterator_ = undefined;
       this.closed = true;
     }

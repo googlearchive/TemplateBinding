@@ -699,7 +699,7 @@ suite('Template Instantiation', function() {
     var t = div.firstChild;
 
     var model = {name: 'Leela'};
-    t.bind('bind', model);
+    t.bind('bind', new PathObserver(model, ''));
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
@@ -769,7 +769,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual(2, div.childNodes.length);
     assert.strictEqual('Hi Leela', t.nextSibling.textContent);
 
-    t.bind('bind', model, 'XZ');
+    t.bind('bind', new PathObserver(model, 'XZ'));
     Platform.performMicrotaskCheckpoint();
 
     assert.strictEqual(2, div.childNodes.length);
@@ -965,7 +965,7 @@ suite('Template Instantiation', function() {
     var m = {
       a: true
     };
-    t.bind('bind', m);
+    t.bind('bind', new PathObserver(m, ''));
     Platform.performMicrotaskCheckpoint();
 
     var instanceInput = t.nextSibling;
@@ -1581,7 +1581,7 @@ suite('Template Instantiation', function() {
     observer.observe(div, { childList: true });
 
     var template = div.firstChild;
-    template.bind('repeat', m.slice(), '');
+    template.bind('repeat', new PathObserver(m.slice(), ''));
     Platform.performMicrotaskCheckpoint();
     var records = observer.takeRecords();
     assert.strictEqual(0, records.length);
@@ -1612,7 +1612,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual('3', div.childNodes[1].textContent);
 
     template.unbind('bind');
-    template.bind('repeat', m, 'a');
+    template.bind('repeat', new PathObserver(m, 'a'));
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('0', div.childNodes[1].textContent);
@@ -1620,7 +1620,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual('2', div.childNodes[3].textContent);
 
     template.unbind('repeat');
-    template.bind('bind', m, 'a.1.b')
+    template.bind('bind', new PathObserver(m, 'a.1.b'));
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
@@ -1786,7 +1786,7 @@ suite('Template Instantiation', function() {
         if (path != 'replaceme')
           return;
         return function() {
-          return { value: 'replaced' };
+          return new PathObserver({ value: 'replaced' }, 'value');
         }
       }
     };
@@ -2130,7 +2130,7 @@ suite('Binding Delegate API', function() {
           return value * 2;
         }
         return function(model) {
-          return new PathObserver(model, path, undefined, undefined, timesTwo);
+          return new ObserverTransform(new PathObserver(model, path), timesTwo);
         };
       }
     };

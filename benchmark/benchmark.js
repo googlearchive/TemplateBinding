@@ -214,7 +214,8 @@
     },
 
     teardownMDVVariant: function() {
-      this.template.model = undefined;
+      this.template.bindings.repeat.close();
+      this.template = undefined;
     },
 
     setupHandlebarsVariant: function() {
