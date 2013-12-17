@@ -2166,6 +2166,34 @@ suite('Binding Delegate API', function() {
 
     assert.equal('barValue', div.lastChild.getAttribute('bar'));
   });
+
+  test('issue-18', function() {
+
+    var delegate = {
+      prepareBinding: function(path, name, node) {
+        if (name != 'class')
+          return;
+
+        return function(model) {
+          return new PathObserver(model, path);
+        }
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind>' +
+          '<div class="foo: {{ bar }}"></div>' +
+        '</template>');
+
+    var model = {
+      bar: 2
+    };
+
+    recursivelySetTemplateModel(div, model, delegate);
+    Platform.performMicrotaskCheckpoint();
+
+    assert.equal('foo: 2', div.lastChild.getAttribute('class'));
+  });
 });
 
 suite('Compat', function() {

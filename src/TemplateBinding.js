@@ -653,10 +653,9 @@
   function processSinglePathBinding(name, tokens, node, model) {
     var delegateFn = tokens[2];
     var delegateValue = delegateFn && delegateFn(model, node);
-    if (Observer.isObservable(delegateValue))
-      return delegateValue;
+    var observer = Observer.isObservable(delegateValue) ? delegateValue :
+        new PathObserver(model, tokens[1]);
 
-    var observer = new PathObserver(model, tokens[1]);
     return tokens.isSimplePath ? observer :
         new ObserverTransform(observer, tokens.combinator);
   }
