@@ -446,36 +446,54 @@
   }
 
   mixin(HTMLTemplateElement.prototype, {
-    bind: function(name, observer) {
+    bind: function(name, value, oneTime) {
       if (!this.iterator_)
         this.iterator_ = new TemplateIterator(this);
 
       this.bindings = this.bindings || {};
       if (name === 'bind') {
-        observer.open(this.iterator_.depsChanged, this.iterator_);
         this.unbind(name);
-        this.iterator_.bindObserver = observer;
+        this.iterator_.hasBind = true;
+        if (!oneTime) {
+          value.open(this.iterator_.depsChanged, this.iterator_);
+          this.iterator_.bindObserver = value;
+        } else {
+          this.iterator_.bindValue = value;
+        }
+
         this.iterator_.depsChanged();
         return this.bindings.bind = this.iterator_;
       }
 
       if (name === 'repeat') {
-        observer.open(this.iterator_.depsChanged, this.iterator_);
         this.unbind(name);
-        this.iterator_.repeatObserver = observer;
+        this.iterator_.hasRepeat = true;
+        if (!oneTime) {
+          value.open(this.iterator_.depsChanged, this.iterator_);
+          this.iterator_.repeatObserver = value;
+        } else {
+          this.iterator_.repeatValue = value;
+        }
+
         this.iterator_.depsChanged();
         return this.bindings.repeat = this.iterator_;
       }
 
       if (name === 'if') {
-        observer.open(this.iterator_.depsChanged, this.iterator_);
         this.unbind(name);
-        this.iterator_.ifObserver = observer;
+        this.iterator_.hasIf = true;
+        if (!oneTime) {
+          value.open(this.iterator_.depsChanged, this.iterator_);
+          this.iterator_.ifObserver = value;
+        } else {
+          this.iterator_.ifValue = value;
+        }
+
         this.iterator_.depsChanged();
         return this.bindings.if = this.iterator_;
       }
 
-      return HTMLElement.prototype.bind.call(this, name, observer);
+      return HTMLElement.prototype.bind.call(this, name, value, oneTime);
     },
 
     unbind: function(name) {
@@ -483,9 +501,12 @@
         if (!this.iterator_)
           return;
 
+        this.iterator_.hasBind = false;
+        this.iterator_.bindValue = undefined;
         if (this.iterator_.bindObserver)
           this.iterator_.bindObserver.close();
         this.iterator_.bindObserver = undefined;
+
         this.iterator_.depsChanged();
         return this.bindings.bind = undefined;
       }
@@ -494,9 +515,12 @@
         if (!this.iterator_)
           return;
 
+        this.iterator_.hasRepeat = false;
+        this.iterator_.repeatValue = undefined;
         if (this.iterator_.repeatObserver)
           this.iterator_.repeatObserver.close();
         this.iterator_.repeatObserver = undefined;
+
         this.iterator_.depsChanged();
         return this.bindings.repeat = undefined;
       }
@@ -505,9 +529,13 @@
         if (!this.iterator_)
           return;
 
+        this.iterator_.hasIf = false;
+        this.iterator_.ifValue = undefined;
+
         if (this.iterator_.ifObserver)
           this.iterator_.ifObserver.close();
         this.iterator_.ifObserver = undefined;
+
         this.iterator_.depsChanged();
         return this.bindings.if = undefined;
       }
@@ -596,7 +624,7 @@
 
   // Returns
   //   a) undefined if there are no mustaches.
-  //   b) [TEXT, (PATH, DELEGATE_FN, TEXT)+] if there is at least one mustache.
+  //   b) [TEXT, (ONE_TIME?, PATH, DELEGATE_FN, TEXT)+] if there is at least one mustache.
   function parseMustaches(s, name, node, prepareBindingFn) {
     if (!s || !s.length)
       return;
@@ -604,9 +632,21 @@
     var tokens;
     var length = s.length;
     var startIndex = 0, lastIndex = 0, endIndex = 0;
+    var onlyOneTime = true;
     while (lastIndex < length) {
-      startIndex = s.indexOf('{{', lastIndex);
-      endIndex = startIndex < 0 ? -1 : s.indexOf('}}', startIndex + 2);
+      var startIndex = s.indexOf('{{', lastIndex);
+      var oneTimeStart = s.indexOf('[[', lastIndex);
+      var oneTime = false;
+      var terminator = '}}';
+
+      if (oneTimeStart >= 0 &&
+          (startIndex < 0 || oneTimeStart < startIndex)) {
+        startIndex = oneTimeStart;
+        oneTime = true;
+        terminator = ']]';
+      }
+
+      endIndex = startIndex < 0 ? -1 : s.indexOf(terminator, startIndex + 2);
 
       if (endIndex < 0) {
         if (!tokens)
@@ -619,9 +659,11 @@
       tokens = tokens || [];
       tokens.push(s.slice(lastIndex, startIndex)); // TEXT
       var pathString = s.slice(startIndex + 2, endIndex).trim();
+      tokens.push(oneTime); // ONE_TIME?
+      onlyOneTime = onlyOneTime && oneTime;
       tokens.push(Path.get(pathString)); // PATH
       var delegateFn = prepareBindingFn &&
-                       prepareBindingFn(pathString, name, node)
+                       prepareBindingFn(pathString, name, node);
       tokens.push(delegateFn); // DELEGATE_FN
       lastIndex = endIndex + 2;
     }
@@ -629,19 +671,20 @@
     if (lastIndex === length)
       tokens.push(''); // TEXT
 
-    tokens.hasOnePath = tokens.length === 4;
+    tokens.hasOnePath = tokens.length === 5;
     tokens.isSimplePath = tokens.hasOnePath &&
                           tokens[0] == '' &&
-                          tokens[3] == '';
+                          tokens[4] == '';
+    tokens.onlyOneTime = onlyOneTime;
 
     tokens.combinator = function(values) {
       var newValue = tokens[0];
 
-      for (var i = 1; i < tokens.length; i += 3) {
-        var value = tokens.hasOnePath ? values : values[(i - 1) / 3];
+      for (var i = 1; i < tokens.length; i += 4) {
+        var value = tokens.hasOnePath ? values : values[(i - 1) / 4];
         if (value !== undefined)
           newValue += value;
-        newValue += tokens[i + 2];
+        newValue += tokens[i + 3];
       }
 
       return newValue;
@@ -650,11 +693,28 @@
     return tokens;
   };
 
+  function processOneTimeBinding(name, tokens, node, model) {
+    if (tokens.hasOnePath) {
+      var delegateFn = tokens[3];
+      var value = delegateFn ? delegateFn(model, node, true) :
+                               tokens[2].getValueFrom(model);
+      return tokens.isSimplePath ? value : tokens.combinator(value);
+    }
+
+    var values = [];
+    for (var i = 1; i < tokens.length; i += 4) {
+      var delegateFn = tokens[i + 2];
+      values[(i - 1) / 4] = delegateFn ? delegateFn(model, node) :
+          tokens[i + 1].getValueFrom(model);
+    }
+
+    return tokens.combinator(values);
+  }
+
   function processSinglePathBinding(name, tokens, node, model) {
-    var delegateFn = tokens[2];
-    var delegateValue = delegateFn && delegateFn(model, node);
-    var observer = Observer.isObservable(delegateValue) ? delegateValue :
-        new PathObserver(model, tokens[1]);
+    var delegateFn = tokens[3];
+    var observer = delegateFn ? delegateFn(model, node, false) :
+        new PathObserver(model, tokens[2]);
 
     return tokens.isSimplePath ? observer :
         new ObserverTransform(observer, tokens.combinator);
@@ -663,15 +723,24 @@
   function processBinding(name, tokens, node, model) {
     var observer = new CompoundObserver();
 
-    for (var i = 1; i < tokens.length; i += 3) {
-      var delegateFn = tokens[i + 1];
-      var delegateValue = delegateFn && delegateFn(model, node);
+    for (var i = 1; i < tokens.length; i += 4) {
+      var oneTime = tokens[i];
+      var delegateFn = tokens[i + 2];
 
-      if (Observer.isObservable(delegateValue)) {
-        observer.addObserver(delegateValue);
-      } else {
-        observer.addPath(model, tokens[i]);
+      if (delegateFn) {
+        var value = delegateFn(model, node, oneTime);
+        if (oneTime)
+          observer.addPath(value)
+        else
+          observer.addObserver(value);
+        continue;
       }
+
+      var path = tokens[i + 1];
+      if (oneTime)
+        observer.addPath(path.getValueFrom(model))
+      else
+        observer.addPath(model, path);
     }
 
     return new ObserverTransform(observer, tokens.combinator);
@@ -681,12 +750,17 @@
     for (var i = 0; i < bindings.length; i += 2) {
       var name = bindings[i]
       var tokens = bindings[i + 1];
-      var observer = tokens.hasOnePath ?
-          processSinglePathBinding(name, tokens, node, model) :
-          processBinding(name, tokens, node, model);
+      var value;
 
-      var binding = node.bind(name, observer);
-      if (instanceBindings)
+      if (tokens.onlyOneTime)
+        value = processOneTimeBinding(name, tokens, node, model);
+      else if (tokens.hasOnePath)
+        value = processSinglePathBinding(name, tokens, node, model);
+      else
+        value = processBinding(name, tokens, node, model);
+
+      var binding = node.bind(name, value, tokens.onlyOneTime);
+      if (binding && instanceBindings)
         instanceBindings.push(binding);
     }
   }
@@ -862,11 +936,20 @@
     //   <instanceTerminatorNode, [bindingsSetupByInstance]>
     this.terminators = [];
 
-    this.iteratedValue = undefined;
+    this.iteratedValue = [];
+    this.presentValue = undefined;
     this.arrayObserver = undefined;
 
+    this.hasRepeat = false;
+    this.repeatValue = undefined;
     this.repeatObserver = undefined;
+
+    this.hasBind = false;
+    this.bindValue = undefined;
     this.bindObserver = undefined;
+
+    this.hasIf = false;
+    this.ifValue = undefined;
     this.ifObserver = undefined;
   }
 
@@ -877,41 +960,45 @@
 
     // Called as a result ensureScheduled (above).
     resolve: function() {
-      if (this.ifObserver) {
-        var ifValue = this.ifObserver.discardChanges();
-        if (!ifValue) {
-          this.valueChanged(); // remove any instances
-          return;
-        }
+      if (this.hasIf) {
+        var ifValue = this.ifObserver ? this.ifObserver.discardChanges()
+                                      : this.ifValue;
+
+        if (!ifValue)
+          return this.valueChanged(); // remove any instances
       }
 
       var iterateValue;
-      if (this.repeatObserver)
-        iterateValue = this.repeatObserver.discardChanges();
-      else if (this.bindObserver)
-        iterateValue = [this.bindObserver.discardChanges()];
+      if (this.hasRepeat) {
+        iterateValue = this.repeatObserver ?
+            this.repeatObserver.discardChanges() : this.repeatValue;
+      } else if (this.hasBind) {
+        iterateValue = this.bindObserver ?
+            [this.bindObserver.discardChanges()] : [this.bindValue];
+      }
 
-      return this.valueChanged(iterateValue);
+      // Only need to observe iterated array if there's a repeatObserver
+      // whose value is actually an Array.
+      this.valueChanged(iterateValue,
+                        this.repeatObserver && Array.isArray(iterateValue));
     },
 
-    valueChanged: function(value) {
+    valueChanged: function(value, observeValue) {
       if (!Array.isArray(value))
-        value = undefined;
+        value = [];
 
-      var oldValue = this.iteratedValue;
+      if (value === this.iteratedValue)
+        return;
+
       this.unobserve();
-      this.iteratedValue = value;
-
-      if (this.iteratedValue) {
-        this.arrayObserver = new ArrayObserver(this.iteratedValue);
+      this.presentValue = value;
+      if (observeValue) {
+        this.arrayObserver = new ArrayObserver(this.presentValue);
         this.arrayObserver.open(this.handleSplices, this);
       }
 
-      var splices = ArrayObserver.calculateSplices(this.iteratedValue || [],
-                                                   oldValue || []);
-
-      if (splices.length)
-        this.handleSplices(splices);
+      this.handleSplices(ArrayObserver.calculateSplices(this.presentValue,
+                                                        this.iteratedValue));
     },
 
     getTerminatorAt: function(index) {
@@ -979,7 +1066,7 @@
     },
 
     handleSplices: function(splices) {
-      if (this.closed)
+      if (this.closed || !splices.length)
         return;
 
       var template = this.templateElement_;
@@ -988,6 +1075,9 @@
         this.close();
         return;
       }
+
+      ArrayObserver.applySplices(this.iteratedValue, this.presentValue,
+                                 splices);
 
       if (this.instanceModelFn_ === undefined) {
         this.instanceModelFn_ =

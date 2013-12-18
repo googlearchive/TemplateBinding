@@ -71,9 +71,9 @@ MDV: <input id="mdvCheckbox" type="checkbox" checked>
 Handlebars: <input id="handlebarsCheckbox" type="checkbox" checked>
 
 <button id="go">Run Benchmarks</button><br>
+One-time Bindings: <input id="oneTimeBindings" type="checkbox" checked>
 Compound Bindings: <input id="compoundBindings" type="checkbox">
 Expressions: <input id="expressions" type="checkbox">
-
 <span id="statusSpan"></span>
 
 <section style="width: 100%">
@@ -108,6 +108,7 @@ var mdvCheckbox = document.getElementById('mdvCheckbox');
 var handlebarsCheckbox = document.getElementById('handlebarsCheckbox');
 
 var compoundCheckbox = document.getElementById('compoundBindings');
+var oneTimeBindings = document.getElementById('oneTimeBindings');
 var expressionCheckbox = document.getElementById('expressions');
 
 var bindingDensityInput = document.getElementById('bindingDensityInput');
@@ -143,9 +144,16 @@ expressionCheckbox.addEventListener('click', function() {
     handlebarsCheckbox.checked = false;
 })
 
+oneTimeBindings.addEventListener('click', function() {
+  if (!oneTimeBindings.checked)
+    handlebarsCheckbox.checked = false;
+})
+
 handlebarsCheckbox.addEventListener('click', function() {
-  if (handlebarsCheckbox.checked)
+  if (handlebarsCheckbox.checked) {
     expressionCheckbox.checked = false;
+    oneTimeBindings.checked = true;
+  }
 })
 
 goButton.addEventListener('click', function() {
@@ -228,6 +236,7 @@ goButton.addEventListener('click', function() {
   var instanceCount = Number(instanceCountSelect.value);
 
   var test = new MDVBenchmark(testDiv, width, depth, decoration, instanceCount,
+                              oneTimeBindings.checked,
                               compoundBindings.checked,
                               expressionCheckbox.checked);
   var runner = new BenchmarkRunner(test,

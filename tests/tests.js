@@ -77,7 +77,7 @@ suite('Template Instantiation', function() {
     target.dispatchEvent(event);
   }
 
-  test('Template', function() {
+  test('Bind', function() {
     var div = createTestHtml(
         '<template bind={{}}>text</template>');
     var template = div.firstChild;
@@ -96,7 +96,23 @@ suite('Template Instantiation', function() {
     assert.strictEqual('text', div.lastChild.textContent);
   });
 
-  test('Template bind, no parent', function() {
+  test('oneTime-Bind', function() {
+    var div = createTestHtml(
+        '<template bind="[[ bound ]]">text</template>');
+    var template = div.firstChild;
+    var m = { bound: 1 };
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
+
+    m.bound = undefined;
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('text', div.lastChild.textContent);
+  });
+
+  test('Bind - no parent', function() {
     var div = createTestHtml(
       '<template bind>text</template>');
     var template = div.firstChild;
@@ -109,7 +125,7 @@ suite('Template Instantiation', function() {
     assert.isFalse(!!Observer._errorThrownDuringCallback);
   });
 
-  test('Template bind, no defaultView', function() {
+  test('Bind, no defaultView', function() {
     var div = createTestHtml(
       '<template bind>text</template>');
     var template = div.firstChild;
@@ -121,7 +137,7 @@ suite('Template Instantiation', function() {
     assert.isFalse(!!Observer._errorThrownDuringCallback);
   });
 
-  test('Template-Empty Bind', function() {
+  test('Empty Bind', function() {
     var div = createTestHtml(
         '<template bind>text</template>');
     var template = div.firstChild;
@@ -131,26 +147,166 @@ suite('Template Instantiation', function() {
     assert.strictEqual('text', div.lastChild.textContent);
   });
 
-  test('Template Bind If', function() {
+  test('Bind If', function() {
     var div = createTestHtml(
-        '<template bind if="{{ foo }}">text</template>');
-    var m = { foo: 0 };
+        '<template bind="{{ bound }}" if="{{ predicate }}">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: null, predicate: 0 };
     var template = div.firstChild;
+
     template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
-    m.foo = 1;
+    m.predicate = 1;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('text', div.lastChild.textContent);
+    assert.strictEqual('value:', div.lastChild.textContent);
+
+    m.bound = { value: 2 };
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:2', div.lastChild.textContent);
+
+    m.bound.value = 3;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
 
     template.model = undefined;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
   });
 
-  test('Template Bind If, 2', function() {
+  test('Bind oneTime-If (predicate false)', function() {
+    var div = createTestHtml(
+        '<template bind="{{ bound }}" if="[[ predicate ]]">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: null, predicate: 0 };
+    var template = div.firstChild;
+
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.predicate = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.bound = { value: 2 };
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.bound.value = 3;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('Bind oneTime-If (predicate true)', function() {
+    var div = createTestHtml(
+        '<template bind="{{ bound }}" if="[[ predicate ]]">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: null, predicate: 1 };
+    var template = div.firstChild;
+
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:', div.lastChild.textContent);
+
+    m.bound = { value: 2 };
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:2', div.lastChild.textContent);
+
+    m.bound.value = 3;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    m.predicate = 0;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('oneTime-Bind If', function() {
+    var div = createTestHtml(
+        '<template bind="[[ bound ]]" if="{{ predicate }}">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: { value: 2 }, predicate: 0 };
+    var template = div.firstChild;
+
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.predicate = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:2', div.lastChild.textContent);
+
+    m.bound.value = 3;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    m.bound = { value: 4 };
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('oneTime-Bind oneTime-If', function() {
+    var div = createTestHtml(
+        '<template bind="[[ bound ]]" if="[[ predicate ]]">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: { value: 2 }, predicate: 1 };
+    var template = div.firstChild;
+
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:2', div.lastChild.textContent);
+
+    m.bound.value = 3;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    m.bound = { value: 4 };
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    m.predicate = 0;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('value:3', div.lastChild.textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('Bind If, 2', function() {
     var div = createTestHtml(
         '<template bind="{{ foo }}" if="{{ bar }}">{{ bat }}</template>');
     var m = { bar: 0, foo: { bat: 'baz' } };
@@ -164,7 +320,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual('baz', div.lastChild.textContent);
   });
 
-  test('Template If', function() {
+  test('If', function() {
     var div = createTestHtml(
         '<template if="{{ foo }}">{{ value }}</template>');
     var m = { foo: 0, value: 'foo' };
@@ -183,7 +339,7 @@ suite('Template Instantiation', function() {
     assert.strictEqual(1, div.childNodes.length);
   });
 
-  test('Template-Empty If', function() {
+  test('Empty If', function() {
     var div = createTestHtml(
         '<template if>{{ value }}</template>');
     var m = { value: 'foo' };
@@ -197,21 +353,245 @@ suite('Template Instantiation', function() {
     assert.strictEqual('foo', div.lastChild.textContent);
   });
 
-  test('Template Repeat If', function() {
+  test('OneTime - simple text', function() {
     var div = createTestHtml(
-        '<template repeat="{{ foo }}" if="{{ bar }}">{{ }}</template>');
-    var m = { bar: 0, foo: [1, 2, 3] };
+        '<template bind>[[ value ]]</template>');
+    var m = { value: 'foo' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo', div.lastChild.textContent);
+
+    m.value = 'bar';
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual('foo', div.lastChild.textContent);
+  });
+
+  test('OneTime - compound text' , function() {
+    var div = createTestHtml(
+        '<template bind>[[ foo ]] bar [[ baz ]]</template>');
+    var m = { foo: 'FOO', baz: 'BAZ' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('FOO bar BAZ', div.lastChild.textContent);
+
+    m.foo = 'FI';
+    m.baz = 'BA';
+
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('FOO bar BAZ', div.lastChild.textContent);
+  });
+
+  test('OneTime/Dynamic Mixed - compound text' , function() {
+    var div = createTestHtml(
+        '<template bind>[[ foo ]] bar {{ baz }}</template>');
+    var m = { foo: 'FOO', baz: 'BAZ' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('FOO bar BAZ', div.lastChild.textContent);
+
+    m.foo = 'FI';
+    m.baz = 'BA';
+
+    Platform.performMicrotaskCheckpoint();  // unchanged [[ foo ]].
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('FOO bar BA', div.lastChild.textContent);
+  });
+
+  test('OneTime - simple attribute', function() {
+    var div = createTestHtml(
+        '<template bind><div foo="[[ value ]]"></div></template>');
+    var m = { value: 'foo' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo', div.lastChild.getAttribute('foo'));
+
+    m.value = 'bar';
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo', div.lastChild.getAttribute('foo'));
+  });
+
+  test('OneTime - compound attribute', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<div foo="[[ value ]]:[[ otherValue]]"></div>' +
+        '</template>');
+    var m = { value: 'foo', otherValue: 'bar' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo:bar', div.lastChild.getAttribute('foo'));
+
+    m.value = 'baz';
+    m.otherValue = 'bot';
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual('foo:bar', div.lastChild.getAttribute('foo'));
+  });
+
+  test('OneTime/Dynamic Mixed - compound attribute', function() {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<div foo="{{ value }}:[[ otherValue]]"></div>' +
+        '</template>');
+    var m = { value: 'foo', otherValue: 'bar' };
+    recursivelySetTemplateModel(div, m);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('foo:bar', div.lastChild.getAttribute('foo'));
+
+    m.value = 'baz';
+    m.otherValue = 'bot';
+    Platform.performMicrotaskCheckpoint();  //  unchanged [[otherValue]].
+    assert.strictEqual('baz:bar', div.lastChild.getAttribute('foo'));
+  });
+
+  test('Repeat If', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ items }}" if="{{ predicate }}">{{}}</template>');
+    var m = { predicate: 0, items: [1] };
     var template = div.firstChild;
     template.model = m;
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(1, div.childNodes.length);
 
-    m.bar = 1;
+    m.predicate = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.items.push(2, 3);
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual(4, div.childNodes.length);
     assert.strictEqual('1', div.childNodes[1].textContent);
     assert.strictEqual('2', div.childNodes[2].textContent);
     assert.strictEqual('3', div.childNodes[3].textContent);
+
+    m.items = [4];
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('4', div.childNodes[1].textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('Repeat oneTime-If (predicate false)', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ items }}" if="[[ predicate ]]">{{}}</template>');
+    var m = { predicate: 0, items: [1] };
+    var template = div.firstChild;
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.predicate = 1;
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.items.push(2, 3);
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.items = [4];
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(1, div.childNodes.length);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('Repeat oneTime-If (predicate true)', function() {
+    var div = createTestHtml(
+        '<template repeat="{{ items }}" if="[[ predicate ]]">{{}}</template>');
+    var m = { predicate: 1, items: [1] };
+    var template = div.firstChild;
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.items.push(2, 3);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+    assert.strictEqual('2', div.childNodes[2].textContent);
+    assert.strictEqual('3', div.childNodes[3].textContent);
+
+    m.items = [4];
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('4', div.childNodes[1].textContent);
+
+    m.predicate = 0;
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('4', div.childNodes[1].textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('oneTime-Repeat If', function() {
+    var div = createTestHtml(
+        '<template repeat="[[ items ]]" if="{{ predicate }}">{{}}</template>');
+    var m = { predicate: 0, items: [1] };
+    var template = div.firstChild;
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+
+    m.predicate = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.items.push(2, 3);
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.items = [4];
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('oneTime-Repeat oneTime-If', function() {
+    var div = createTestHtml(
+        '<template repeat="[[ items ]]" if="[[ predicate ]]">{{}}</template>');
+    var m = { predicate: 1, items: [1] };
+    var template = div.firstChild;
+    template.model = m;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.items.push(2, 3);
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.items = [4];
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
+
+    m.predicate = 0;
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('1', div.childNodes[1].textContent);
 
     template.model = undefined;
     Platform.performMicrotaskCheckpoint();
@@ -350,7 +730,51 @@ suite('Template Instantiation', function() {
 
   test('Repeat', function() {
     var div = createTestHtml(
-        '<template repeat="{{}}"">text</template>');
+        '<template repeat="{{ array }}"">{{}}</template>');
+
+    var model = { array: [0, 1, 2] };
+    var template = div.firstChild;
+    template.model = model;
+
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('0', div.childNodes[1].textContent);
+    assert.strictEqual('1', div.childNodes[2].textContent);
+    assert.strictEqual('2', div.childNodes[3].textContent);
+
+    model.array.length = 1;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(2, div.childNodes.length);
+    assert.strictEqual('0', div.childNodes[1].textContent);
+
+    model.array.push(3, 4);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(4, div.childNodes.length);
+    assert.strictEqual('0', div.childNodes[1].textContent);
+    assert.strictEqual('3', div.childNodes[2].textContent);
+    assert.strictEqual('4', div.childNodes[3].textContent);
+
+    model.array.splice(1, 1);
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(3, div.childNodes.length);
+    assert.strictEqual('0', div.childNodes[1].textContent);
+    assert.strictEqual('4', div.childNodes[2].textContent);
+
+    model.array.push(5, 6);
+    model.array = ['x', 'y'];
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(3, div.childNodes.length);
+    assert.strictEqual('x', div.childNodes[1].textContent);
+    assert.strictEqual('y', div.childNodes[2].textContent);
+
+    template.model = undefined;
+    Platform.performMicrotaskCheckpoint();
+    assert.strictEqual(1, div.childNodes.length);
+  });
+
+  test('Repeat - oneTime', function() {
+    var div = createTestHtml(
+        '<template repeat="[[]]"">text</template>');
 
     var model = [0, 1, 2];
     var template = div.firstChild;
@@ -360,16 +784,12 @@ suite('Template Instantiation', function() {
     assert.strictEqual(4, div.childNodes.length);
 
     model.length = 1;
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(2, div.childNodes.length);
-
-    model.push(3, 4);
-    Platform.performMicrotaskCheckpoint();
+    Platform.performMicrotaskCheckpoint();  // unchanged.
     assert.strictEqual(4, div.childNodes.length);
 
-    model.splice(1, 1);
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(3, div.childNodes.length);
+    model.push(3, 4);
+    Platform.performMicrotaskCheckpoint();  // unchanged.
+    assert.strictEqual(4, div.childNodes.length);
 
     template.model = undefined;
     Platform.performMicrotaskCheckpoint();
@@ -1735,7 +2155,7 @@ suite('Template Instantiation', function() {
         return function(model) {
           assert.strictEqual(expectedAge, model.age);
           count++;
-          return model;
+          return new PathObserver(model, path);
         }
       }
     };
@@ -1894,42 +2314,63 @@ suite('Binding Delegate API', function() {
 
   test('prepareBinding', function() {
     var model = { foo: 'bar'};
-    var prepareBindData = {
-      type: 'prepare',
-      path: '',
-      name: 'bind',
-      nodeType: Node.ELEMENT_NODE,
-      tagName: 'TEMPLATE'
-    };
-    var bindFnBindData = {
-      type: 'bindFn',
-      model: model,
-      nodeType: Node.ELEMENT_NODE,
-      tagName: 'TEMPLATE'
-    };
-    var prepareTextContentData = {
-      type: 'prepare',
-      path: 'foo',
-      name: 'textContent',
-      nodeType: Node.TEXT_NODE,
-      tagName: undefined
-    };
-    var bindFnTextContentData = {
-      type: 'bindFn',
-      model: model,
-      nodeType: Node.TEXT_NODE,
-      tagName: undefined
-    };
-
     var testData = [
-      prepareBindData,
-      bindFnBindData,
-      prepareTextContentData,
-      prepareBindData,
-      bindFnTextContentData,
-      bindFnBindData,
-      prepareTextContentData,
-      bindFnTextContentData
+      {
+        type: 'prepare',
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        type: 'bindFn',
+        model: model,
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE',
+        oneTime: true
+      },
+      {
+        type: 'prepare',
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+      {
+        type: 'prepare',
+        path: '',
+        name: 'bind',
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE'
+      },
+      {
+        type: 'bindFn',
+        model: model,
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined,
+        oneTime: false
+      },
+      {
+        type: 'bindFn',
+        model: model,
+        nodeType: Node.ELEMENT_NODE,
+        tagName: 'TEMPLATE',
+        oneTime: false
+      },
+      {
+        type: 'prepare',
+        path: 'foo',
+        name: 'textContent',
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined
+      },
+      {
+        type: 'bindFn',
+        model: model,
+        nodeType: Node.TEXT_NODE,
+        tagName: undefined,
+        oneTime: true
+      }
     ];
 
     var delegate = {
@@ -1945,20 +2386,24 @@ suite('Binding Delegate API', function() {
         assert.strictEqual(data.nodeType, node.nodeType);
         assert.strictEqual(data.tagName, node.tagName);
 
-        return function(model, node) {
+        return function(model, node, oneTime) {
           var data = testData.shift();
 
           assert.strictEqual(data.type, 'bindFn');
           assert.strictEqual(data.model, model);
           assert.strictEqual(data.nodeType, node.nodeType);
           assert.strictEqual(data.tagName, node.tagName);
+          assert.isTrue(data.oneTime == oneTime);
+
+          return oneTime ? Path.get(path).getValueFrom(model) :
+                           new PathObserver(model, path);
         }
       }
     };
 
     var div = createTestHtml(
-        '<template bind>{{ foo }}' +
-          '<template bind>{{ foo }}</template>' +
+        '<template bind="[[]]">{{ foo }}' +
+          '<template bind>[[ foo ]]</template>' +
         '</template>');
     recursivelySetTemplateModel(div, model, delegate);
     Platform.performMicrotaskCheckpoint();

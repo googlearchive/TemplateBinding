@@ -81,36 +81,45 @@
     return elementTypes[elementTypes.next++];
   }
 
-  function nextBindingText(isStatic, expression) {
+  function sd(oneTime) {
+    return oneTime ? '[[' : '{{';
+  }
+
+  function ed(oneTime) {
+    return oneTime ? ']]' : '}}';
+  }
+
+  function nextBindingText(isStatic, oneTime, expression) {
     if (isStatic)
       return 'I am Text!';
 
     if (expression) {
-      return '{{ ' + getNextPropName() + ' + ' +
-                     getNextPropName() + ' }}';
+      return sd(oneTime) + getNextPropName() + ' + ' +
+                           getNextPropName() + ed(oneTime);
     }
 
-    return '{{ ' + getNextPropName() + ' }}';
+    return sd(oneTime) + getNextPropName() + ed(oneTime);
   }
 
-  function nextBinding(isStatic, compound, expression) {
+  function nextBinding(isStatic, oneTime, compound, expression) {
     if (isStatic)
       return nextBindingText(isStatic);
     if (compound) {
-      return nextBindingText(false, expression) + ' ' +
-             nextBindingText(false, expression);
+      return nextBindingText(false, oneTime, expression) + ' ' +
+             nextBindingText(false, oneTime, expression);
     }
 
-    return nextBindingText(false, expression);
+    return nextBindingText(false, oneTime, expression);
   }
 
   function MDVBenchmark(testDiv, width, depth, decoration, instanceCount,
-                        compoundBindings, expressions) {
+                        oneTimeBindings, compoundBindings, expressions) {
     Benchmark.call(this);
     this.testDiv = testDiv;
     this.width = width;
     this.depth = depth;
     this.decoration = decoration;
+    this.oneTimeBindings = oneTimeBindings;
     this.compoundBindings = compoundBindings;
     this.expressions = expressions;
 
@@ -142,7 +151,9 @@
 
     getBindingText: function() {
       return nextBinding(this.bindingCounter++ > this.bindingCount,
-                         this.compoundBindings, this.expressions);
+                         this.oneTimeBindings,
+                         this.compoundBindings,
+                         this.expressions);
     },
 
     decorate: function(element) {
@@ -222,8 +233,10 @@
       testDiv.innerHTML = '';
       var div = document.createElement('div');
       div.appendChild(this.fragment.cloneNode(true));
-      this.handlebarsTemplate = '{{#each this}}' + div.innerHTML + '{{/each}}';
-      this.compiledTemplate = Handlebars.compile(this.handlebarsTemplate);
+      var stringTemplate = '{{#each this}}' + div.innerHTML + '{{/each}}';
+      stringTemplate = stringTemplate.replace(/\[\[/g, '{{');
+      stringTemplate = stringTemplate.replace(/\]\]/g, '}}');
+      this.compiledTemplate = Handlebars.compile(stringTemplate);
     },
 
     runHandlebars: function() {
