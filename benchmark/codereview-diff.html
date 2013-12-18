@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <script src="../../polymer/polymer.js"></script>
+    <script src="../../platform-dev/platform.js"></script>
+    <link rel="import" href="../../polymer-dev/polymer.html">
+
     <script src="data.js"></script>
 
   </head>
@@ -244,6 +246,7 @@
   </template>
   <script>
   (function() {
+  var div = document.createElement('div');
 
   Polymer('test-me', {
     diff: null,
@@ -259,8 +262,13 @@
     	this.data = window.data;
       this.hasBeenActivated = true;
       Platform.performMicrotaskCheckpoint();
-      console.profileEnd('mdv');
-      console.timeEnd('mdv');
+
+      var observer = new MutationObserver(function() {
+        console.profileEnd('mdv');
+        console.timeEnd('mdv');
+      });
+      observer.observe(div, { attributes: true });
+      div.setAttribute('foo', 'bar');
     }
   });
 
