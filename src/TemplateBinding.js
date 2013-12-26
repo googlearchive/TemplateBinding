@@ -136,12 +136,15 @@
       }).join(', ');
 
   function isAttributeTemplate(el) {
-    return semanticTemplateElements[el.tagName] &&
-        el.hasAttribute('template');
+    return Boolean(semanticTemplateElements[el.tagName] &&
+                   el.hasAttribute('template'));
   }
 
   function isTemplate(el) {
-    return el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
+    if (el.isTemplate_ === undefined)
+      el.isTemplate_ = el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
+
+    return el.isTemplate_;
   }
 
   function isNativeTemplate(el) {
@@ -554,10 +557,11 @@
       }
 
       var stagingDocument = getTemplateStagingDocument(this);
-      var instance = deepCloneIgnoreTemplateContent(content, stagingDocument);
+      var instance = createAndBindInstance(content, null, stagingDocument, map,
+                                           model,
+                                           this.bindingDelegate_,
+                                           instanceBindings);
 
-      addMapBindings(instance, map, model, this.bindingDelegate_,
-                     instanceBindings);
       // TODO(rafaelw): We can do this more lazily, but setting a sentinel
       // in the parent of the template element, and creating it when it's
       // asked for by walking back to find the iterating template.
@@ -746,7 +750,7 @@
     return new ObserverTransform(observer, tokens.combinator);
   }
 
-  function processBindings(bindings, node, model, instanceBindings) {
+  function processBindings(node, bindings, model, instanceBindings) {
     for (var i = 0; i < bindings.length; i += 2) {
       var name = bindings[i]
       var tokens = bindings[i + 1];
@@ -768,8 +772,7 @@
   function parseAttributeBindings(element, prepareBindingFn) {
     assert(element);
 
-    var bindings;
-    var isTemplateNode = isTemplate(element);
+    var bindings = [];
     var ifFound = false;
     var bindFound = false;
 
@@ -787,7 +790,7 @@
         name = name.substring(1);
       }
 
-      if (isTemplateNode) {
+      if (isTemplate(element)) {
         if (name === IF) {
           ifFound = true;
           value = value || '{{}}';  // Accept 'naked' if.
@@ -802,13 +805,11 @@
       if (!tokens)
         continue;
 
-      bindings = bindings || [];
       bindings.push(name, tokens);
     }
 
     // Treat <template if> as <template bind if>
     if (ifFound && !bindFound) {
-      bindings = bindings || [];
       bindings.push(BIND, parseMustaches('{{}}', BIND, element,
                                          prepareBindingFn));
     }
@@ -826,74 +827,56 @@
       if (tokens)
         return ['textContent', tokens];
     }
+
+    return [];
   }
 
-  function addMapBindings(node, bindings, model, delegate, instanceBindings) {
-    if (!bindings)
-      return;
+  function createAndBindInstance(node, parent, stagingDocument, bindings, model,
+                                 delegate,
+                                 instanceBindings) {
+    var clone = stagingDocument.importNode(node, false);
+    if (parent)
+      parent.appendChild(clone);
 
-    if (bindings.templateRef) {
-      HTMLTemplateElement.decorate(node, bindings.templateRef);
-      if (delegate) {
-        node.setBindingDelegate_(delegate);
+    if (bindings.isTemplate) {
+      HTMLTemplateElement.decorate(clone, node);
+      if (delegate)
+        clone.setBindingDelegate_(delegate);
+    } else {
+      var i = 0;
+      for (var child = node.firstChild; child; child = child.nextSibling) {
+        createAndBindInstance(child, clone, stagingDocument,
+                              bindings.children[i++],
+                              model,
+                              delegate,
+                              instanceBindings);
       }
     }
 
-    if (bindings.length)
-      processBindings(bindings, node, model, instanceBindings);
-
-    if (!bindings.children)
-      return;
-
-    var i = 0;
-    for (var child = node.firstChild; child; child = child.nextSibling) {
-      addMapBindings(child, bindings.children[i++], model, delegate,
-                     instanceBindings);
-    }
+    processBindings(clone, bindings, model, instanceBindings);
+    return clone;
   }
 
   function addBindings(node, model, prepareBindingFn) {
     assert(node);
 
     var bindings = getBindings(node, prepareBindingFn);
-    if (bindings)
-      processBindings(bindings, node, model);
+    processBindings(node, bindings, model);
 
     for (var child = node.firstChild; child ; child = child.nextSibling)
       addBindings(child, model, prepareBindingFn);
   }
 
-  function deepCloneIgnoreTemplateContent(node, stagingDocument) {
-    var clone = stagingDocument.importNode(node, false);
-    if (node.isTemplate_) {
-      return clone;
-    }
-
-    for (var child = node.firstChild; child; child = child.nextSibling) {
-      clone.appendChild(deepCloneIgnoreTemplateContent(child, stagingDocument))
-    }
-
-    return clone;
-  }
-
   function createInstanceBindingMap(node, prepareBindingFn) {
     var map = getBindings(node, prepareBindingFn);
-    if (isTemplate(node)) {
-      node.isTemplate_ = true;
-      map = map || [];
-      map.templateRef = node;
+    map.children = {};
+    var index = 0;
+    for (var child = node.firstChild; child; child = child.nextSibling) {
+      map.children[index++] = createInstanceBindingMap(child, prepareBindingFn);
     }
 
-    var child = node.firstChild, index = 0;
-    for (; child; child = child.nextSibling, index++) {
-      var childMap = createInstanceBindingMap(child, prepareBindingFn);
-      if (!childMap)
-        continue;
-
-      map = map || [];
-      map.children = map.children || {};
-      map.children[index] = childMap;
-    }
+    if (isTemplate(node))
+      map.isTemplate = true;
 
     return map;
   }
