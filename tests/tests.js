@@ -30,7 +30,7 @@ function doTeardown() {
   document.body.removeChild(testDiv);
   unbindAll(testDiv);
   Platform.performMicrotaskCheckpoint();
-  assert.strictEqual(4, Observer._allObserversCount);
+  assert.strictEqual(2, Observer._allObserversCount);
 }
 
 function createTestHtml(s) {
@@ -133,8 +133,9 @@ suite('Template Instantiation', function() {
     doc.adoptNode(div);
     recursivelySetTemplateModel(template, {});
     Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(1, div.childNodes.length);
+    assert.strictEqual(2, div.childNodes.length);
     assert.isFalse(!!Observer._errorThrownDuringCallback);
+    unbindAll(div);
   });
 
   test('Empty Bind', function() {
@@ -1111,20 +1112,6 @@ suite('Template Instantiation', function() {
     assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
   });
 
-  test('BindImperative', function() {
-    var div = createTestHtml(
-        '<template>' +
-          'Hi {{ name }}' +
-        '</template>');
-    var t = div.firstChild;
-
-    var model = {name: 'Leela'};
-    t.bind('bind', new PathObserver(model, ''));
-
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
-  });
-
   test('BindPlaceHolderHasNewLine', function() {
     var div = createTestHtml('<template bind="{{}}">Hi {{\nname\n}}</template>');
     var model = {name: 'Leela'};
@@ -1169,31 +1156,6 @@ suite('Template Instantiation', function() {
 
     Platform.performMicrotaskCheckpoint();
     assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
-  });
-
-  test('BindChanged', function() {
-    var model = {
-      XX: {name: 'Leela', title: 'Captain'},
-      XY: {name: 'Fry', title: 'Delivery boy'},
-      XZ: {name: 'Zoidberg', title: 'Doctor'}
-    };
-
-    var div = createTestHtml(
-        '<template bind="{{ XX }}">Hi {{ name }}</template>');
-
-    recursivelySetTemplateModel(div, model);
-
-    var t = div.firstChild;
-    Platform.performMicrotaskCheckpoint();
-
-    assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('Hi Leela', t.nextSibling.textContent);
-
-    t.bind('bind', new PathObserver(model, 'XZ'));
-    Platform.performMicrotaskCheckpoint();
-
-    assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('Hi Zoidberg', t.nextSibling.textContent);
   });
 
   function assertNodesAre() {
@@ -1378,14 +1340,13 @@ suite('Template Instantiation', function() {
 
   test('Checked', function() {
     var div = createTestHtml(
-        '<template>' +
+        '<template bind>' +
           '<input type="checkbox" checked="{{a}}">' +
         '</template>');
     var t = div.firstChild;
-    var m = {
+    t.model = {
       a: true
     };
-    t.bind('bind', new PathObserver(m, ''));
     Platform.performMicrotaskCheckpoint();
 
     var instanceInput = t.nextSibling;
@@ -2007,46 +1968,6 @@ suite('Template Instantiation', function() {
     assert.strictEqual(0, records.length);
   });
 
-
-  test('ChangeFromBindToRepeat', function() {
-    var div = createTestHtml(
-        '<template bind="{{a}}">' +
-          '{{ length }}' +
-        '</template>');
-    var template = div.firstChild;
-
-    var m = {
-      a: [
-        {length: 0},
-        {
-          length: 1,
-          b: {length: 4}
-        },
-        {length: 2}
-      ]
-    };
-    recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
-
-    assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('3', div.childNodes[1].textContent);
-
-    template.unbind('bind');
-    template.bind('repeat', new PathObserver(m, 'a'));
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(4, div.childNodes.length);
-    assert.strictEqual('0', div.childNodes[1].textContent);
-    assert.strictEqual('1', div.childNodes[2].textContent);
-    assert.strictEqual('2', div.childNodes[3].textContent);
-
-    template.unbind('repeat');
-    template.bind('bind', new PathObserver(m, 'a.1.b'));
-
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual(2, div.childNodes.length);
-    assert.strictEqual('4', div.childNodes[1].textContent);
-  });
-
   test('ChangeRefId', function() {
     var div = createTestHtml(
         '<template id="a">a:{{ }}</template>' +
@@ -2212,7 +2133,7 @@ suite('Template Instantiation', function() {
     };
 
     var div = createTestHtml(
-      '<template bind="{{a}}">' +
+      '<template>' +
         '<template bind="{{b}}">' +
           '{{ foo }}:{{ replaceme }}' +
         '</template>' +
@@ -2224,14 +2145,12 @@ suite('Template Instantiation', function() {
       }
     };
 
-    var host = testDiv.appendChild(document.createElement('div'));
     outer.bindingDelegate = delegate;
     var instance = outer.createInstance(model);
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
-
-    host.appendChild(instance);
-    Platform.performMicrotaskCheckpoint();
-    assert.strictEqual('bar:replaced', host.firstChild.nextSibling.textContent);
+    assert.strictEqual('bar:replaced',
+                       instance.firstChild.nextSibling.textContent);
+    unbindAll(instance);
   });
 
   test('Bootstrap', function() {

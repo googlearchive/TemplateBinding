@@ -23,11 +23,20 @@
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
   function getTreeScope(node) {
-    while (node.parentNode) {
-      node = node.parentNode;
+    while (node.parentNode || node.templateCreator_) {
+      if (!node.parentNode && node.templateCreator_)
+        node = node.templateCreator_;
+      else
+        node = node.parentNode;
     }
 
     return typeof node.getElementById === 'function' ? node : null;
+  }
+
+  function getInstanceRoot(node) {
+    while (node.parentNode)
+      node = node.parentNode;
+    return node.templateCreator_ ? node : null;
   }
 
   var Map;
@@ -441,7 +450,9 @@
   function ensureSetModelScheduled(template) {
     if (!template.setModelFn_) {
       template.setModelFn_ = function() {
-        addBindings(template, template.model, template.prepareBindingFn_);
+        processBindings(template,
+                        getBindings(template, template.prepareBindingFn_),
+                        template.model_);
       };
     }
 
@@ -449,101 +460,34 @@
   }
 
   mixin(HTMLTemplateElement.prototype, {
-    bind: function(name, value, oneTime) {
-      if (!this.iterator_)
+    processBindingDirectives_: function(directives) {
+      if (this.iterator_) {
+        if (this.iterator_.deps) {
+          if (this.iterator_.deps.ifOneTime === false)
+            this.iterator_.deps.ifValue.close();
+          if (this.iterator_.deps.oneTime === false)
+            this.iterator_.deps.value.close();
+        }
+      }
+
+      if (!directives.if && !directives.bind &&!directives.repeat) {
+        if (this.iterator_) {
+          this.iterator_.close();
+          this.iterator_ = undefined;
+          this.bindings.iterator = undefined;
+        }
+
+        return;
+      }
+
+      if (!this.iterator_) {
         this.iterator_ = new TemplateIterator(this);
-
-      this.bindings = this.bindings || {};
-      if (name === 'bind') {
-        this.unbind(name);
-        this.iterator_.hasBind = true;
-        if (!oneTime) {
-          value.open(this.iterator_.depsChanged, this.iterator_);
-          this.iterator_.bindObserver = value;
-        } else {
-          this.iterator_.bindValue = value;
-        }
-
-        this.iterator_.depsChanged();
-        return this.bindings.bind = this.iterator_;
+        this.bindings = this.bindings || {};
+        this.bindings.iterator = this.iterator_;
       }
 
-      if (name === 'repeat') {
-        this.unbind(name);
-        this.iterator_.hasRepeat = true;
-        if (!oneTime) {
-          value.open(this.iterator_.depsChanged, this.iterator_);
-          this.iterator_.repeatObserver = value;
-        } else {
-          this.iterator_.repeatValue = value;
-        }
-
-        this.iterator_.depsChanged();
-        return this.bindings.repeat = this.iterator_;
-      }
-
-      if (name === 'if') {
-        this.unbind(name);
-        this.iterator_.hasIf = true;
-        if (!oneTime) {
-          value.open(this.iterator_.depsChanged, this.iterator_);
-          this.iterator_.ifObserver = value;
-        } else {
-          this.iterator_.ifValue = value;
-        }
-
-        this.iterator_.depsChanged();
-        return this.bindings.if = this.iterator_;
-      }
-
-      return HTMLElement.prototype.bind.call(this, name, value, oneTime);
-    },
-
-    unbind: function(name) {
-      if (name === 'bind') {
-        if (!this.iterator_)
-          return;
-
-        this.iterator_.hasBind = false;
-        this.iterator_.bindValue = undefined;
-        if (this.iterator_.bindObserver)
-          this.iterator_.bindObserver.close();
-        this.iterator_.bindObserver = undefined;
-
-        this.iterator_.depsChanged();
-        return this.bindings.bind = undefined;
-      }
-
-      if (name === 'repeat') {
-        if (!this.iterator_)
-          return;
-
-        this.iterator_.hasRepeat = false;
-        this.iterator_.repeatValue = undefined;
-        if (this.iterator_.repeatObserver)
-          this.iterator_.repeatObserver.close();
-        this.iterator_.repeatObserver = undefined;
-
-        this.iterator_.depsChanged();
-        return this.bindings.repeat = undefined;
-      }
-
-      if (name === 'if') {
-        if (!this.iterator_)
-          return;
-
-        this.iterator_.hasIf = false;
-        this.iterator_.ifValue = undefined;
-
-        if (this.iterator_.ifObserver)
-          this.iterator_.ifObserver.close();
-        this.iterator_.ifObserver = undefined;
-
-        this.iterator_.depsChanged();
-        return this.bindings.if = undefined;
-      }
-
-      return HTMLElement.prototype.unbind.call(this, name);
+      this.iterator_.updateDependencies(directives, this.model_);
+      return this.iterator_;
     },
 
     createInstance: function(model, instanceBindings) {
@@ -557,15 +501,29 @@
       }
 
       var stagingDocument = getTemplateStagingDocument(this);
-      var instance = createAndBindInstance(content, null, stagingDocument, map,
-                                           model,
-                                           this.bindingDelegate_,
-                                           instanceBindings);
+      var instance = stagingDocument.createDocumentFragment();
+      instance.templateCreator_ = this;
 
-      // TODO(rafaelw): We can do this more lazily, but setting a sentinel
-      // in the parent of the template element, and creating it when it's
-      // asked for by walking back to find the iterating template.
-      addTemplateInstanceRecord(instance, model);
+      var instanceRecord = {
+        firstNode: null,
+        lastNode: null,
+        model: model
+      };
+
+      var i = 0;
+      for (var child = content.firstChild; child; child = child.nextSibling) {
+        var clone = cloneAndBindingInstance(child, instance, stagingDocument,
+                                            map.children[i++],
+                                            model,
+                                            this.bindingDelegate_,
+                                            instanceBindings);
+        clone.templateInstance_ = instanceRecord;
+      }
+
+      instanceRecord.firstNode = instance.firstChild;
+      // TODO(rafaelw): This could be wrong if the last node is <template>
+      // which has produced instances
+      instanceRecord.lastNode = instance.lastChild;
       return instance;
     },
 
@@ -613,6 +571,10 @@
         var treeScope = getTreeScope(this);
         if (treeScope)
           ref = treeScope.getElementById(refId);
+        if (!ref) {
+          var instanceRoot = getInstanceRoot(this);
+          ref = instanceRoot.querySelector('#' + refId);
+        }
       }
 
       if (!ref)
@@ -725,6 +687,12 @@
   }
 
   function processBinding(name, tokens, node, model) {
+    if (tokens.onlyOneTime)
+      return processOneTimeBinding(name, tokens, node, model);
+
+    if (tokens.hasOnePath)
+      return processSinglePathBinding(name, tokens, node, model);
+
     var observer = new CompoundObserver();
 
     for (var i = 1; i < tokens.length; i += 4) {
@@ -754,19 +722,24 @@
     for (var i = 0; i < bindings.length; i += 2) {
       var name = bindings[i]
       var tokens = bindings[i + 1];
-      var value;
-
-      if (tokens.onlyOneTime)
-        value = processOneTimeBinding(name, tokens, node, model);
-      else if (tokens.hasOnePath)
-        value = processSinglePathBinding(name, tokens, node, model);
-      else
-        value = processBinding(name, tokens, node, model);
-
+      var value = processBinding(name, tokens, node, model);
       var binding = node.bind(name, value, tokens.onlyOneTime);
       if (binding && instanceBindings)
         instanceBindings.push(binding);
     }
+
+    if (!bindings.isTemplate)
+      return;
+
+    node.model_ = model;
+    var iter = node.processBindingDirectives_(bindings);
+    if (instanceBindings && iter)
+      instanceBindings.push(iter);
+  }
+
+  function parseWithDefault(el, name, prepareBindingFn) {
+    var v = el.getAttribute(name);
+    return parseMustaches(v == '' ? '{{}}' : v, name, el, prepareBindingFn);
   }
 
   function parseAttributeBindings(element, prepareBindingFn) {
@@ -790,14 +763,9 @@
         name = name.substring(1);
       }
 
-      if (isTemplate(element)) {
-        if (name === IF) {
-          ifFound = true;
-          value = value || '{{}}';  // Accept 'naked' if.
-        } else if (name === BIND || name === REPEAT) {
-          bindFound = true;
-          value = value || '{{}}';  // Accept 'naked' bind & repeat.
-        }
+      if (isTemplate(element) &&
+          (name === IF || name === BIND || name === REPEAT)) {
+        continue;
       }
 
       var tokens = parseMustaches(value, name, element,
@@ -808,10 +776,14 @@
       bindings.push(name, tokens);
     }
 
-    // Treat <template if> as <template bind if>
-    if (ifFound && !bindFound) {
-      bindings.push(BIND, parseMustaches('{{}}', BIND, element,
-                                         prepareBindingFn));
+    if (isTemplate(element)) {
+      bindings.isTemplate = true;
+      bindings.if = parseWithDefault(element, IF, prepareBindingFn);
+      bindings.bind = parseWithDefault(element, BIND, prepareBindingFn);
+      bindings.repeat = parseWithDefault(element, REPEAT, prepareBindingFn);
+
+      if (bindings.if && !bindings.bind && !bindings.repeat)
+        bindings.bind = parseMustaches('{{}}', BIND, element, prepareBindingFn);
     }
 
     return bindings;
@@ -831,40 +803,28 @@
     return [];
   }
 
-  function createAndBindInstance(node, parent, stagingDocument, bindings, model,
+  function cloneAndBindingInstance(node, parent, stagingDocument, bindings, model,
                                  delegate,
-                                 instanceBindings) {
-    var clone = stagingDocument.importNode(node, false);
-    if (parent)
-      parent.appendChild(clone);
+                                 instanceBindings, instanceRecord) {
+    var clone = parent.appendChild(stagingDocument.importNode(node, false));
+
+    var i = 0;
+    for (var child = node.firstChild; child; child = child.nextSibling) {
+      cloneAndBindingInstance(child, clone, stagingDocument,
+                            bindings.children[i++],
+                            model,
+                            delegate,
+                            instanceBindings);
+    }
 
     if (bindings.isTemplate) {
       HTMLTemplateElement.decorate(clone, node);
       if (delegate)
         clone.setBindingDelegate_(delegate);
-    } else {
-      var i = 0;
-      for (var child = node.firstChild; child; child = child.nextSibling) {
-        createAndBindInstance(child, clone, stagingDocument,
-                              bindings.children[i++],
-                              model,
-                              delegate,
-                              instanceBindings);
-      }
     }
 
     processBindings(clone, bindings, model, instanceBindings);
     return clone;
-  }
-
-  function addBindings(node, model, prepareBindingFn) {
-    assert(node);
-
-    var bindings = getBindings(node, prepareBindingFn);
-    processBindings(node, bindings, model);
-
-    for (var child = node.firstChild; child ; child = child.nextSibling)
-      addBindings(child, model, prepareBindingFn);
   }
 
   function createInstanceBindingMap(node, prepareBindingFn) {
@@ -875,32 +835,7 @@
       map.children[index++] = createInstanceBindingMap(child, prepareBindingFn);
     }
 
-    if (isTemplate(node))
-      map.isTemplate = true;
-
     return map;
-  }
-
-  function TemplateInstance(firstNode, lastNode, model) {
-    // TODO(rafaelw): firstNode & lastNode should be read-synchronous
-    // in cases where script has modified the template instance boundary.
-    // All should be read-only.
-    this.firstNode = firstNode;
-    this.lastNode = lastNode;
-    this.model = model;
-  }
-
-  function addTemplateInstanceRecord(fragment, model) {
-    if (!fragment.firstChild)
-      return;
-
-    var instanceRecord = new TemplateInstance(fragment.firstChild,
-                                              fragment.lastChild, model);
-    var node = instanceRecord.firstNode;
-    while (node) {
-      node.templateInstance_ = instanceRecord;
-      node = node.nextSibling;
-    }
   }
 
   Object.defineProperty(Node.prototype, 'templateInstance', {
@@ -919,51 +854,73 @@
     //   <instanceTerminatorNode, [bindingsSetupByInstance]>
     this.terminators = [];
 
+    this.deps = undefined;
     this.iteratedValue = [];
     this.presentValue = undefined;
     this.arrayObserver = undefined;
-
-    this.hasRepeat = false;
-    this.repeatValue = undefined;
-    this.repeatObserver = undefined;
-
-    this.hasBind = false;
-    this.bindValue = undefined;
-    this.bindObserver = undefined;
-
-    this.hasIf = false;
-    this.ifValue = undefined;
-    this.ifObserver = undefined;
   }
 
   TemplateIterator.prototype = {
-    depsChanged: function() {
-      ensureScheduled(this);
+    updateDependencies: function(directives, model) {
+      var deps = this.deps;
+      if (this.deps) {
+        if (this.deps.ifOneTime === false)
+          this.deps.ifValue.close();
+        if (this.deps.oneTime === false)
+          this.deps.value.close();
+      }
+
+      var deps = this.deps = {};
+      var template = this.templateElement_;
+
+      if (directives.if) {
+        deps.hasIf = true;
+        deps.ifOneTime = directives.if.onlyOneTime;
+        deps.ifValue = processBinding(IF, directives.if, template, model);
+
+        // oneTime if & predicate is false. nothing else to do.
+        if (deps.ifOneTime && !deps.ifValue)
+          this.updateIteratedValue();
+
+        if (!deps.ifOneTime)
+          deps.ifValue.open(this.updateIteratedValue, this);
+      }
+
+      if (directives.repeat) {
+        deps.repeat = true;
+        deps.oneTime = directives.repeat.onlyOneTime;
+        deps.value = processBinding(REPEAT, directives.repeat, template, model);
+      } else {
+        deps.repeat = false;
+        deps.oneTime = directives.bind.onlyOneTime;
+        deps.value = processBinding(BIND, directives.bind, template, model);
+      }
+
+      if (!deps.oneTime)
+        deps.value.open(this.updateIteratedValue, this);
+
+      this.updateIteratedValue();
     },
 
     // Called as a result ensureScheduled (above).
-    resolve: function() {
-      if (this.hasIf) {
-        var ifValue = this.ifObserver ? this.ifObserver.discardChanges()
-                                      : this.ifValue;
-
+    updateIteratedValue: function() {
+      if (this.deps.hasIf) {
+        var ifValue = this.deps.ifValue;
+        if (!this.deps.ifOneTime)
+          ifValue = ifValue.discardChanges();
         if (!ifValue)
-          return this.valueChanged(); // remove any instances
+          return this.valueChanged();
       }
 
-      var iterateValue;
-      if (this.hasRepeat) {
-        iterateValue = this.repeatObserver ?
-            this.repeatObserver.discardChanges() : this.repeatValue;
-      } else if (this.hasBind) {
-        iterateValue = this.bindObserver ?
-            [this.bindObserver.discardChanges()] : [this.bindValue];
-      }
-
-      // Only need to observe iterated array if there's a repeatObserver
-      // whose value is actually an Array.
-      this.valueChanged(iterateValue,
-                        this.repeatObserver && Array.isArray(iterateValue));
+      var value = this.deps.value;
+      if (!this.deps.oneTime)
+        value = value.discardChanges();
+      if (!this.deps.repeat)
+        value = [value];
+      var observe = this.deps.repeat &&
+                    !this.deps.oneTime &&
+                    Array.isArray(value);
+      this.valueChanged(value, observe);
     },
 
     valueChanged: function(value, observeValue) {
@@ -1054,7 +1011,7 @@
 
       var template = this.templateElement_;
 
-      if (!template.parentNode || !template.ownerDocument.defaultView) {
+      if (!template.parentNode) {
         this.close();
         return;
       }
@@ -1187,15 +1144,13 @@
       }
 
       this.terminators.length = 0;
-      if (this.bindObserver)
-        this.bindObserver.close();
-      this.bindObserver = undefined;
-      if (this.repeatObserver)
-        this.repeatObserver.close();
-      this.repeatObserver = undefined;
-      if (this.ifObserver)
-        this.ifObserver.close();
-      this.ifObserver = undefined;
+
+      if (this.deps) {
+        if (this.deps.ifOneTime === false)
+          this.deps.ifValue.close();
+        if (this.deps.oneTime === false)
+          this.deps.value.close();
+      }
 
       this.templateElement_.iterator_ = undefined;
       this.closed = true;
