@@ -214,8 +214,8 @@
       HTMLTemplateElement.decorate(this.template);
       if (this.expressions)
         this.template.bindingDelegate = new PolymerExpressions;
-
-      this.template.content.appendChild(this.fragment.cloneNode(true));
+      var clone = this.fragment.cloneNode(true);
+      this.template.content.appendChild(clone);
       this.template.setAttribute('repeat', '');
     },
 
@@ -225,8 +225,10 @@
     },
 
     teardownMDVVariant: function() {
-      this.template.bindings.iterator.close();
+      if (this.template.bindings)
+        this.template.bindings.iterator.close();
       this.template = undefined;
+      testDiv.innerHTML = '';
     },
 
     setupHandlebarsVariant: function() {
