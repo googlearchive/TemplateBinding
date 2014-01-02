@@ -3008,8 +3008,8 @@ suite('Binding Delegate API', function() {
   });
 });
 
-suite('Compat', function(done) {
-  test('underbar bindings', function() {
+suite('Compat', function() {
+  test('underbar bindings', function(done) {
     var div = createTestHtml(
         '<template bind>' +
           '<div _style="color: {{ color }};"></div>' +
