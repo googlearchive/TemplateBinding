@@ -2288,7 +2288,7 @@ suite('Template Instantiation', function() {
     })
   });
 
-  test('RecursiveRef', function() {
+  test('RecursiveRef', function(done) {
     var div = createTestHtml(
         '<template bind>' +
           '<template id=src>{{ foo }}</template>' +
@@ -2299,10 +2299,13 @@ suite('Template Instantiation', function() {
       foo: 'bar'
     };
     recursivelySetTemplateModel(div, m);
-    Platform.performMicrotaskCheckpoint();
 
-    assert.strictEqual(4, div.childNodes.length);
-    assert.strictEqual('bar', div.childNodes[3].textContent);
+    then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('bar', div.childNodes[3].textContent);
+
+      done();
+    });
   });
 
   test('Template - Self is terminator', function(done) {

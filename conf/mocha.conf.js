@@ -9,5 +9,3 @@ var parserHasNativeTemplate = function() {
 	div.innerHTML = '<table><template>';
 	return div.firstChild.firstChild && div.firstChild.firstChild.tagName == 'TEMPLATE';
 }();
-
-var forceCollectObservers = true;
