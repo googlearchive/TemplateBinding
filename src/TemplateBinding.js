@@ -34,8 +34,9 @@
   }
 
   function getInstanceRoot(node) {
-    while (node.parentNode)
+    while (node.parentNode) {
       node = node.parentNode;
+    }
     return node.templateCreator_ ? node : null;
   }
 
@@ -461,16 +462,10 @@
 
   mixin(HTMLTemplateElement.prototype, {
     processBindingDirectives_: function(directives) {
-      if (this.iterator_) {
-        if (this.iterator_.deps) {
-          if (this.iterator_.deps.ifOneTime === false)
-            this.iterator_.deps.ifValue.close();
-          if (this.iterator_.deps.oneTime === false)
-            this.iterator_.deps.value.close();
-        }
-      }
+      if (this.iterator_)
+        this.iterator_.closeDeps();
 
-      if (!directives.if && !directives.bind &&!directives.repeat) {
+      if (!directives.if && !directives.bind && !directives.repeat) {
         if (this.iterator_) {
           this.iterator_.close();
           this.iterator_ = undefined;
@@ -521,8 +516,6 @@
       }
 
       instanceRecord.firstNode = instance.firstChild;
-      // TODO(rafaelw): This could be wrong if the last node is <template>
-      // which has produced instances
       instanceRecord.lastNode = instance.lastChild;
       return instance;
     },
@@ -861,14 +854,18 @@
   }
 
   TemplateIterator.prototype = {
-    updateDependencies: function(directives, model) {
+    closeDeps: function() {
       var deps = this.deps;
-      if (this.deps) {
-        if (this.deps.ifOneTime === false)
-          this.deps.ifValue.close();
-        if (this.deps.oneTime === false)
-          this.deps.value.close();
+      if (deps) {
+        if (deps.ifOneTime === false)
+          deps.ifValue.close();
+        if (deps.oneTime === false)
+          deps.value.close();
       }
+    },
+
+    updateDependencies: function(directives, model) {
+      this.closeDeps();
 
       var deps = this.deps = {};
       var template = this.templateElement_;
@@ -1144,14 +1141,7 @@
       }
 
       this.terminators.length = 0;
-
-      if (this.deps) {
-        if (this.deps.ifOneTime === false)
-          this.deps.ifValue.close();
-        if (this.deps.oneTime === false)
-          this.deps.value.close();
-      }
-
+      this.closeDeps();
       this.templateElement_.iterator_ = undefined;
       this.closed = true;
     }
