@@ -161,80 +161,6 @@
     return hasTemplateElement && el.tagName == 'TEMPLATE';
   }
 
-  var ensureScheduled = function() {
-    // We need to ping-pong between two Runners in order for the tests to
-    // simulate proper end-of-microtask behavior for Object.observe. Without
-    // this, we'll continue delivering to a single observer without allowing
-    // other observers in the same microtask to make progress.
-
-    function Runner(nextRunner) {
-      this.nextRunner = nextRunner;
-      this.value = false;
-      this.lastValue = this.value;
-      this.scheduled = [];
-      this.scheduledIds = [];
-      this.running = false;
-      this.observer = new PathObserver(this, 'value');
-      this.observer.open(this.run, this);
-    }
-
-    Runner.prototype = {
-      schedule: function(async, id) {
-        if (this.scheduledIds[id])
-          return;
-
-        if (this.running)
-          return this.nextRunner.schedule(async, id);
-
-        this.scheduledIds[id] = true;
-        this.scheduled.push(async);
-
-        if (this.lastValue !== this.value)
-          return;
-
-        this.value = !this.value;
-      },
-
-      run: function() {
-        this.running = true;
-
-        for (var i = 0; i < this.scheduled.length; i++) {
-          var async = this.scheduled[i];
-          var id = async[idExpando];
-          this.scheduledIds[id] = false;
-
-          if (typeof async === 'function')
-            async();
-          else
-            async.resolve();
-        }
-
-        this.scheduled = [];
-        this.scheduledIds = [];
-        this.lastValue = this.value;
-
-        this.running = false;
-      }
-    }
-
-    var runner = new Runner(new Runner());
-
-    var nextId = 1;
-    var idExpando = '__scheduledId__';
-
-    function ensureScheduled(async) {
-      var id = async[idExpando];
-      if (!async[idExpando]) {
-        id = nextId++;
-        async[idExpando] = id;
-      }
-
-      runner.schedule(async, id);
-    }
-
-    return ensureScheduled;
-  }();
-
   // FIXME: Observe templates being added/removed from documents
   // FIXME: Expose imperative API to decorate and observe templates in
   // "disconnected tress" (e.g. ShadowRoot)
@@ -451,13 +377,17 @@
   function ensureSetModelScheduled(template) {
     if (!template.setModelFn_) {
       template.setModelFn_ = function() {
+        template.setModelFnScheduled_ = false;
         processBindings(template,
                         getBindings(template, template.prepareBindingFn_),
                         template.model_);
       };
     }
 
-    ensureScheduled(template.setModelFn_);
+    if (!template.setModelFnScheduled_) {
+      template.setModelFnScheduled_ = true;
+      Observer.runEOM_(template.setModelFn_);
+    }
   }
 
   mixin(HTMLTemplateElement.prototype, {
@@ -899,7 +829,6 @@
       this.updateIteratedValue();
     },
 
-    // Called as a result ensureScheduled (above).
     updateIteratedValue: function() {
       if (this.deps.hasIf) {
         var ifValue = this.deps.ifValue;

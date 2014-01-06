@@ -30,7 +30,7 @@ function doTeardown() {
   document.body.removeChild(testDiv);
   unbindAll(testDiv);
   Platform.performMicrotaskCheckpoint();
-  assert.strictEqual(2, Observer._allObserversCount);
+  assert.strictEqual(0, Observer._allObserversCount);
 }
 
 function then(fn) {
