@@ -807,7 +807,7 @@
 
         // oneTime if & predicate is false. nothing else to do.
         if (deps.ifOneTime && !deps.ifValue)
-          this.updateIteratedValue();
+          return this.updateIteratedValue();
 
         if (!deps.ifOneTime)
           deps.ifValue.open(this.updateIteratedValue, this);
