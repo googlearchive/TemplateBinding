@@ -496,7 +496,8 @@
           ref = treeScope.getElementById(refId);
         if (!ref) {
           var instanceRoot = getInstanceRoot(this);
-          ref = instanceRoot.querySelector('#' + refId);
+          if (instanceRoot)
+            ref = instanceRoot.querySelector('#' + refId);
         }
       }
 

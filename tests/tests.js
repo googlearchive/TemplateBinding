@@ -3006,6 +3006,17 @@ suite('Binding Delegate API', function() {
       done();
     });
   });
+
+  test('issue-152', function() {
+    var div = createTestHtml(
+        '<template ref=notThere></template>');
+
+    var template = div.firstChild;
+
+    // if a ref cannot be located, a template will continue to use itself
+    // as the source of template instances.
+    assert.strictEqual(template, template.ref);
+  });
 });
 
 suite('Compat', function() {
