@@ -806,8 +806,10 @@
         deps.ifValue = processBinding(IF, directives.if, template, model);
 
         // oneTime if & predicate is false. nothing else to do.
-        if (deps.ifOneTime && !deps.ifValue)
-          return this.updateIteratedValue();
+        if (deps.ifOneTime && !deps.ifValue) {
+          this.updateIteratedValue();
+          return;
+        }
 
         if (!deps.ifOneTime)
           deps.ifValue.open(this.updateIteratedValue, this);
@@ -834,8 +836,10 @@
         var ifValue = this.deps.ifValue;
         if (!this.deps.ifOneTime)
           ifValue = ifValue.discardChanges();
-        if (!ifValue)
-          return this.valueChanged();
+        if (!ifValue) {
+          this.valueChanged();
+          return;
+        }
       }
 
       var value = this.deps.value;
