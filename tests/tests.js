@@ -1409,6 +1409,31 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Update Ref', function(done) {
+    var div = createTestHtml(
+        '<template id=A>Hi, {{}}</template>' +
+        '<template id=B>Hola, {{}}</template>' +
+        '<template ref=A repeat></template>');
+
+    var model = ['Fry'];
+    recursivelySetTemplateModel(div, model);
+
+    then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
+
+      div.childNodes[2].setAttribute('ref', 'B');
+      model.push('Leila');
+
+    }).then(function() {
+      assert.strictEqual(5, div.childNodes.length);
+      assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
+      assert.strictEqual('Hola, Leila', div.childNodes[4].textContent);
+
+      done();
+    });
+  });
+
   test('BindWithDynamicRef', function(done) {
     var id = 't' + Math.round(100 * Math.random());
     var div = createTestHtml(
@@ -2560,8 +2585,7 @@ suite('Template Instantiation', function() {
       }
     };
 
-    outer.bindingDelegate = delegate;
-    var instance = outer.createInstance(model);
+    var instance = outer.createInstance(model, delegate);
     assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
     assert.strictEqual('bar:replaced',
                        instance.firstChild.nextSibling.textContent);
@@ -2643,7 +2667,7 @@ suite('Template Instantiation', function() {
       items: [1]
     };
 
-    template.bindingDelegate = {
+    var delegate = {
       prepareInstanceModel: function(template) {
         if (template.id == 'del') {
           return function(val) {
@@ -2652,7 +2676,7 @@ suite('Template Instantiation', function() {
         }
       }
     };
-    div.appendChild(template.createInstance(model));
+    div.appendChild(template.createInstance(model, delegate));
 
     then(function() {
       assert.equal('2', template.nextSibling.nextSibling.nextSibling.textContent);
@@ -2936,6 +2960,86 @@ suite('Binding Delegate API', function() {
 
     }).then(function() {
       assert.strictEqual(0, testData.length);
+
+      done();
+    });
+  });
+
+  test('Update bindinDelegate with active template', function(done) {
+    function bindingHandler(prefix, path) {
+      return function(model) {
+        return new ObserverTransform(new PathObserver(model, path),
+          function(value) {
+            return prefix + ':' + value;
+          }
+        );
+      }
+    }
+
+    var delegateA = {
+      prepareBinding: function(path, name, node) {
+        if (path == '$ident')
+          return bindingHandler('a', 'id');
+
+        if (path == '$index')
+          return bindingHandler('i', 'index');
+      },
+
+      prepareInstanceModel: function(template) {
+        return function(model) {
+          return { id: model };
+        }
+      },
+
+      prepareInstancePositionChanged: function(template) {
+        return function(templateInstance, index) {
+          templateInstance.model.index = index;
+        }
+      }
+    };
+
+    var delegateB = {
+      prepareBinding: function(path, name, node) {
+        if (path == '$ident')
+          return bindingHandler('A', 'id');
+
+        if (path == '$index')
+          return bindingHandler('I', 'index');
+      },
+
+      prepareInstanceModel: function(template) {
+        return function(model) {
+          return { id: model + '-narg' };
+        }
+      },
+
+      prepareInstancePositionChanged: function(template) {
+        return function(templateInstance, index) {
+          templateInstance.model.index = 2 * index;
+        }
+      }
+    };
+
+    var model = [1, 2];
+
+    var div = createTestHtml(
+        '<template repeat>{{ $index }} - {{ $ident }}</template>');
+    var template = div.firstChild;
+    template.bindingDelegate = delegateA;
+    template.model = model;
+
+    then(function() {
+      assert.strictEqual(3, div.childNodes.length);
+      assert.strictEqual('i:0 - a:1' , div.childNodes[1].textContent);
+      assert.strictEqual('i:1 - a:2' , div.childNodes[2].textContent);
+
+      template.bindingDelegate = delegateB;
+      model.push(3);
+    }).then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('i:0 - a:1' , div.childNodes[1].textContent);
+      assert.strictEqual('i:1 - a:2' , div.childNodes[2].textContent);
+      assert.strictEqual('I:4 - A:3-narg' , div.childNodes[3].textContent);
 
       done();
     });

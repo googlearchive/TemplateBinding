@@ -395,9 +395,9 @@
     if (!template.setModelFn_) {
       template.setModelFn_ = function() {
         template.setModelFnScheduled_ = false;
-        processBindings(template,
-                        getBindings(template, template.prepareBindingFn_),
-                        template.model_);
+        var map = getBindings(template,
+            template.delegate_ && template.delegate_.prepareBinding);
+        processBindings(template, map, template.model_);
       };
     }
 
@@ -432,14 +432,20 @@
       return this.iterator_;
     },
 
-    createInstance: function(model, instanceBindings) {
+    createInstance: function(model, bindingDelegate, delegate_,
+                             instanceBindings_) {
+      if (bindingDelegate)
+        delegate_ = this.newDelegate_(bindingDelegate);
+
       var content = this.ref.content;
-      var map = content.bindingMap_;
-      if (!map) {
+      var map = this.bindingMap_;
+      if (!map || map.content !== content) {
         // TODO(rafaelw): Setup a MutationObserver on content to detect
         // when the instanceMap is invalid.
-        map = createInstanceBindingMap(content, this.prepareBindingFn_) || [];
-        content.bindingMap_ = map;
+        map = createInstanceBindingMap(content,
+            delegate_ && delegate_.prepareBinding) || [];
+        map.content = content;
+        this.bindingMap_ = map;
       }
 
       var stagingDocument = getTemplateStagingDocument(this);
@@ -457,8 +463,8 @@
         var clone = cloneAndBindingInstance(child, instance, stagingDocument,
                                             map.children[i++],
                                             model,
-                                            this.bindingDelegate_,
-                                            instanceBindings);
+                                            delegate_,
+                                            instanceBindings_);
         clone.templateInstance_ = instanceRecord;
       }
 
@@ -477,11 +483,21 @@
     },
 
     get bindingDelegate() {
-      return this.bindingDelegate_;
+      return this.delegate_.raw;
     },
 
-    setBindingDelegate_: function(bindingDelegate) {
-      this.bindingDelegate_ = bindingDelegate;
+    setDelegate_: function(delegate) {
+      this.delegate_ = delegate;
+      this.bindingMap_ = undefined;
+      if (this.iterator_) {
+        this.iterator_.instancePositionChangedFn_ = undefined;
+        this.iterator_.instanceModelFn_ = undefined;
+      }
+    },
+
+    newDelegate_: function(bindingDelegate) {
+      if (!bindingDelegate)
+        return {};
 
       function delegateFn(name) {
         var fn = bindingDelegate && bindingDelegate[name];
@@ -493,15 +509,20 @@
         };
       }
 
-      this.prepareBindingFn_ = delegateFn('prepareBinding');
-      this.prepareInstanceModelFn_ = delegateFn('prepareInstanceModel');
-      this.prepareInstancePositionChangedFn_ =
-          delegateFn('prepareInstancePositionChanged');
+      return {
+        raw: bindingDelegate,
+        prepareBinding: delegateFn('prepareBinding'),
+        prepareInstanceModel: delegateFn('prepareInstanceModel'),
+        prepareInstancePositionChanged:
+            delegateFn('prepareInstancePositionChanged')
+      };
     },
 
+    // TODO(rafaelw): Assigning .bindingDelegate always succeeds. It may
+    // make sense to issue a warning or even throw if the template is already
+    // "activated", since this would be a strange thing to do.
     set bindingDelegate(bindingDelegate) {
-      this.setBindingDelegate_(bindingDelegate);
-      ensureSetModelScheduled(this);
+      this.setDelegate_(this.newDelegate_(bindingDelegate));
     },
 
     get ref() {
@@ -744,9 +765,11 @@
     return [];
   }
 
-  function cloneAndBindingInstance(node, parent, stagingDocument, bindings, model,
-                                 delegate,
-                                 instanceBindings, instanceRecord) {
+  function cloneAndBindingInstance(node, parent, stagingDocument, bindings,
+                                   model,
+                                   delegate,
+                                   instanceBindings,
+                                   instanceRecord) {
     var clone = parent.appendChild(stagingDocument.importNode(node, false));
 
     var i = 0;
@@ -761,7 +784,7 @@
     if (bindings.isTemplate) {
       HTMLTemplateElement.decorate(clone, node);
       if (delegate)
-        clone.setBindingDelegate_(delegate);
+        clone.setDelegate_(delegate);
     }
 
     processBindings(clone, bindings, model, instanceBindings);
@@ -967,14 +990,16 @@
       ArrayObserver.applySplices(this.iteratedValue, this.presentValue,
                                  splices);
 
+      var delegate = template.delegate_;
       if (this.instanceModelFn_ === undefined) {
         this.instanceModelFn_ =
-            this.getDelegateFn(template.prepareInstanceModelFn_);
+            this.getDelegateFn(delegate && delegate.prepareInstanceModel);
       }
 
       if (this.instancePositionChangedFn_ === undefined) {
         this.instancePositionChangedFn_ =
-            this.getDelegateFn(template.prepareInstancePositionChangedFn_);
+            this.getDelegateFn(delegate &&
+                               delegate.prepareInstancePositionChanged);
       }
 
       var instanceCache = new Map;
@@ -1005,8 +1030,8 @@
               model = this.instanceModelFn_(model);
 
             if (model !== undefined) {
-              fragment = this.templateElement_.createInstance(model,
-                                                              instanceBindings);
+              fragment = template.createInstance(model, undefined, delegate,
+                                                 instanceBindings);
             }
           }
 
