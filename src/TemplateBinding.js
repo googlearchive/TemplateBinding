@@ -146,7 +146,7 @@
       }).join(', ');
 
   function isSVGTemplate(el) {
-    return el.tagName.toLowerCase() == 'template' &&
+    return el.tagName == 'template' &&
            el.namespaceURI == 'http://www.w3.org/2000/svg';
   }
 
@@ -318,26 +318,27 @@
     var templateElement = el;
     templateElement.templateIsDecorated_ = true;
 
-    var isNative = isHTMLTemplate(templateElement) && hasTemplateElement;
-    var bootstrapContents = isNative;
-    var liftContents = !isNative;
+    var isNativeHTMLTemplate = isHTMLTemplate(templateElement) &&
+                               hasTemplateElement;
+    var bootstrapContents = isNativeHTMLTemplate;
+    var liftContents = !isNativeHTMLTemplate;
     var liftRoot = false;
 
-    if (!isNative) {
+    if (!isNativeHTMLTemplate) {
       if (isAttributeTemplate(templateElement)) {
         assert(!opt_instanceRef);
         templateElement = extractTemplateFromAttributeTemplate(el);
         templateElement.templateIsDecorated_ = true;
-        isNative = hasTemplateElement;
+        isNativeHTMLTemplate = hasTemplateElement;
         liftRoot = true;
       } else if (isSVGTemplate(templateElement)) {
         templateElement = extractTemplateFromSVGTemplate(el);
         templateElement.templateIsDecorated_ = true;
-        isNative = hasTemplateElement;
+        isNativeHTMLTemplate = hasTemplateElement;
       }
     }
 
-    if (!isNative) {
+    if (!isNativeHTMLTemplate) {
       fixTemplateElementPrototype(templateElement);
       var doc = getOrCreateTemplateContentsOwner(templateElement);
       templateElement.content_ = doc.createDocumentFragment();
