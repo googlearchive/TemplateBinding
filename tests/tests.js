@@ -2568,6 +2568,30 @@ suite('Template Instantiation', function() {
     unbindAll(instance);
   });
 
+  test('Repeat - svg', function(done) {
+    var div = createTestHtml(
+        '<svg width="400" height="110">' +
+          '<template repeat>' +
+            '<rect width="{{ width }}" height="{{ height }}" />' +
+          '</template>' +
+        '</svg>');
+
+    var model = [{ width: 10, height: 10 }, { width: 20, height: 20 }];
+    var svg = div.firstChild;
+    var template = svg.firstChild;
+    template.model = model;
+
+    then(function() {
+      assert.strictEqual(3, svg.childNodes.length);
+      assert.strictEqual('10', svg.childNodes[1].getAttribute('width'));
+      assert.strictEqual('10', svg.childNodes[1].getAttribute('height'));
+      assert.strictEqual('20', svg.childNodes[2].getAttribute('width'));
+      assert.strictEqual('20', svg.childNodes[2].getAttribute('height'));
+
+      done();
+    });
+  });
+
   test('Bootstrap', function() {
     var div = document.createElement('div');
     div.innerHTML =

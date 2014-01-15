@@ -145,6 +145,16 @@
         return tagName.toLowerCase() + '[template]';
       }).join(', ');
 
+  function isSVGTemplate(el) {
+    return el.tagName.toLowerCase() == 'template' &&
+           el.namespaceURI == 'http://www.w3.org/2000/svg';
+  }
+
+  function isHTMLTemplate(el) {
+    return el.tagName == 'TEMPLATE' &&
+           el.namespaceURI == 'http://www.w3.org/1999/xhtml';
+  }
+
   function isAttributeTemplate(el) {
     return Boolean(semanticTemplateElements[el.tagName] &&
                    el.hasAttribute('template'));
@@ -155,10 +165,6 @@
       el.isTemplate_ = el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
 
     return el.isTemplate_;
-  }
-
-  function isNativeTemplate(el) {
-    return hasTemplateElement && el.tagName == 'TEMPLATE';
   }
 
   // FIXME: Observe templates being added/removed from documents
@@ -270,6 +276,22 @@
     return template;
   }
 
+  function extractTemplateFromSVGTemplate(el) {
+    var template = el.ownerDocument.createElement('template');
+    el.parentNode.insertBefore(template, el);
+
+    var attribs = el.attributes;
+    var count = attribs.length;
+    while (count-- > 0) {
+      var attrib = attribs[count];
+      template.setAttribute(attrib.name, attrib.value);
+      el.removeAttribute(attrib.name);
+    }
+
+    el.parentNode.removeChild(el);
+    return template;
+  }
+
   function liftNonNativeTemplateChildrenIntoContent(template, el, useRoot) {
     var content = template.content;
     if (useRoot) {
@@ -296,18 +318,23 @@
     var templateElement = el;
     templateElement.templateIsDecorated_ = true;
 
-    var isNative = isNativeTemplate(templateElement);
+    var isNative = isHTMLTemplate(templateElement) && hasTemplateElement;
     var bootstrapContents = isNative;
     var liftContents = !isNative;
     var liftRoot = false;
 
-    if (!isNative && isAttributeTemplate(templateElement)) {
-      assert(!opt_instanceRef);
-      templateElement = extractTemplateFromAttributeTemplate(el);
-      templateElement.templateIsDecorated_ = true;
-
-      isNative = isNativeTemplate(templateElement);
-      liftRoot = true;
+    if (!isNative) {
+      if (isAttributeTemplate(templateElement)) {
+        assert(!opt_instanceRef);
+        templateElement = extractTemplateFromAttributeTemplate(el);
+        templateElement.templateIsDecorated_ = true;
+        isNative = hasTemplateElement;
+        liftRoot = true;
+      } else if (isSVGTemplate(templateElement)) {
+        templateElement = extractTemplateFromSVGTemplate(el);
+        templateElement.templateIsDecorated_ = true;
+        isNative = hasTemplateElement;
+      }
     }
 
     if (!isNative) {
