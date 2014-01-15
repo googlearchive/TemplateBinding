@@ -2349,7 +2349,7 @@ suite('Template Instantiation', function() {
       observer.observe(div, { childList: true });
 
       template = div.firstChild;
-      template.bind('repeat', new PathObserver(m.slice(), ''));
+      template.model = m.slice();
 
     }).then(function() {
       records = observer.takeRecords();
