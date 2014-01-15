@@ -357,21 +357,10 @@
   }
 
   function fixTemplateElementPrototype(el) {
-    // Note: because we need to treat some semantic elements as template
-    // elements (like tr or td), but don't want to reassign their proto (gecko
-    // doesn't like that), we mixin the properties for those elements.
-    if (el.tagName === 'TEMPLATE') {
-      if (!hasTemplateElement) {
-        if (hasProto)
-          el.__proto__ = HTMLTemplateElement.prototype;
-        else
-          mixin(el, HTMLTemplateElement.prototype);
-      }
-    } else {
+    if (hasProto)
+      el.__proto__ = HTMLTemplateElement.prototype;
+    else
       mixin(el, HTMLTemplateElement.prototype);
-      // FIXME: Won't need this when webkit methods move to the prototype.
-      Object.defineProperty(el, 'content', contentDescriptor);
-    }
   }
 
   function ensureSetModelScheduled(template) {
