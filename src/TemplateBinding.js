@@ -460,11 +460,11 @@
 
       var i = 0;
       for (var child = content.firstChild; child; child = child.nextSibling) {
-        var clone = cloneAndBindingInstance(child, instance, stagingDocument,
-                                            map.children[i++],
-                                            model,
-                                            delegate_,
-                                            instanceBindings_);
+        var clone = cloneAndBindInstance(child, instance, stagingDocument,
+                                         map.children[i++],
+                                         model,
+                                         delegate_,
+                                         instanceBindings_);
         clone.templateInstance_ = instanceRecord;
       }
 
@@ -765,16 +765,15 @@
     return [];
   }
 
-  function cloneAndBindingInstance(node, parent, stagingDocument, bindings,
-                                   model,
-                                   delegate,
-                                   instanceBindings,
-                                   instanceRecord) {
+  function cloneAndBindInstance(node, parent, stagingDocument, bindings, model,
+                                delegate,
+                                instanceBindings,
+                                instanceRecord) {
     var clone = parent.appendChild(stagingDocument.importNode(node, false));
 
     var i = 0;
     for (var child = node.firstChild; child; child = child.nextSibling) {
-      cloneAndBindingInstance(child, clone, stagingDocument,
+      cloneAndBindInstance(child, clone, stagingDocument,
                             bindings.children[i++],
                             model,
                             delegate,

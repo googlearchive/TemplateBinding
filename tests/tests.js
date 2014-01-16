@@ -1423,12 +1423,12 @@ suite('Template Instantiation', function() {
       assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
 
       div.childNodes[2].setAttribute('ref', 'B');
-      model.push('Leila');
+      model.push('Leela');
 
     }).then(function() {
       assert.strictEqual(5, div.childNodes.length);
       assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
-      assert.strictEqual('Hola, Leila', div.childNodes[4].textContent);
+      assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
 
       done();
     });
@@ -2965,7 +2965,7 @@ suite('Binding Delegate API', function() {
     });
   });
 
-  test('Update bindinDelegate with active template', function(done) {
+  test('Update bindingDelegate with active template', function(done) {
     function bindingHandler(prefix, path) {
       return function(model) {
         return new ObserverTransform(new PathObserver(model, path),
@@ -2973,7 +2973,7 @@ suite('Binding Delegate API', function() {
             return prefix + ':' + value;
           }
         );
-      }
+      };
     }
 
     var delegateA = {
@@ -3010,7 +3010,7 @@ suite('Binding Delegate API', function() {
       prepareInstanceModel: function(template) {
         return function(model) {
           return { id: model + '-narg' };
-        }
+        };
       },
 
       prepareInstancePositionChanged: function(template) {
@@ -3030,16 +3030,18 @@ suite('Binding Delegate API', function() {
 
     then(function() {
       assert.strictEqual(3, div.childNodes.length);
-      assert.strictEqual('i:0 - a:1' , div.childNodes[1].textContent);
-      assert.strictEqual('i:1 - a:2' , div.childNodes[2].textContent);
+      assert.strictEqual('i:0 - a:1', div.childNodes[1].textContent);
+      assert.strictEqual('i:1 - a:2', div.childNodes[2].textContent);
 
       template.bindingDelegate = delegateB;
       model.push(3);
     }).then(function() {
+      // The new instance (result of pushing |3|) will be created with the new
+      // delegate, and the existing instances will remain unaffected.
       assert.strictEqual(4, div.childNodes.length);
-      assert.strictEqual('i:0 - a:1' , div.childNodes[1].textContent);
-      assert.strictEqual('i:1 - a:2' , div.childNodes[2].textContent);
-      assert.strictEqual('I:4 - A:3-narg' , div.childNodes[3].textContent);
+      assert.strictEqual('i:0 - a:1', div.childNodes[1].textContent);
+      assert.strictEqual('i:1 - a:2', div.childNodes[2].textContent);
+      assert.strictEqual('I:4 - A:3-narg', div.childNodes[3].textContent);
 
       done();
     });
