@@ -1409,6 +1409,35 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Ref at multiple', function() {
+    var id = 't' + Math.random();
+    var div = createTestHtml(
+      '<template bind>' +
+        '<template bind ref=doc></template>' +
+        '<template id=elRoot>EL_ROOT</template>' +
+        '<template bind>' +
+          '<template bind ref=elRoot></template>' +
+          '<template bind>' +
+            '<template bind ref=subA></template>' +
+            '<template id=subB>SUB_B</template>' +
+            '<template bind>' +
+              '<template bind ref=subB></template>' +
+            '</template>' +
+          '</template>' +
+          '<template id=subA>SUB_A</template>' +
+        '</template>' +
+      '</template>' +
+      '<template id=doc>DOC</template>');
+    var t = div.firstChild;
+    var fragment = t.createInstance({});
+    assert.strictEqual(14, fragment.childNodes.length);
+    assert.strictEqual('DOC', fragment.childNodes[1].textContent);
+    assert.strictEqual('EL_ROOT', fragment.childNodes[5].textContent);
+    assert.strictEqual('SUB_A', fragment.childNodes[8].textContent);
+    assert.strictEqual('SUB_B', fragment.childNodes[12].textContent);
+    div.appendChild(fragment);
+  });
+
   test('Update Ref', function(done) {
     var div = createTestHtml(
         '<template id=A>Hi, {{}}</template>' +

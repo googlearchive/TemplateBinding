@@ -22,15 +22,35 @@
 
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
-  function getTreeScope(node) {
-    while (node.parentNode || node.templateCreator_) {
-      if (!node.parentNode && node.templateCreator_)
-        node = node.templateCreator_;
-      else
-        node = node.parentNode;
+  function getFragmentRoot(node) {
+    while (node.parentNode) {
+      node = node.parentNode;
     }
 
-    return typeof node.getElementById === 'function' ? node : null;
+    return node;
+  }
+
+  function searchRefId(node, id) {
+    if (!id)
+      return;
+
+    var ref;
+    var selector = '#' + id;
+    while (!ref) {
+      node = getFragmentRoot(node);
+
+      if (node.protoContent_)
+        ref = node.protoContent_.querySelector(selector);
+      else if (node.getElementById)
+        ref = node.getElementById(id);
+
+      if (ref || !node.templateCreator_)
+        break
+
+      node = node.templateCreator_;
+    }
+
+    return ref;
   }
 
   function getInstanceRoot(node) {
@@ -451,6 +471,7 @@
       var stagingDocument = getTemplateStagingDocument(this);
       var instance = stagingDocument.createDocumentFragment();
       instance.templateCreator_ = this;
+      instance.protoContent_ = content;
 
       var instanceRecord = {
         firstNode: null,
@@ -470,6 +491,8 @@
 
       instanceRecord.firstNode = instance.firstChild;
       instanceRecord.lastNode = instance.lastChild;
+      instance.templateCreator_ = undefined;
+      instance.protoContent_ = undefined;
       return instance;
     },
 
@@ -526,19 +549,7 @@
     },
 
     get ref() {
-      var ref;
-      var refId = this.getAttribute('ref');
-      if (refId) {
-        var treeScope = getTreeScope(this);
-        if (treeScope)
-          ref = treeScope.getElementById(refId);
-        if (!ref) {
-          var instanceRoot = getInstanceRoot(this);
-          if (instanceRoot)
-            ref = instanceRoot.querySelector('#' + refId);
-        }
-      }
-
+      var ref = searchRefId(this, this.getAttribute('ref'));
       if (!ref)
         ref = this.instanceRef_;
 
