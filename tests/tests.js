@@ -1410,6 +1410,13 @@ suite('Template Instantiation', function() {
   });
 
   test('Ref at multiple', function() {
+    // Note: this test is asserting that template "ref"erences can be located
+    // at various points. In particular:
+    // -in the document (at large) (e.g. ref=doc)
+    // -within template content referenced from sub-content
+    //   -both before and after the reference
+    // The following asserts ensure that all referenced templates content is
+    // found.
     var id = 't' + Math.random();
     var div = createTestHtml(
       '<template bind>' +

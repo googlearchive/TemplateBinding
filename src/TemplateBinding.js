@@ -23,8 +23,9 @@
   var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
 
   function getFragmentRoot(node) {
-    while (node.parentNode) {
-      node = node.parentNode;
+    var p;
+    while (p = node.parentNode) {
+      node = p;
     }
 
     return node;
