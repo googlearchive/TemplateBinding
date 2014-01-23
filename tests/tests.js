@@ -90,6 +90,13 @@ suite('Template Instantiation', function() {
     target.dispatchEvent(event);
   }
 
+  test('accessing bindingDelegate getter without Bind', function(done) {
+    var div = createTestHtml('<template></template>');
+    var template = div.firstChild;
+    assert.strictEqual(template.bindingDelegate, undefined);
+    done();
+  });
+
   test('Bind', function(done) {
     var div = createTestHtml(
         '<template bind={{}}>text</template>');
