@@ -1189,6 +1189,34 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Template.clear', function(done) {
+    var div = createTestHtml(
+        '<template repeat>{{}}</template>');
+    var template = div.firstChild;
+    template.model = [0, 1, 2];
+
+    then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('0', div.childNodes[1].textContent);
+      assert.strictEqual('1', div.childNodes[2].textContent);
+      assert.strictEqual('2', div.childNodes[3].textContent);
+
+      // clear() synchronously removes instances
+      div.firstChild.clear();
+      assert.strictEqual(1, div.childNodes.length);
+
+      // test that template still works if new model assigned
+      template.model = [3, 4];
+
+    }).then(function() {
+      assert.strictEqual(3, div.childNodes.length);
+      assert.strictEqual('3', div.childNodes[1].textContent);
+      assert.strictEqual('4', div.childNodes[2].textContent);
+
+      done();
+    });
+  });
+
   test('DOM Stability on Iteration', function(done) {
     var div = createTestHtml(
         '<template repeat="{{}}">{{}}</template>');

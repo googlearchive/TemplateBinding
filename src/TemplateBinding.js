@@ -510,6 +510,17 @@
       return this.delegate_ && this.delegate_.raw;
     },
 
+    clear: function() {
+      this.model_ = undefined;
+      this.delegate_ = undefined;
+      this.bindings_ = undefined;
+      if (!this.iterator_)
+        return;
+      this.iterator_.valueChanged();
+      this.iterator_.close()
+      this.iterator_ = undefined;
+    },
+
     setDelegate_: function(delegate) {
       this.delegate_ = delegate;
       this.bindingMap_ = undefined;
