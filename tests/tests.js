@@ -1201,9 +1201,10 @@ suite('Template Instantiation', function() {
       assert.strictEqual('1', div.childNodes[2].textContent);
       assert.strictEqual('2', div.childNodes[3].textContent);
 
-      // clear() synchronously removes instances
+      // clear() synchronously removes instances and clears the model.
       div.firstChild.clear();
       assert.strictEqual(1, div.childNodes.length);
+      assert.strictEqual(undefined, template.model);
 
       // test that template still works if new model assigned
       template.model = [3, 4];
