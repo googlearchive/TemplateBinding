@@ -149,7 +149,7 @@ suite('Template Instantiation', function() {
     var template = div.firstChild;
     div.removeChild(template);
 
-    recursivelySetTemplateModel(template, {});
+    template.model = {};
 
     then(function() {
       assert.strictEqual(0, template.childNodes.length);
@@ -166,7 +166,7 @@ suite('Template Instantiation', function() {
     var template = div.firstChild;
     var doc = document.implementation.createHTMLDocument('');
     doc.adoptNode(div);
-    recursivelySetTemplateModel(template, {});
+    template.model = {};
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -393,8 +393,9 @@ suite('Template Instantiation', function() {
   test('Bind If, 2', function(done) {
     var div = createTestHtml(
         '<template bind="{{ foo }}" if="{{ bar }}">{{ bat }}</template>');
+    var template = div.firstChild;
     var m = { bar: 0, foo: { bat: 'baz' } };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(1, div.childNodes.length);
@@ -438,12 +439,13 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template if>{{ value }}</template>');
     var m = { value: 'foo' };
-    recursivelySetTemplateModel(div, null);
+    var template = div.firstChild;
+    template.model = null;
 
     then(function() {
       assert.strictEqual(1, div.childNodes.length);
 
-      recursivelySetTemplateModel(div, m);
+      template.model = m;
 
     }).then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -456,8 +458,9 @@ suite('Template Instantiation', function() {
   test('OneTime - simple text', function(done) {
     var div = createTestHtml(
         '<template bind>[[ value ]]</template>');
+    var template = div.firstChild;
     var m = { value: 'foo' };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -476,8 +479,9 @@ suite('Template Instantiation', function() {
   test('OneTime - compound text' , function(done) {
     var div = createTestHtml(
         '<template bind>[[ foo ]] bar [[ baz ]]</template>');
+    var template = div.firstChild;
     var m = { foo: 'FOO', baz: 'BAZ' };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -498,8 +502,9 @@ suite('Template Instantiation', function() {
   test('OneTime/Dynamic Mixed - compound text' , function(done) {
     var div = createTestHtml(
         '<template bind>[[ foo ]] bar {{ baz }}</template>');
+    var template = div.firstChild;
     var m = { foo: 'FOO', baz: 'BAZ' };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -520,8 +525,9 @@ suite('Template Instantiation', function() {
   test('OneTime - simple attribute', function(done) {
     var div = createTestHtml(
         '<template bind><div foo="[[ value ]]"></div></template>');
+    var template = div.firstChild;
     var m = { value: 'foo' };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -543,8 +549,9 @@ suite('Template Instantiation', function() {
         '<template bind>' +
           '<div foo="[[ value ]]:[[ otherValue]]"></div>' +
         '</template>');
+    var template = div.firstChild;
     var m = { value: 'foo', otherValue: 'bar' };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -566,8 +573,9 @@ suite('Template Instantiation', function() {
         '<template bind>' +
           '<div foo="{{ value }}:[[ otherValue]]"></div>' +
         '</template>');
+    var template = div.firstChild;
     var m = { value: 'foo', otherValue: 'bar' };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -784,8 +792,9 @@ suite('Template Instantiation', function() {
   test('TextTemplateWithNullStringBinding', function(done) {
     var div = createTestHtml(
         '<template bind={{}}>a{{b}}c</template>');
+    var template = div.firstChild;
     var model =  {b: 'B'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -844,8 +853,9 @@ suite('Template Instantiation', function() {
   test('TextTemplateWithBindingAndConditional', function(done) {
     var div = createTestHtml(
         '<template bind="{{}}" if="{{ d }}">a{{b}}c</template>');
+    var template = div.firstChild;
     var model =  {b: 'B', d: 1};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -876,8 +886,9 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template bind="{{ b }}">a{{value}}c</template>');
     assert.strictEqual(1, div.childNodes.length);
+    var template = div.firstChild;
     var model = {b: {value: 'B'}};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -897,8 +908,9 @@ suite('Template Instantiation', function() {
         '<template bind="{{}}">' +
         '<div foo="a{{b}}c"></div>' +
         '</template>');
+    var template = div.firstChild;
     var model = {b: 'B'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -923,8 +935,9 @@ suite('Template Instantiation', function() {
         '<template bind="{{}}">' +
         '<div foo?="{{b}}"></div>' +
         '</template>');
+    var template = div.firstChild;
     var model = {b: 'b'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -1043,9 +1056,10 @@ suite('Template Instantiation', function() {
 
     var div = createTestHtml(
         '<template repeat>{{ val }}</template>');
+    var template = div.firstChild;
 
     var model = [{val: 10},{val: 5},{val: 2},{val: 8},{val: 1}];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     var template;
     then(function() {
@@ -1062,7 +1076,7 @@ suite('Template Instantiation', function() {
 
       model = model.slice();
       model.reverse();
-      recursivelySetTemplateModel(div, model);
+      template.model = model;
 
     }).then(function() {
       checkExpandos(template.nextSibling);
@@ -1100,9 +1114,10 @@ suite('Template Instantiation', function() {
 
     var div = createTestHtml(
         '<template bind="{{ foo }}">{{ bar }}</template>');
+    var template = div.firstChild;
 
     var model = { foo: { bar: 5 }};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     var template;
     then(function() {
@@ -1113,7 +1128,7 @@ suite('Template Instantiation', function() {
       checkExpandos(template.nextSibling);
 
       model = {foo: model.foo};
-      recursivelySetTemplateModel(div, model);
+      template.model = model;
 
     }).then(function() {
       checkExpandos(template.nextSibling);
@@ -1125,9 +1140,9 @@ suite('Template Instantiation', function() {
   test('Repeat-Empty', function(done) {
     var div = createTestHtml(
         '<template repeat>text</template>');
-
+    var template = div.firstChild;
     var model = [0, 1, 2];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -1154,8 +1169,9 @@ suite('Template Instantiation', function() {
   test('Removal from iteration needs to unbind', function(done) {
     var div = createTestHtml(
         '<template repeat="{{}}"><a>{{v}}</a></template>');
+    var template = div.firstChild;
     var model = [{v: 0}, {v: 1}, {v: 2}, {v: 3}, {v: 4}];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     var as;
     var vs;
@@ -1221,8 +1237,9 @@ suite('Template Instantiation', function() {
   test('DOM Stability on Iteration', function(done) {
     var div = createTestHtml(
         '<template repeat="{{}}">{{}}</template>');
+    var template = div.firstChild;
     var model = [1, 2, 3, 4, 5];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     function getInstanceNode(index) {
       var node = div.firstChild.nextSibling;
@@ -1288,13 +1305,13 @@ suite('Template Instantiation', function() {
     var div = createTestHtml(
         '<template repeat="{{}}">{{value}}</template>');
     assert.strictEqual(1, div.childNodes.length);
-
+    var template = div.firstChild;
     var model = [
       {value: 0},
       {value: 1},
       {value: 2}
     ];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -1327,8 +1344,9 @@ suite('Template Instantiation', function() {
         '<template bind="{{}}">' +
         '<input value="{{x}}">' +
         '</template>');
+    var template = div.firstChild;
     var model = {x: 'hi'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -1359,20 +1377,20 @@ suite('Template Instantiation', function() {
           '<p>Crew member: {{name}}, Job title: {{title}}</p>' +
         '</template>' +
         '<template bind="{{ XY }}" id="t2" ref="t1"></template>');
-
+    var t1 = document.getElementById('t1');
+    var t2 = document.getElementById('t2');
     var model = {
       XX: {name: 'Leela', title: 'Captain'},
       XY: {name: 'Fry', title: 'Delivery boy'},
       XZ: {name: 'Zoidberg', title: 'Doctor'}
     };
-    recursivelySetTemplateModel(div, model);
+    t1.model = model;
+    t2.model = model;
 
     then(function() {
-      var t1 = document.getElementById('t1');
       var instance = t1.nextElementSibling;
       assert.strictEqual('Crew member: Leela, Job title: Captain', instance.textContent);
 
-      var t2 = document.getElementById('t2');
       instance = t2.nextElementSibling;
       assert.strictEqual('Crew member: Fry, Job title: Delivery boy',
                    instance.textContent);
@@ -1400,8 +1418,9 @@ suite('Template Instantiation', function() {
 
   test('Bind', function(done) {
     var div = createTestHtml('<template bind="{{}}">Hi {{ name }}</template>');
+    var template = div.firstChild;
     var model = {name: 'Leela'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
@@ -1412,8 +1431,9 @@ suite('Template Instantiation', function() {
 
   test('BindPlaceHolderHasNewLine', function(done) {
     var div = createTestHtml('<template bind="{{}}">Hi {{\nname\n}}</template>');
+    var template = div.firstChild;
     var model = {name: 'Leela'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('Hi Leela', div.childNodes[1].textContent);
@@ -1429,14 +1449,13 @@ suite('Template Instantiation', function() {
           'Hi {{ name }}' +
         '</template>' +
         '<template ref="' + id + '" bind="{{}}"></template>');
-
     var t1 = div.firstChild;
     var t2 = div.childNodes[1];
 
     assert.strictEqual(t1, t2.ref);
 
     var model = {name: 'Fry'};
-    recursivelySetTemplateModel(div, model);
+    t2.model = model;
 
     then(function() {
       assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
@@ -1486,9 +1505,9 @@ suite('Template Instantiation', function() {
         '<template id=A>Hi, {{}}</template>' +
         '<template id=B>Hola, {{}}</template>' +
         '<template ref=A repeat></template>');
-
+    var template = div.childNodes[2];
     var model = ['Fry'];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -1513,11 +1532,11 @@ suite('Template Instantiation', function() {
           'Hi {{ name }}' +
         '</template>' +
         '<template ref="{{ id }}" bind="{{}}"></template>');
-
+    var template = div.childNodes[1];
     var t1 = div.firstChild;
     var t2 = div.childNodes[1];
     var model = {name: 'Fry', id: id };
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('Hi Fry', t2.nextSibling.textContent);
@@ -1538,7 +1557,7 @@ suite('Template Instantiation', function() {
 
   test('Repeat3', function(done) {
     div = createTestHtml('<template repeat="{{ contacts }}">Hi {{ name }}</template>');
-    t = div.firstChild;
+    var t = div.firstChild;
 
     var m = {
       contacts: [
@@ -1548,7 +1567,7 @@ suite('Template Instantiation', function() {
       ]
     };
 
-    recursivelySetTemplateModel(div, m);
+    t.model = m;
     then(function() {
       assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
@@ -1596,6 +1615,7 @@ suite('Template Instantiation', function() {
         '<template repeat="{{ contacts }}">' +
           'Hi {{ name }}' +
         '</template>');
+    var template = div.firstChild;
     var m = {
       contacts: [
         {name: 'Raf'},
@@ -1603,11 +1623,9 @@ suite('Template Instantiation', function() {
         {name: 'Neal'}
       ]
     };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
-      t = div.firstChild;
-
       assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
 
       done();
@@ -1616,14 +1634,13 @@ suite('Template Instantiation', function() {
 
   test('RepeatEmptyPath', function(done) {
     div = createTestHtml('<template repeat="{{}}">Hi {{ name }}</template>');
-    t = div.firstChild;
-
+    var template = div.firstChild;
     var m = [
       {name: 'Raf'},
       {name: 'Arv'},
       {name: 'Neal'}
     ];
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assertNodesAre('Hi Raf', 'Hi Arv', 'Hi Neal');
@@ -1665,17 +1682,17 @@ suite('Template Instantiation', function() {
 
   test('RepeatNullModel', function(done) {
     div = createTestHtml('<template repeat="{{}}">Hi {{ name }}</template>');
-    t = div.firstChild;
+    var template = div.firstChild;
 
     var m = null;
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(1, div.childNodes.length);
 
-      t.iterate = '';
+      template.iterate = '';
       m = {};
-      recursivelySetTemplateModel(div, m);
+      template.model = m;
 
     }).then(function() {
       assert.strictEqual(1, div.childNodes.length);
@@ -1686,14 +1703,13 @@ suite('Template Instantiation', function() {
 
   test('RepeatReuse', function(done) {
     div = createTestHtml('<template repeat="{{}}">Hi {{ name }}</template>');
-    t = div.firstChild;
-
+    var template = div.firstChild;
     var m = [
       {name: 'Raf'},
       {name: 'Arv'},
       {name: 'Neal'}
     ];
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     var node1, node2, node3;
 
@@ -1727,9 +1743,9 @@ suite('Template Instantiation', function() {
   test('TwoLevelsDeepBug', function(done) {
     div = createTestHtml(
       '<template bind="{{}}"><span><span>{{ foo }}</span></span></template>');
-
+    var template = div.firstChild;
     var model = {foo: 'bar'};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('bar',
@@ -1765,14 +1781,12 @@ suite('Template Instantiation', function() {
 
   function nestedHelper(s, start, done) {
     var div = createTestHtml(s);
-
     var m = {
       a: {
         b: 1,
         c: {d: 2}
       },
     };
-
     recursivelySetTemplateModel(div, m);
 
     var i;
@@ -1816,8 +1830,7 @@ suite('Template Instantiation', function() {
   });
 
   function nestedIterateInstantiateHelper(s, start, done) {
-    var div = createTestHtml(s);
-
+    div = createTestHtml(s);
     var m = {
       a: [
         {
@@ -1830,7 +1843,6 @@ suite('Template Instantiation', function() {
         }
       ]
     };
-
     recursivelySetTemplateModel(div, m);
 
     var i;
@@ -1878,8 +1890,7 @@ suite('Template Instantiation', function() {
   });
 
   function nestedIterateIterateHelper(s, start, done) {
-    var div = createTestHtml(s);
-
+    div = createTestHtml(s);
     var m = {
       a: [
         {
@@ -1892,7 +1903,6 @@ suite('Template Instantiation', function() {
         }
       ]
     };
-
     recursivelySetTemplateModel(div, m);
 
     var i;
@@ -1952,7 +1962,7 @@ suite('Template Instantiation', function() {
           '{{name}}' +
           '<template ref="t" repeat="{{items}}"></template>' +
         '</template>');
-
+    var template = div.firstChild;
     var m = [
       {
         name: 'Item 1',
@@ -1976,8 +1986,7 @@ suite('Template Instantiation', function() {
         items: []
       },
     ];
-
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     var i = 1;
     then(function() {
@@ -2015,7 +2024,7 @@ suite('Template Instantiation', function() {
             '</optgroup>' +
           '</select>' +
         '</template>');
-
+    var template = div.firstChild;
     var m = {
       selected: 1,
       groups: [
@@ -2024,8 +2033,7 @@ suite('Template Instantiation', function() {
         }
       ],
     };
-
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       var select = div.firstChild.nextSibling;
@@ -2051,7 +2059,7 @@ suite('Template Instantiation', function() {
             '<option template repeat="{{ items }}" value="{{ value }}">{{ name }}</option>' +
           '</select>' +
         '</template>');
-
+    var template = div.firstChild;
     var m = {
       selected: 'b',
       items: [
@@ -2060,8 +2068,7 @@ suite('Template Instantiation', function() {
         { name: 'C', value: 'c' }
       ]
     };
-
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       var select = div.firstChild.nextSibling;
@@ -2086,13 +2093,12 @@ suite('Template Instantiation', function() {
             '</tr>' +
           '</template>' +
         '</tbody></table>');
-
+    var template = div.firstChild.firstChild.firstChild;
     var m = [
       [{ val: 0 }, { val: 1 }],
       [{ val: 2 }, { val: 3 }]
     ];
-
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       var i = 1;
@@ -2126,13 +2132,12 @@ suite('Template Instantiation', function() {
             '<td template repeat="{{}}" class="{{ val }}">{{ val }}</td>' +
           '</tr>' +
         '</tbody></table>');
-
+    var template = div.firstChild.firstChild.firstChild;
     var m = [
       [{ val: 0 }, { val: 1 }],
       [{ val: 2 }, { val: 3 }]
     ];
-
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       var i = 1;
@@ -2211,7 +2216,7 @@ suite('Template Instantiation', function() {
           '</template>' +
         '</p>' +
       '</template>');
-
+    var template = div.firstChild;
     var m = {
       a: {
         b: {
@@ -2219,7 +2224,7 @@ suite('Template Instantiation', function() {
         }
       }
     };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual('P', div.childNodes[1].tagName);
@@ -2232,9 +2237,8 @@ suite('Template Instantiation', function() {
 
   test('TemplateContentRemoved', function(done) {
     var div = createTestHtml('<template bind="{{}}">{{ }}</template>');
-    var model = 42;
-
-    recursivelySetTemplateModel(div, model);
+    var template = div.firstChild;
+    template.model = 42;
 
     then(function() {
       assert.strictEqual('42', div.childNodes[1].textContent);
@@ -2246,9 +2250,8 @@ suite('Template Instantiation', function() {
 
   test('TemplateContentRemovedEmptyArray', function(done) {
     var div = createTestHtml('<template iterate>Remove me</template>');
-    var model = [];
-
-    recursivelySetTemplateModel(div, model);
+    var template = div.firstChild;
+    template.model = [];
 
     then(function() {
       assert.strictEqual(1, div.childNodes.length);
@@ -2266,12 +2269,12 @@ suite('Template Instantiation', function() {
             '{{ b }}' +
           '</template>' +
         '</template>');
-
+    var template = div.firstChild;
     var model = {
       a: 1,
       b: 2
     };
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('', div.childNodes[0].textContent);
@@ -2285,21 +2288,22 @@ suite('Template Instantiation', function() {
 
   test('BindWithUndefinedModel', function(done) {
     var div = createTestHtml('<template bind="{{}}" if="{{}}">{{ a }}</template>');
+    var template = div.firstChild;
 
     var model = {a: 42};
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('42', div.childNodes[1].textContent);
 
       model = undefined;
-      recursivelySetTemplateModel(div, model);
+      template.model = model;
 
     }).then(function() {
       assert.strictEqual(1, div.childNodes.length);
 
       model = {a: 42};
-      recursivelySetTemplateModel(div, model);
+      template.model = model;
 
     }).then(function() {
       assert.strictEqual('42', div.childNodes[1].textContent);
@@ -2319,14 +2323,14 @@ suite('Template Instantiation', function() {
             'Child: {{ name }}' +
           '</template>' +
         '</template>');
-
+    var template = div.firstChild;
     var m = {
       name: 'Hermes',
       wife: {
         name: 'LaBarbara'
       }
     };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(5, div.childNodes.length);
@@ -2355,14 +2359,14 @@ suite('Template Instantiation', function() {
           'Name: {{ name }}' +
           '<template bind="{{friend}}" if="{{friend}}" ref="t"></template>' +
         '</template>');
-
+    var template = div.firstChild;
     var m = {
       name: 'Fry',
       friend: {
         name: 'Bender'
       }
     };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(5, div.childNodes.length);
@@ -2391,11 +2395,11 @@ suite('Template Instantiation', function() {
           '<template id=src>{{ foo }}</template>' +
           '<template bind ref=src></template>' +
         '</template>');
-
+    var template = div.firstChild;
     var m = {
       foo: 'bar'
     };
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -2410,13 +2414,14 @@ suite('Template Instantiation', function() {
         '<template repeat>{{ foo }}' +
           '<template bind></template>' +
         '</template>');
+    var template = div.firstChild;
 
     var m = [{ foo: 'bar' }];
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     then(function() {
       m.push({ foo: 'baz' });
-      recursivelySetTemplateModel(div, m);
+      template.model = m;
 
     }).then(function() {
       assert.strictEqual(5, div.childNodes.length);
@@ -2435,9 +2440,9 @@ suite('Template Instantiation', function() {
 
     var div = createTestHtml(
         '<template repeat>{{ foo }}</template>');
-
+    var template = div.firstChild;
     var m = [{ foo: 'bar' }, { foo: 'bat'}];
-    recursivelySetTemplateModel(div, m);
+    template.model = m;
 
     var observer, template, records;
 
@@ -2463,8 +2468,9 @@ suite('Template Instantiation', function() {
         '<template repeat="{{}}">' +
           '<template ref="a" bind="{{}}"></template>' +
         '</template>');
+    var template = div.childNodes[2];
     var model = [];
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual(3, div.childNodes.length);
@@ -2533,8 +2539,9 @@ suite('Template Instantiation', function() {
 
     var root = createShadowTestHtml(
         '<template bind="{{}}">Hi {{ name }}</template>');
+    var template = root.firstChild;
     var model = {name: 'Leela'};
-    recursivelySetTemplateModel(root, model);
+    template.model = model;
 
     then(function() {
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
@@ -2552,7 +2559,8 @@ suite('Template Instantiation', function() {
 
     var root = createShadowTestHtml(
         '<template id=foo>Hi</template><template bind ref=foo></template>');
-    recursivelySetTemplateModel(root, {});
+    var template = root.childNodes[1];
+    template.model = {};
 
     then(function() {
       assert.strictEqual(3, root.childNodes.length);
@@ -2570,7 +2578,7 @@ suite('Template Instantiation', function() {
           '{{ age }}' +
         '</template>' +
       '</template>');
-
+    var template = div.firstChild;
     var count = 0;
     var expectedAge = 42;
     var delegate = {
@@ -2594,7 +2602,9 @@ suite('Template Instantiation', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model, delegate);
+    template.bindingDelegate = delegate;
+    template.model = model;
+
     var inner;
     then(function() {
       assert.strictEqual(1, count);
@@ -2624,7 +2634,8 @@ suite('Template Instantiation', function() {
         '<template bind="{{}}">Foo' +
         '</template>' +
       '</template>');
-    recursivelySetTemplateModel(div);
+    var template = div.firstChild;
+    template.model = undefined;
 
     then(function() {
       assert.isFalse(!!Observer._errorThrownDuringCallback);
@@ -2864,7 +2875,9 @@ suite('Binding Delegate API', function() {
         '<template bind="[[]]">{{ foo }}' +
           '<template bind>[[ foo ]]</template>' +
         '</template>');
-    recursivelySetTemplateModel(div, model, delegate);
+    var template = div.firstChild;
+    template.bindingDelegate = delegate;
+    template.model = model;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -2920,7 +2933,8 @@ suite('Binding Delegate API', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model, delegate);
+    template.bindingDelegate = delegate;
+    template.model = model;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -2955,7 +2969,8 @@ suite('Binding Delegate API', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model, delegate);
+    template.bindingDelegate = delegate;
+    template.model = model;
 
     then(function() {
       assert.strictEqual(1, prepareCount);
@@ -3019,7 +3034,8 @@ suite('Binding Delegate API', function() {
       }
     };
 
-    recursivelySetTemplateModel(div, model, delegate);
+    template.bindingDelegate = delegate;
+    template.model = model;
 
     then(function() {
       assert.strictEqual(4, div.childNodes.length);
@@ -3105,14 +3121,21 @@ suite('Binding Delegate API', function() {
       assert.strictEqual('i:0 - a:1', div.childNodes[1].textContent);
       assert.strictEqual('i:1 - a:2', div.childNodes[2].textContent);
 
+      assert.throws(function() {
+        template.bindingDelegate = delegateB;
+      });
+
+      template.clear();
+      assert.strictEqual(1, div.childNodes.length);
+
       template.bindingDelegate = delegateB;
+      template.model = model;
       model.push(3);
     }).then(function() {
-      // The new instance (result of pushing |3|) will be created with the new
-      // delegate, and the existing instances will remain unaffected.
+      // All instances should reflect delegateB
       assert.strictEqual(4, div.childNodes.length);
-      assert.strictEqual('i:0 - a:1', div.childNodes[1].textContent);
-      assert.strictEqual('i:1 - a:2', div.childNodes[2].textContent);
+      assert.strictEqual('I:0 - A:1-narg', div.childNodes[1].textContent);
+      assert.strictEqual('I:2 - A:2-narg', div.childNodes[2].textContent);
       assert.strictEqual('I:4 - A:3-narg', div.childNodes[3].textContent);
 
       done();
@@ -3141,7 +3164,9 @@ suite('Binding Delegate API', function() {
     var div = createTestHtml(
         '<template bind>' +
         '{{ foo }} + {{ 2x: bar }} + {{ 4x: bar }}</template>');
-    recursivelySetTemplateModel(div, model, delegate);
+    var template = div.firstChild;
+    template.bindingDelegate = delegate;
+    template.model = model;
 
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
@@ -3162,14 +3187,13 @@ suite('Binding Delegate API', function() {
         '<template bind>' +
           '<div foo="{{foo1}} {{foo2}}" bar="{{bar}}"></div>' +
         '</template>');
-
+    var template = div.firstChild;
     var model = {
       foo1: 'foo1Value',
       foo2: 'foo2Value',
       bar: 'barValue'
     };
-
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       assert.equal('barValue', div.lastChild.getAttribute('bar'));
@@ -3195,12 +3219,11 @@ suite('Binding Delegate API', function() {
         '<template bind>' +
           '<div class="foo: {{ bar }}"></div>' +
         '</template>');
-
+    var template = div.firstChild;
     var model = {
       bar: 2
     };
-
-    recursivelySetTemplateModel(div, model, delegate);
+    template.model = model;
 
     then(function() {
       assert.equal('foo: 2', div.lastChild.getAttribute('class'));
@@ -3230,15 +3253,14 @@ suite('Compat', function() {
           '<a _href="{{ url2 }}">Link</a>' +
           '<input type="number" _value="{{ number }}">' +
         '</template>');
-
+    var template = div.firstChild;
     var model = {
       color: 'red',
       url: 'pic.jpg',
       url2: 'link.html',
       number: 4
     };
-
-    recursivelySetTemplateModel(div, model);
+    template.model = model;
 
     then(function() {
       var subDiv = div.firstChild.nextSibling;
