@@ -326,6 +326,15 @@
     }
   }
 
+  var templateObserver;
+  if (typeof MutationObserver == 'function') {
+    templateObserver = new MutationObserver(function(records) {
+      for (var i = 0; i < records.length; i++) {
+        records[i].target.refChanged_();
+      }
+    });
+  }
+
   /**
    * Ensures proper API and content model for template elements.
    * @param {HTMLTemplateElement} opt_instanceRef The template element which
@@ -429,6 +438,25 @@
   }
 
   mixin(HTMLTemplateElement.prototype, {
+    bind: function(name, value, oneTime) {
+      if (name != 'ref')
+        return Element.prototype.bind.call(this, name, value, oneTime);
+
+      var self = this;
+      var ref = oneTime ? value : value.open(function(ref) {
+        self.setAttribute('ref', ref);
+        self.refChanged_();
+      });
+
+      this.setAttribute('ref', ref);
+      this.refChanged_();
+      if (oneTime)
+        return;
+
+      this.unbind('ref');
+      return this.bindings.ref = value;
+    },
+
     processBindingDirectives_: function(directives) {
       if (this.iterator_)
         this.iterator_.closeDeps();
@@ -450,6 +478,12 @@
       }
 
       this.iterator_.updateDependencies(directives, this.model_);
+
+      if (templateObserver) {
+        templateObserver.observe(this, { attributes: true,
+                                         attributeFilter: ['ref'] });
+      }
+
       return this.iterator_;
     },
 
@@ -458,7 +492,9 @@
       if (bindingDelegate)
         delegate_ = this.newDelegate_(bindingDelegate);
 
-      var content = this.ref_.content;
+      if (!this.refContent_)
+        this.refContent_ = this.ref_.content;
+      var content = this.refContent_;
       var map = this.bindingMap_;
       if (!map || map.content !== content) {
         // TODO(rafaelw): Setup a MutationObserver on content to detect
@@ -510,10 +546,20 @@
       return this.delegate_ && this.delegate_.raw;
     },
 
+    refChanged_: function() {
+      if (!this.iterator_ || this.refContent_ === this.ref_.content)
+        return;
+
+      this.refContent_ = undefined;
+      this.iterator_.valueChanged();
+      this.iterator_.updateIteratedValue();
+    },
+
     clear: function() {
       this.model_ = undefined;
       this.delegate_ = undefined;
       this.bindings_ = undefined;
+      this.refContent_ = undefined;
       if (!this.iterator_)
         return;
       this.iterator_.valueChanged();

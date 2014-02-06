@@ -1499,6 +1499,12 @@ suite('Template Instantiation', function() {
   });
 
   test('Update Ref', function(done) {
+    // Updating ref by observing the attribute is dependent on MutationObservers
+    if (typeof MutationObserver != 'function') {
+      done();
+      return;
+    }
+
     var div = createTestHtml(
         '<template id=A>Hi, {{}}</template>' +
         '<template id=B>Hola, {{}}</template>' +
@@ -1516,7 +1522,32 @@ suite('Template Instantiation', function() {
 
     }).then(function() {
       assert.strictEqual(5, div.childNodes.length);
+      assert.strictEqual('Hola, Fry', div.childNodes[3].textContent);
+      assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
+
+      done();
+    });
+  });
+
+  test('Bound Ref', function(done) {
+    var div = createTestHtml(
+        '<template id=A>Hi, {{}}</template>' +
+        '<template id=B>Hola, {{}}</template>' +
+        '<template ref="{{ ref }}" repeat="{{ people }}"></template>');
+    var template = div.childNodes[2];
+    var model = { ref: 'A', people: ['Fry'] };
+    template.model = model;
+
+    then(function() {
+      assert.strictEqual(4, div.childNodes.length);
       assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
+
+      model.ref = 'B';
+      model.people.push('Leela');
+
+    }).then(function() {
+      assert.strictEqual(5, div.childNodes.length);
+      assert.strictEqual('Hola, Fry', div.childNodes[3].textContent);
       assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
 
       done();
