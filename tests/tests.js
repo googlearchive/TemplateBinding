@@ -1452,8 +1452,6 @@ suite('Template Instantiation', function() {
     var t1 = div.firstChild;
     var t2 = div.childNodes[1];
 
-    assert.strictEqual(t1, t2.ref);
-
     var model = {name: 'Fry'};
     t2.model = model;
 
@@ -2040,7 +2038,6 @@ suite('Template Instantiation', function() {
       assert.strictEqual(2, select.childNodes.length);
       assert.strictEqual(1, select.selectedIndex);
       assert.strictEqual('TEMPLATE', select.childNodes[0].tagName);
-      assert.strictEqual('OPTGROUP', select.childNodes[0].ref.content.firstChild.tagName);
       var optgroup = select.childNodes[1];
       assert.strictEqual('TEMPLATE', optgroup.childNodes[0].tagName);
       assert.strictEqual('OPTION', optgroup.childNodes[1].tagName);
@@ -2669,7 +2666,6 @@ suite('Template Instantiation', function() {
     };
 
     var instance = outer.createInstance(model, delegate);
-    assert.strictEqual(instance.firstChild.ref, outer.content.firstChild);
     assert.strictEqual('bar:replaced',
                        instance.firstChild.nextSibling.textContent);
     unbindAll(instance);
@@ -3232,15 +3228,18 @@ suite('Binding Delegate API', function() {
     });
   });
 
-  test('issue-152', function() {
+  test('issue-152', function(done) {
     var div = createTestHtml(
-        '<template ref=notThere></template>');
+        '<template ref=notThere bind>XXX</template>');
 
     var template = div.firstChild;
-
-    // if a ref cannot be located, a template will continue to use itself
-    // as the source of template instances.
-    assert.strictEqual(template, template.ref);
+    template.model = {};
+    then(function() {
+      // if a ref cannot be located, a template will continue to use itself
+      // as the source of template instances.
+      assert.strictEqual('XXX', div.childNodes[1].textContent);
+      done();
+    })
   });
 });
 

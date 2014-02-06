@@ -458,7 +458,7 @@
       if (bindingDelegate)
         delegate_ = this.newDelegate_(bindingDelegate);
 
-      var content = this.ref.content;
+      var content = this.ref_.content;
       var map = this.bindingMap_;
       if (!map || map.content !== content) {
         // TODO(rafaelw): Setup a MutationObserver on content to detect
@@ -565,7 +565,7 @@
       this.setDelegate_(this.newDelegate_(bindingDelegate));
     },
 
-    get ref() {
+    get ref_() {
       var ref = searchRefId(this, this.getAttribute('ref'));
       if (!ref)
         ref = this.instanceRef_;
@@ -573,7 +573,7 @@
       if (!ref)
         return this;
 
-      var nextRef = ref.ref;
+      var nextRef = ref.ref_;
       return nextRef ? nextRef : ref;
     }
   });
