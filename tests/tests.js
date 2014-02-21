@@ -2489,6 +2489,19 @@ suite('Template Instantiation', function() {
     })
   });
 
+  test('baseURI', function(done) {
+    var div = createTestHtml('<template bind><div style="background: url(foo.jpg)"></div></template>');
+    var local = document.createElement('div');
+    local.setAttribute('style', 'background: url(foo.jpg)');
+    div.appendChild(local);
+    var template = div.firstChild;
+    template.model = {};
+    then(function() {
+      assert.strictEqual(local.style.backgroundImage, div.childNodes[1].style.backgroundImage);
+      done();
+    })
+  });
+
   test('ChangeRefId', function(done) {
     var div = createTestHtml(
         '<template id="a">a:{{ }}</template>' +

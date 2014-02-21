@@ -160,6 +160,20 @@
   };
 
   var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
+  if (hasTemplateElement) {
+    // TODO(rafaelw): Remove when fix for
+    // https://codereview.chromium.org/164803002/
+    // makes it to Chrome release.
+    (function() {
+      var t = document.createElement('template');
+      var d = t.content.ownerDocument;
+      var html = d.appendChild(d.createElement('html'));
+      var head = html.appendChild(d.createElement('head'));
+      var base = d.createElement('base');
+      base.href = document.baseURI;
+      head.appendChild(base);
+    })();
+  }
 
   var allTemplatesSelectors = 'template, ' +
       Object.keys(semanticTemplateElements).map(function(tagName) {
@@ -257,6 +271,14 @@
       var owner = template.ownerDocument;
       if (!owner.stagingDocument_) {
         owner.stagingDocument_ = owner.implementation.createHTMLDocument('');
+
+        // TODO(rafaelw): Remove when fix for
+        // https://codereview.chromium.org/164803002/
+        // makes it to Chrome release.
+        var base = owner.stagingDocument_.createElement('base');
+        base.href = document.baseURI;
+        owner.stagingDocument_.head.appendChild(base);
+
         owner.stagingDocument_.stagingDocument_ = owner.stagingDocument_;
       }
 
