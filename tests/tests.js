@@ -2814,6 +2814,52 @@ suite('Template Instantiation', function() {
       done();
     });
   });
+
+  test('Accessor value retrieval count', function(done) {
+    var hasObserve = typeof Object.observe == 'function';
+
+    var div = createTestHtml(
+        '<template bind>' +
+            '{{ prop }}' +
+        '</template>');
+
+    var count = 0;
+    var value = 1;
+    var model = {
+      get prop() {
+        count++;
+        return value;
+      }
+    };
+
+    recursivelySetTemplateModel(div, model);
+
+    then(function() {
+      if (hasObserve)
+        assert.equal(1, count);
+      else
+        assert.equal(2, count);
+
+      value++;
+      if (hasObserve) {
+        Object.getNotifier(model).notify({
+          type: 'update',
+          object: model,
+          name: 'prop',
+          oldValue: 1 });
+      }
+
+      model.dep++;
+
+    }).then(function() {
+      if (hasObserve)
+        assert.equal(2, count);
+      else
+        assert.equal(4, count);
+
+      done();
+    });
+  });
 });
 
 suite('Binding Delegate API', function() {
