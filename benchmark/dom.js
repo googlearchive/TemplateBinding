@@ -66,6 +66,7 @@ Node.prototype = {
       node.previousSibling = this.lastChild;
       this.lastChild = node;
     }
+
     return node;
   },
 
@@ -164,7 +165,14 @@ Document.prototype = {
   nodeType: Node.DOCUMENT_NODE,
   implementation: {
     createHTMLDocument: function() {
-      return new Document();
+      var doc = new Document();
+      var html = doc.appendChild(doc.createElement('HTML'));
+      var head = html.appendChild(doc.createElement('HEAD'));
+      doc.head = head;
+      var body = html.appendChild(doc.createElement('BODY'));
+      doc.body = body;
+
+      return doc;
     }
   },
   importNode: function(node) {
@@ -192,6 +200,14 @@ Document.prototype = {
         return new HTMLHeadingElement(this, tagName);
       case 'TEMPLATE':
         return new HTMLTemplateElement(this, tagName);
+      case 'HTML':
+        return new HTMLHtmlElement(this, tagName);
+      case 'HEAD':
+        return new HTMLHeadElement(this, tagName);
+      case 'BODY':
+        return new HTMLBodyElement(this, tagName);
+      case 'BASE':
+        return new HTMLBaseElement(this, tagName)
       default:
         throw Error('Unknown tag: ' + tagName);
     }
@@ -357,8 +373,36 @@ HTMLHeadingElement.prototype = {
 
 function HTMLTemplateElement(owner, tagName) {
   HTMLElement.call(this, owner, tagName);
-  this.content = new DocumentFragment();
+  this.content = new DocumentFragment(owner.templateContentsOwnerDocument);
 }
 HTMLTemplateElement.prototype = {
+  __proto__: HTMLElement.prototype,
+};
+
+function HTMLHtmlElement(owner, tagName) {
+  HTMLElement.call(this, owner, tagName);
+}
+HTMLHtmlElement.prototype = {
+  __proto__: HTMLElement.prototype
+};
+
+function HTMLHeadElement(owner, tagName) {
+  HTMLElement.call(this, owner, tagName);
+}
+HTMLHeadElement.prototype = {
+  __proto__: HTMLElement.prototype
+};
+
+function HTMLBodyElement(owner, tagName) {
+  HTMLElement.call(this, owner, tagName);
+}
+HTMLBodyElement.prototype = {
+  __proto__: HTMLElement.prototype
+};
+
+function HTMLBaseElement(owner, tagName) {
+  HTMLElement.call(this, owner, tagName);
+}
+HTMLBaseElement.prototype = {
   __proto__: HTMLElement.prototype
 };
