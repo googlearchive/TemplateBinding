@@ -14,10 +14,12 @@
 
 var testDiv;
 
-function unbindAll(node) {
-  node.unbindAll();
+function clearAllTemplates(node) {
+  if (node instanceof HTMLTemplateElement)
+    node.clear();
+
   for (var child = node.firstChild; child; child = child.nextSibling)
-    unbindAll(child);
+    clearAllTemplates(child);
 }
 
 function doSetup() {
@@ -28,7 +30,7 @@ function doSetup() {
 function doTeardown() {
   assert.isFalse(!!Observer._errorThrownDuringCallback);
   document.body.removeChild(testDiv);
-  unbindAll(testDiv);
+  clearAllTemplates(testDiv);
   Platform.performMicrotaskCheckpoint();
   assert.strictEqual(0, Observer._allObserversCount);
 }
@@ -171,7 +173,7 @@ suite('Template Instantiation', function() {
     then(function() {
       assert.strictEqual(2, div.childNodes.length);
       assert.isFalse(!!Observer._errorThrownDuringCallback);
-      unbindAll(div);
+      clearAllTemplates(div);
 
       done();
     });
@@ -1835,6 +1837,7 @@ suite('Template Instantiation', function() {
     }).then(function() {
       assert.strictEqual('22', div.childNodes[start + 2].textContent);
 
+      //clearAllTemplates(div);
       done();
     });
   }
@@ -2586,7 +2589,7 @@ suite('Template Instantiation', function() {
 
     then(function() {
       assert.strictEqual('Hi Leela', root.childNodes[1].textContent);
-      unbindAll(root);
+      clearAllTemplates(root);
 
       done();
     });
@@ -2605,7 +2608,7 @@ suite('Template Instantiation', function() {
 
     then(function() {
       assert.strictEqual(3, root.childNodes.length);
-      unbindAll(root);
+      clearAllTemplates(root);
 
       done();
     });
@@ -2712,7 +2715,7 @@ suite('Template Instantiation', function() {
     var instance = outer.createInstance(model, delegate);
     assert.strictEqual('bar:replaced',
                        instance.firstChild.nextSibling.textContent);
-    unbindAll(instance);
+    clearAllTemplates(instance);
   });
 
   test('Repeat - svg', function(done) {

@@ -225,8 +225,8 @@
     },
 
     teardownMDVVariant: function() {
-      if (this.template.bindings)
-        this.template.bindings.iterator.close();
+      if (this.template)
+        this.template.clear();
       this.template = undefined;
       testDiv.innerHTML = '';
     },

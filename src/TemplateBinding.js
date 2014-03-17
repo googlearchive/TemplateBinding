@@ -509,14 +509,16 @@
       return this.iterator_;
     },
 
-    createInstance: function(model, bindingDelegate, delegate_,
-                             instanceBindings_) {
+    createInstance: function(model, bindingDelegate, delegate_) {
       if (bindingDelegate)
         delegate_ = this.newDelegate_(bindingDelegate);
 
       if (!this.refContent_)
         this.refContent_ = this.ref_.content;
       var content = this.refContent_;
+      if (content.firstChild === null)
+        return emptyInstance;
+
       var map = this.bindingMap_;
       if (!map || map.content !== content) {
         // TODO(rafaelw): Setup a MutationObserver on content to detect
@@ -531,21 +533,32 @@
       var instance = stagingDocument.createDocumentFragment();
       instance.templateCreator_ = this;
       instance.protoContent_ = content;
-
-      var instanceRecord = {
+      instance.bindings_ = [];
+      instance.terminator_ = null;
+      var instanceRecord = instance.templateInstance_ = {
         firstNode: null,
         lastNode: null,
         model: model
       };
 
       var i = 0;
+      var collectTerminator = false;
       for (var child = content.firstChild; child; child = child.nextSibling) {
+        // The terminator of the instance is the clone of the last child of the
+        // content. If the last child is an active template, it may produce
+        // instances as a result of production, so simply collecting the last
+        // child of the instance after it has finished producing may be wrong.
+        if (child.nextSibling === null)
+          collectTerminator = true;
+
         var clone = cloneAndBindInstance(child, instance, stagingDocument,
                                          map.children[i++],
                                          model,
                                          delegate_,
-                                         instanceBindings_);
+                                         instance.bindings_);
         clone.templateInstance_ = instanceRecord;
+        if (collectTerminator)
+          instance.terminator_ = clone;
       }
 
       instanceRecord.firstNode = instance.firstChild;
@@ -580,7 +593,9 @@
     clear: function() {
       this.model_ = undefined;
       this.delegate_ = undefined;
-      this.bindings_ = undefined;
+      if (this.bindings && this.bindings.ref)
+        this.bindings.ref.close()
+      this.bindings = undefined;
       this.refContent_ = undefined;
       if (!this.iterator_)
         return;
@@ -905,14 +920,14 @@
     }
   });
 
+  var emptyInstance = document.createDocumentFragment();
+  emptyInstance.bindings_ = [];
+  emptyInstance.terminator_ = null;
+
   function TemplateIterator(templateElement) {
     this.closed = false;
     this.templateElement_ = templateElement;
-
-    // Flattened array of tuples:
-    //   <instanceTerminatorNode, [bindingsSetupByInstance]>
-    this.terminators = [];
-
+    this.instances = [];
     this.deps = undefined;
     this.iteratedValue = [];
     this.presentValue = undefined;
@@ -1007,63 +1022,53 @@
                                                         this.iteratedValue));
     },
 
-    getTerminatorAt: function(index) {
+    getLastInstanceNode: function(index) {
       if (index == -1)
         return this.templateElement_;
-      var terminator = this.terminators[index*2];
+      var instance = this.instances[index];
+      var terminator = instance.terminator_;
+      if (!terminator)
+        return this.getLastInstanceNode(index - 1);
+
       if (terminator.nodeType !== Node.ELEMENT_NODE ||
           this.templateElement_ === terminator) {
         return terminator;
       }
 
-      var subIterator = terminator.iterator_;
-      if (!subIterator)
+      var subtemplateIterator = terminator.iterator_;
+      if (!subtemplateIterator)
         return terminator;
 
-      return subIterator.getTerminatorAt(subIterator.terminators.length/2 - 1);
+      return subtemplateIterator.getLastTemplateNode();
     },
 
-    // TODO(rafaelw): If we inserting sequences of instances we can probably
-    // avoid lots of calls to getTerminatorAt(), or cache its result.
-    insertInstanceAt: function(index, fragment, instanceNodes,
-                               instanceBindings) {
-      var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator = previousTerminator;
-      if (fragment)
-        terminator = fragment.lastChild || terminator;
-      else if (instanceNodes)
-        terminator = instanceNodes[instanceNodes.length - 1] || terminator;
+    getLastTemplateNode: function() {
+      return this.getLastInstanceNode(this.instances.length - 1);
+    },
 
-      this.terminators.splice(index*2, 0, terminator, instanceBindings);
+    insertInstanceAt: function(index, fragment) {
+      var previousInstanceLast = this.getLastInstanceNode(index - 1);
       var parent = this.templateElement_.parentNode;
-      var insertBeforeNode = previousTerminator.nextSibling;
+      this.instances.splice(index, 0, fragment);
 
-      if (fragment) {
-        parent.insertBefore(fragment, insertBeforeNode);
-      } else if (instanceNodes) {
-        for (var i = 0; i < instanceNodes.length; i++)
-          parent.insertBefore(instanceNodes[i], insertBeforeNode);
-      }
+      parent.insertBefore(fragment, previousInstanceLast.nextSibling);
     },
 
     extractInstanceAt: function(index) {
-      var instanceNodes = [];
-      var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator = this.getTerminatorAt(index);
-      instanceNodes.instanceBindings = this.terminators[index*2 + 1];
-      this.terminators.splice(index*2, 2);
-
+      var previousInstanceLast = this.getLastInstanceNode(index - 1);
+      var lastNode = this.getLastInstanceNode(index);
       var parent = this.templateElement_.parentNode;
-      while (terminator !== previousTerminator) {
-        var node = previousTerminator.nextSibling;
-        if (node == terminator)
-          terminator = previousTerminator;
+      var instance = this.instances.splice(index, 1)[0];
 
-        parent.removeChild(node);
-        instanceNodes.push(node);
+      while (lastNode !== previousInstanceLast) {
+        var node = previousInstanceLast.nextSibling;
+        if (node == lastNode)
+          lastNode = previousInstanceLast;
+
+        instance.appendChild(parent.removeChild(node));
       }
 
-      return instanceNodes;
+      return instance;
     },
 
     getDelegateFn: function(fn) {
@@ -1097,46 +1102,50 @@
                                delegate.prepareInstancePositionChanged);
       }
 
+      // Instance Removals
       var instanceCache = new Map;
       var removeDelta = 0;
-      splices.forEach(function(splice) {
-        splice.removed.forEach(function(model) {
-          var instanceNodes =
-              this.extractInstanceAt(splice.index + removeDelta);
-          instanceCache.set(model, instanceNodes);
-        }, this);
+      for (var i = 0; i < splices.length; i++) {
+        var splice = splices[i];
+        var removed = splice.removed;
+        for (var j = 0; j < removed.length; j++) {
+          var model = removed[j];
+          var instance = this.extractInstanceAt(splice.index + removeDelta);
+          if (instance !== emptyInstance) {
+            instanceCache.set(model, instance);
+          }
+        }
 
         removeDelta -= splice.addedCount;
-      }, this);
+      }
 
-      splices.forEach(function(splice) {
+      // Instance Insertions
+      for (var i = 0; i < splices.length; i++) {
+        var splice = splices[i];
         var addIndex = splice.index;
         for (; addIndex < splice.index + splice.addedCount; addIndex++) {
           var model = this.iteratedValue[addIndex];
-          var fragment = undefined;
-          var instanceNodes = instanceCache.get(model);
-          var instanceBindings;
-          if (instanceNodes) {
+          var instance = instanceCache.get(model);
+          if (instance) {
             instanceCache.delete(model);
-            instanceBindings = instanceNodes.instanceBindings;
           } else {
-            instanceBindings = [];
-            if (this.instanceModelFn_)
+            if (this.instanceModelFn_) {
               model = this.instanceModelFn_(model);
+            }
 
-            if (model !== undefined) {
-              fragment = template.createInstance(model, undefined, delegate,
-                                                 instanceBindings);
+            if (model === undefined) {
+              instance = emptyInstance;
+            } else {
+              instance = template.createInstance(model, undefined, delegate);
             }
           }
 
-          this.insertInstanceAt(addIndex, fragment, instanceNodes,
-                                instanceBindings);
+          this.insertInstanceAt(addIndex, instance);
         }
-      }, this);
+      }
 
-      instanceCache.forEach(function(instanceNodes) {
-        this.closeInstanceBindings(instanceNodes.instanceBindings);
+      instanceCache.forEach(function(instance) {
+        this.closeInstanceBindings(instance);
       }, this);
 
       if (this.instancePositionChangedFn_)
@@ -1144,17 +1153,11 @@
     },
 
     reportInstanceMoved: function(index) {
-      var previousTerminator = this.getTerminatorAt(index - 1);
-      var terminator = this.getTerminatorAt(index);
-      if (previousTerminator === terminator)
-        return; // instance has zero nodes.
+      var instance = this.instances[index];
+      if (instance === emptyInstance)
+        return;
 
-      // We must use the first node of the instance, because any subsequent
-      // nodes may have been generated by sub-templates.
-      // TODO(rafaelw): This is brittle WRT instance mutation -- e.g. if the
-      // first node was removed by script.
-      var templateInstance = previousTerminator.nextSibling.templateInstance;
-      this.instancePositionChangedFn_(templateInstance, index);
+      this.instancePositionChangedFn_(instance.templateInstance_, index);
     },
 
     reportInstancesMoved: function(splices) {
@@ -1182,16 +1185,17 @@
       if (offset == 0)
         return;
 
-      var length = this.terminators.length / 2;
+      var length = this.instances.length;
       while (index < length) {
         this.reportInstanceMoved(index);
         index++;
       }
     },
 
-    closeInstanceBindings: function(instanceBindings) {
-      for (var i = 0; i < instanceBindings.length; i++) {
-        instanceBindings[i].close();
+    closeInstanceBindings: function(instance) {
+      var bindings = instance.bindings_;
+      for (var i = 0; i < bindings.length; i++) {
+        bindings[i].close();
       }
     },
 
@@ -1207,11 +1211,11 @@
       if (this.closed)
         return;
       this.unobserve();
-      for (var i = 1; i < this.terminators.length; i += 2) {
-        this.closeInstanceBindings(this.terminators[i]);
+      for (var i = 0; i < this.instances.length; i++) {
+        this.closeInstanceBindings(this.instances[i]);
       }
 
-      this.terminators.length = 0;
+      this.instances.length = 0;
       this.closeDeps();
       this.templateElement_.iterator_ = undefined;
       this.closed = true;
