@@ -475,8 +475,13 @@
       if (oneTime)
         return;
 
-      this.unbind('ref');
-      return this.bindings.ref = value;
+      if (!this.bindings_) {
+        this.bindings_ = { ref: value };
+      } else {
+        this.bindings_.ref = value;
+      }
+
+      return value;
     },
 
     processBindingDirectives_: function(directives) {
@@ -487,7 +492,6 @@
         if (this.iterator_) {
           this.iterator_.close();
           this.iterator_ = undefined;
-          this.bindings.iterator = undefined;
         }
 
         return;
@@ -495,8 +499,6 @@
 
       if (!this.iterator_) {
         this.iterator_ = new TemplateIterator(this);
-        this.bindings = this.bindings || {};
-        this.bindings.iterator = this.iterator_;
       }
 
       this.iterator_.updateDependencies(directives, this.model_);
@@ -593,9 +595,8 @@
     clear: function() {
       this.model_ = undefined;
       this.delegate_ = undefined;
-      if (this.bindings && this.bindings.ref)
-        this.bindings.ref.close()
-      this.bindings = undefined;
+      if (this.bindings_ && this.bindings_.ref)
+        this.bindings_.ref.close()
       this.refContent_ = undefined;
       if (!this.iterator_)
         return;
