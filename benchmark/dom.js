@@ -71,8 +71,9 @@ Node.prototype = {
   },
 
   removeChild: function(node) {
-    if (node.parentNode != this)
-      return;
+    if (node.parentNode != this) {
+      throw Error('NotFoundError');
+    }
     if (!node.previousSibling && !node.nextSibling) {
       this.firstChild = null;
       this.lastChild = null;
@@ -90,6 +91,8 @@ Node.prototype = {
     node.parentNode = null;
     node.previousSibling = null;
     node.nextSibling = null;
+
+    return node;
   },
   insertBefore: function(node, otherNode) {
     if (node.parentNode)
