@@ -701,9 +701,14 @@
       var pathString = s.slice(startIndex + 2, endIndex).trim();
       tokens.push(oneTime); // ONE_TIME?
       onlyOneTime = onlyOneTime && oneTime;
-      tokens.push(Path.get(pathString)); // PATH
       var delegateFn = prepareBindingFn &&
                        prepareBindingFn(pathString, name, node);
+      // Don't try to parse the expression if there's a prepareBinding function
+      if (delegateFn == null) {
+        tokens.push(Path.get(pathString)); // PATH
+      } else {
+        tokens.push(null);
+      }
       tokens.push(delegateFn); // DELEGATE_FN
       lastIndex = endIndex + 2;
     }
