@@ -15,7 +15,7 @@
 var testDiv;
 
 function clearAllTemplates(node) {
-  if (node instanceof HTMLTemplateElement)
+  if (node instanceof HTMLTemplateElement || node.iterator_)
     node.clear();
 
   for (var child = node.firstChild; child; child = child.nextSibling)
