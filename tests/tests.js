@@ -28,15 +28,20 @@ function doTeardown() {
   assert.strictEqual(0, Observer._allObserversCount);
 }
 
-function then(fn) {
+function then(fn, n) {
+  // We need to ensure that all chained calls are not grouped into the same
+  // setTimeout bucket. This is to allow other scheduled functions to have a go
+  // too.
+  n = n || 10;
   setTimeout(function() {
     Platform.performMicrotaskCheckpoint();
     fn();
-  }, 0);
+  }, n);
 
   return {
     then: function(next) {
-      return then(next);
+      n += 10;
+      return then(next, n);
     }
   };
 }
