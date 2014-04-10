@@ -514,16 +514,7 @@
       if (content.firstChild === null)
         return emptyInstance;
 
-      var map = this.bindingMap_;
-      if (!map || map.content !== content) {
-        // TODO(rafaelw): Setup a MutationObserver on content to detect
-        // when the instanceMap is invalid.
-        map = createInstanceBindingMap(content,
-            delegate_ && delegate_.prepareBinding) || [];
-        map.content = content;
-        this.bindingMap_ = map;
-      }
-
+      var map = getInstanceBindingMap(content, delegate_);
       var stagingDocument = getTemplateStagingDocument(this);
       var instance = stagingDocument.createDocumentFragment();
       instance.templateCreator_ = this;
@@ -609,7 +600,7 @@
 
     newDelegate_: function(bindingDelegate) {
       if (!bindingDelegate)
-        return {};
+        return;
 
       function delegateFn(name) {
         var fn = bindingDelegate && bindingDelegate[name];
@@ -622,6 +613,7 @@
       }
 
       return {
+        bindingMaps: {},
         raw: bindingDelegate,
         prepareBinding: delegateFn('prepareBinding'),
         prepareInstanceModel: delegateFn('prepareInstanceModel'),
@@ -908,6 +900,43 @@
       map.children[index++] = createInstanceBindingMap(child, prepareBindingFn);
     }
 
+    return map;
+  }
+
+  var contentIdCounter = 1;
+
+  // TODO(rafaelw): Setup a MutationObserver on content which clears the id
+  // so that bindingMaps regenerate when the template.content changes.
+  function getContentId(content) {
+    var id = content.id_;
+    if (!id)
+      id = content.id_ = contentIdCounter++;
+    return id;
+  }
+
+  // Each delegate is associated with a set of bindingMaps, one for each
+  // content which may be used by a template. The intent is that each binding
+  // delegate gets the opportunity to prepare* the template content once
+  // across all uses.
+  // TODO(rafaelw): Separate out the parse map from the binding map. In the
+  // current implementation, if two delegates need a binding map for the same
+  // content, the second will have to reparse.
+  function getInstanceBindingMap(content, delegate_) {
+    var contentId = getContentId(content);
+    if (delegate_) {
+      var map = delegate_.bindingMaps[contentId];
+      if (!map) {
+        map = delegate_.bindingMaps[contentId] =
+            createInstanceBindingMap(content, delegate_.prepareBinding) || [];
+      }
+      return map;
+    }
+
+    var map = content.bindingMap_;
+    if (!map) {
+      map = content.bindingMap_ =
+          createInstanceBindingMap(content, undefined) || [];
+    }
     return map;
   }
 
