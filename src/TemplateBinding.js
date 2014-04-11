@@ -507,6 +507,8 @@
     createInstance: function(model, bindingDelegate, delegate_) {
       if (bindingDelegate)
         delegate_ = this.newDelegate_(bindingDelegate);
+      else if (!delegate_)
+        delegate_ = this.delegate_;
 
       if (!this.refContent_)
         this.refContent_ = this.ref_.content;

@@ -3264,6 +3264,49 @@ suite('Binding Delegate API', function() {
     });
   });
 
+  test('CreateInstance', function(done) {
+    var delegateFoo = {
+      prepareBinding: function(path, name, node) {
+        if (name == 'textContent') {
+          return function(model) {
+            return 'foo';
+          };
+        }
+      }
+    };
+
+    var delegateBar = {
+      prepareBinding: function(path, name, node) {
+        if (name == 'textContent') {
+          return function(model) {
+            return 'bar';
+          };
+        }
+      }
+    };
+
+    var div = createTestHtml(
+        '<template bind>[[ 2x: bar ]]</template>');
+    var template = div.firstChild;
+    template.bindingDelegate = delegateFoo;
+    template.model = {};
+
+    then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('foo', div.lastChild.textContent);
+
+      var fragment = template.createInstance({});
+      assert.strictEqual(1, fragment.childNodes.length);
+      assert.strictEqual('foo', fragment.lastChild.textContent);
+
+      var fragment = template.createInstance({}, delegateBar);
+      assert.strictEqual(1, fragment.childNodes.length);
+      assert.strictEqual('bar', fragment.lastChild.textContent);
+
+      done();
+    });
+  });
+
   test('issue-141', function(done) {
     var div = createTestHtml(
         '<template bind>' +
