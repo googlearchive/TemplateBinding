@@ -903,26 +903,26 @@
     return map;
   }
 
-  var contentIdCounter = 1;
+  var contentUidCounter = 1;
 
   // TODO(rafaelw): Setup a MutationObserver on content which clears the id
   // so that bindingMaps regenerate when the template.content changes.
-  function getContentId(content) {
+  function getContentUid(content) {
     var id = content.id_;
     if (!id)
-      id = content.id_ = contentIdCounter++;
+      id = content.id_ = contentUidCounter++;
     return id;
   }
 
   // Each delegate is associated with a set of bindingMaps, one for each
   // content which may be used by a template. The intent is that each binding
-  // delegate gets the opportunity to prepare* the template content once
-  // across all uses.
+  // delegate gets the opportunity to prepare the instance (via the prepare*
+  // delegate calls) once across all uses.
   // TODO(rafaelw): Separate out the parse map from the binding map. In the
   // current implementation, if two delegates need a binding map for the same
   // content, the second will have to reparse.
   function getInstanceBindingMap(content, delegate_) {
-    var contentId = getContentId(content);
+    var contentId = getContentUid(content);
     if (delegate_) {
       var map = delegate_.bindingMaps[contentId];
       if (!map) {
