@@ -264,7 +264,7 @@
       var owner = template.ownerDocument;
       if (!owner.stagingDocument_) {
         owner.stagingDocument_ = owner.implementation.createHTMLDocument('');
-
+        owner.stagingDocument_.isStagingDocument = true;
         // TODO(rafaelw): Remove when fix for
         // https://codereview.chromium.org/164803002/
         // makes it to Chrome release.
@@ -794,6 +794,7 @@
         instanceBindings.push(binding);
     }
 
+    node.bindFinished();
     if (!bindings.isTemplate)
       return;
 
