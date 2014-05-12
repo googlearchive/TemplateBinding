@@ -5,8 +5,8 @@
     "The Polymer Authors"
   ],
   "dependencies": {
-    "NodeBind": "Polymer/NodeBind#master",
-    "observe-js": "Polymer/observe-js#master"
+    "NodeBind": "Polymer/NodeBind#0.2.4",
+    "observe-js": "Polymer/observe-js#0.2.4"
   },
   "license": "BSD",
   "private": true,
@@ -16,5 +16,6 @@
     "bower_components",
     "test",
     "tests"
-  ]
+  ],
+  "version": "0.2.4"
 }
