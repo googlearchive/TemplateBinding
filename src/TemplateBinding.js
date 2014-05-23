@@ -624,9 +624,6 @@
       };
     },
 
-    // TODO(rafaelw): Assigning .bindingDelegate always succeeds. It may
-    // make sense to issue a warning or even throw if the template is already
-    // "activated", since this would be a strange thing to do.
     set bindingDelegate(bindingDelegate) {
       if (this.delegate_) {
         throw Error('Template must be cleared before a new bindingDelegate ' +
