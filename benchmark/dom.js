@@ -144,7 +144,7 @@ Node.prototype = {
     return retval;
   },
 
-  set innerHTML() {
+  set innerHTML(_) {
     while (this.firstChild) {
       this.removeChild(this.firstChild);
     }
