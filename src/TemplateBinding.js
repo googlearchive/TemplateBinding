@@ -1023,7 +1023,7 @@
 
       var value = this.deps.value;
       if (!this.deps.oneTime)
-        value = value.discardChanges();
+        value = value.value_;
       if (!this.deps.repeat)
         value = [value];
       var observe = this.deps.repeat &&
