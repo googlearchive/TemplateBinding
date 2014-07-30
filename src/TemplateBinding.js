@@ -575,7 +575,7 @@
 
       this.refContent_ = undefined;
       this.iterator_.valueChanged();
-      this.iterator_.updateIteratedValue();
+      this.iterator_.updateIteratedValue(this.iterator_.getUpdatedValue());
     },
 
     clear: function() {
@@ -979,19 +979,22 @@
       var deps = this.deps = {};
       var template = this.templateElement_;
 
+      var ifValue = true;
       if (directives.if) {
         deps.hasIf = true;
         deps.ifOneTime = directives.if.onlyOneTime;
         deps.ifValue = processBinding(IF, directives.if, template, model);
 
+        ifValue = deps.ifValue;
+
         // oneTime if & predicate is false. nothing else to do.
-        if (deps.ifOneTime && !deps.ifValue) {
-          this.updateIteratedValue();
+        if (deps.ifOneTime && !ifValue) {
+          this.valueChanged();
           return;
         }
 
         if (!deps.ifOneTime)
-          deps.ifValue.open(this.updateIteratedValue, this);
+          ifValue = ifValue.open(this.updateIfValue, this);
       }
 
       if (directives.repeat) {
@@ -1004,13 +1007,40 @@
         deps.value = processBinding(BIND, directives.bind, template, model);
       }
 
+      var value = deps.value;
       if (!deps.oneTime)
-        deps.value.open(this.updateIteratedValue, this);
+        value = value.open(this.updateIteratedValue, this);
 
-      this.updateIteratedValue();
+      if (!ifValue) {
+        this.valueChanged();
+        return;
+      }
+
+      this.updateValue(value);
     },
 
-    updateIteratedValue: function() {
+    /**
+     * Gets the updated value of the bind/repeat. This can potentially call
+     * user code (if a bindingDelegate is set up) so we try to avoid it if we
+     * already have the value in hand (from Observer.open).
+     */
+    getUpdatedValue: function() {
+      var value = this.deps.value;
+      if (!this.deps.oneTime)
+        value = value.discardChanges();
+      return value;
+    },
+
+    updateIfValue: function(ifValue) {
+      if (!ifValue) {
+        this.valueChanged();
+        return;
+      }
+
+      this.updateValue(this.getUpdatedValue());
+    },
+
+    updateIteratedValue: function(value) {
       if (this.deps.hasIf) {
         var ifValue = this.deps.ifValue;
         if (!this.deps.ifOneTime)
@@ -1021,9 +1051,10 @@
         }
       }
 
-      var value = this.deps.value;
-      if (!this.deps.oneTime)
-        value = value.discardChanges();
+      this.updateValue(value);
+    },
+
+    updateValue: function(value) {
       if (!this.deps.repeat)
         value = [value];
       var observe = this.deps.repeat &&

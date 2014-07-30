@@ -430,6 +430,77 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Bind If minimal discardChanges', function(done) {
+
+    var div = createTestHtml(
+        '<template bind="{{ bound }}" if="{{ predicate }}">' +
+          'value:{{ value }}' +
+        '</template>');
+    var m = { bound: null, predicate: 0 };
+    var template = div.firstChild;
+
+    var discardChangesCalled = { bound: 0, predicate: 0 };
+    template.bindingDelegate = {
+      prepareBinding: function(path, name, node) {
+        return function(model, node, oneTime) {
+          var result = new PathObserver(model, path); 
+          result.discardChanges = function() {
+            discardChangesCalled[path]++;
+            return PathObserver.prototype.discardChanges.call(this);
+          }
+          return result;
+        }
+      }
+    };
+
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(0, discardChangesCalled.bound);
+      assert.strictEqual(0, discardChangesCalled.predicate);
+
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(0, discardChangesCalled.predicate);
+
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('value:', div.lastChild.textContent);
+
+      m.bound = { value: 2 };
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(1, discardChangesCalled.predicate);
+
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('value:2', div.lastChild.textContent);
+
+      m.bound.value = 3;
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(1, discardChangesCalled.predicate);
+
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('value:3', div.lastChild.textContent);
+
+      template.model = undefined;
+
+    }).then(function() {
+      assert.strictEqual(1, discardChangesCalled.bound);
+      assert.strictEqual(1, discardChangesCalled.predicate);
+
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+
+  });
+
   test('Empty If', function(done) {
     var div = createTestHtml(
         '<template if>{{ value }}</template>');
