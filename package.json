@@ -1,7 +1,7 @@
 {
-  "name": "mdv",
+  "name": "TemplateBinding",
   "version": "0.0.0",
-  "description": "ERROR: No README.md file found!",
+  "description": "",
   "main": "grunt.js",
   "directories": {
     "doc": "docs",
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Polymer/mdv.git"
+    "url": "https://github.com/Polymer/TemplateBinding.git"
   },
   "author": "",
   "license": "Apache License 2.0",
@@ -22,7 +22,9 @@
     "mocha": ">=1.9",
     "grunt": "*",
     "grunt-karma": "*",
+    "karma": "~0.12",
     "karma-mocha": "*",
+    "karma-firefox-launcher": "*",
     "karma-ie-launcher": "*",
     "karma-safari-launcher": "*",
     "karma-script-launcher": "*",
