@@ -1582,15 +1582,19 @@ suite('Template Instantiation', function() {
       assert.strictEqual(4, div.childNodes.length);
       assert.strictEqual('Hi, Fry', div.childNodes[3].textContent);
 
-      div.childNodes[2].setAttribute('ref', 'B');
+      // In IE 11, MutationObservers do not fire before setTimeout.
+      // So rather than using "then" to queue up the next test, we use a
+      // MutationObserver here to detect the change to "ref".
+      new MutationObserver(function() {
+        assert.strictEqual(5, div.childNodes.length);
+        assert.strictEqual('Hola, Fry', div.childNodes[3].textContent);
+        assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
+
+        done();
+      }).observe(template, { attributes: true, attributeFilter: ['ref'] });
+
+      template.setAttribute('ref', 'B');
       model.push('Leela');
-
-    }).then(function() {
-      assert.strictEqual(5, div.childNodes.length);
-      assert.strictEqual('Hola, Fry', div.childNodes[3].textContent);
-      assert.strictEqual('Hola, Leela', div.childNodes[4].textContent);
-
-      done();
     });
   });
 
