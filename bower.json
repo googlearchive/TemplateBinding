@@ -8,6 +8,9 @@
     "NodeBind": "Polymer/NodeBind#master",
     "observe-js": "Polymer/observe-js#master"
   },
+  "devDependencies": {
+    "polymer-test-tools": "Polymer/polymer-test-tools#wc-tester"
+  },
   "license": "BSD",
   "private": true,
   "ignore": [
