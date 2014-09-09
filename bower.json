@@ -9,7 +9,7 @@
     "observe-js": "Polymer/observe-js#master"
   },
   "devDependencies": {
-    "polymer-test-tools": "Polymer/polymer-test-tools#wc-tester"
+    "polymer-test-tools": "Polymer/polymer-test-tools#master"
   },
   "license": "BSD",
   "private": true,
