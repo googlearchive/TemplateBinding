@@ -5,8 +5,8 @@
     "The Polymer Authors"
   ],
   "dependencies": {
-    "NodeBind": "Polymer/NodeBind#master",
-    "observe-js": "Polymer/observe-js#master"
+    "NodeBind": "Polymer/NodeBind#^0.4.0",
+    "observe-js": "Polymer/observe-js#^0.4.0"
   },
   "devDependencies": {
     "polymer-test-tools": "Polymer/polymer-test-tools#master"
