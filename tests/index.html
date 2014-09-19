@@ -11,9 +11,7 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 <head>
 <title>TemplateBinding tests</title>
 <meta charset="utf-8">
-<link rel="stylesheet" href="../node_modules/mocha/mocha.css">
-<script src="../node_modules/chai/chai.js"></script>
-<script src="../node_modules/mocha/mocha.js"></script>
+<script src="../../web-component-tester/browser.js"></script>
 <script>
 var parserHasNativeTemplate = function() {
   var div = document.createElement('div');
@@ -26,19 +24,7 @@ var parserHasNativeTemplate = function() {
 </head>
 <body>
 <script>
-
-mocha.setup({
-  ui: 'tdd',
-  ignoreLeaks: true
-});
-
-var assert = chai.assert;
-
-</script>
-<script src="tests.js"></script>
-<div id="mocha"></div>
-<script>
-mocha.run();
+WCT.loadSuites(['tests.js']);
 </script>
 </body>
 </html>
