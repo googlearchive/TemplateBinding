@@ -31,6 +31,6 @@
     "karma-safari-launcher": "*",
     "karma-script-launcher": "*",
     "mocha": ">=1.9",
-    "web-component-tester": "^0.3.2"
+    "web-component-tester": "^0.5.1"
   }
 }
