@@ -85,6 +85,10 @@ suite('Template Instantiation', function() {
     target.dispatchEvent(event);
   }
 
+  test('that tests fail', function() {
+    assert.isTrue(false);
+  });
+
   test('accessing bindingDelegate getter without Bind', function(done) {
     var div = createTestHtml('<template></template>');
     var template = div.firstChild;
