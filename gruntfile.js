@@ -8,17 +8,13 @@
 module.exports = function(grunt) {
 
   grunt.initConfig({
-    karma: {
-      options: {
-        configFile: 'conf/karma.conf.js',
-        keepalive: true
+    'wct-test': {
+      local: {
+        options: {remote: false},
       },
-      buildbot: {
-        reporters: ['crbot'],
-        logLevel: 'OFF'
+      remote: {
+        options: {remote: true},
       },
-      TemplateBinding: {
-      }
     },
     concat: {
       modules: {
@@ -30,10 +26,11 @@ module.exports = function(grunt) {
   });
 
   grunt.loadTasks('../tools/tasks');
-  grunt.loadNpmTasks('grunt-karma');
   grunt.loadNpmTasks('grunt-contrib-concat');
+  grunt.loadNpmTasks('web-component-tester');
 
   grunt.registerTask('default', 'concat');
-  grunt.registerTask('test', ['override-chrome-launcher', 'karma:TemplateBinding']);
-  grunt.registerTask('test-buildbot', ['override-chrome-launcher', 'karma:buildbot']);
+  grunt.registerTask('test', ['wct-test:local']);
+  grunt.registerTask('test-remote', ['wct-test:remote']);
+  grunt.registerTask('test-buildbot', ['wct-test:local']);
 };
