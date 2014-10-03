@@ -20,6 +20,6 @@
   "devDependencies": {
     "grunt": "*",
     "grunt-contrib-concat": "~0.3.0",
-    "web-component-tester": "^1.0.0"
+    "web-component-tester": "^1.0.1"
   }
 }
