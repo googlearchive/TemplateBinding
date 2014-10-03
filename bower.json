@@ -9,7 +9,7 @@
     "observe-js": "Polymer/observe-js#master"
   },
   "devDependencies": {
-    "web-component-tester": "Polymer/web-component-tester#^0.5.1"
+    "web-component-tester": "Polymer/web-component-tester#^1.0.1"
   },
   "license": "BSD",
   "private": true,
