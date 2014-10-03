@@ -18,19 +18,8 @@
   "license": "Apache License 2.0",
   "gitHead": "cdd89f1fb6273ede781c9e00a512720df1adffff",
   "devDependencies": {
-    "chai": "*",
     "grunt": "*",
     "grunt-contrib-concat": "~0.3.0",
-    "grunt-karma": "*",
-    "karma": "~0.12",
-    "karma-mocha": "*",
-    "karma-firefox-launcher": "*",
-    "gulp": "^3.8.7",
-    "karma-ie-launcher": "*",
-    "karma-mocha": "*",
-    "karma-safari-launcher": "*",
-    "karma-script-launcher": "*",
-    "mocha": ">=1.9",
-    "web-component-tester": "^0.5.1"
+    "web-component-tester": "^1.0.0"
   }
 }
