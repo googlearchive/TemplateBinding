@@ -20,9 +20,11 @@
   document.write('<link rel="stylesheet" href="' +
       libLocation + 'src/template_element.css">');
 
-  [
-    '../observe-js/src/observe.js',
-    '../NodeBind/src/NodeBind.js',
-    'src/TemplateBinding.js'
-  ].forEach(write);
+  write('../observe-js/src/observe.js');
+  write('../NodeBind/src/NodeBind.js');
+  if (window.WCT && (WCT.util.getParam('build') === 'min' || WCT.util.getParam('build') === 'min/')) {
+    write('TemplateBinding.min.js');
+  } else {
+    write('src/TemplateBinding.js');
+  }
 })();

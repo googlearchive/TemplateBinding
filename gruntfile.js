@@ -12,8 +12,14 @@ module.exports = function(grunt) {
       local: {
         options: {remote: false},
       },
+      'local-min': {
+        options: {remote: false, webRunner: 'test/index.html?build=min'},
+      },
       remote: {
         options: {remote: true},
+      },
+      'remote-min': {
+        options: {remote: true, webRunner: 'test/index.html?build=min'},
       },
     },
     concat: {
@@ -31,6 +37,8 @@ module.exports = function(grunt) {
 
   grunt.registerTask('default', 'concat');
   grunt.registerTask('test', ['wct-test:local']);
+  grunt.registerTask('test-min', ['concat', 'wct-test:local-min']);
   grunt.registerTask('test-remote', ['wct-test:remote']);
-  grunt.registerTask('test-buildbot', ['wct-test:local']);
+  grunt.registerTask('test-remote-min', ['concat', 'wct-test:remote-min']);
+  grunt.registerTask('test-buildbot', ['test-min']);
 };
