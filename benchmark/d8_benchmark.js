@@ -5,7 +5,14 @@
 // Code distributed by Google as part of the polymer project is also
 // subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 
-// Flags: --allow-natives-syntax
+var console = {
+  log: print,
+  error: print
+};
+
+var requestAnimationFrame = function(callback) {
+  callback();
+}
 
 var testDiv = document.createElement('div');
 var width = 2;
@@ -16,28 +23,21 @@ var oneTime = false;
 var compoundBindings = false;
 var expressionCheckbox = false;
 var bindingDensities = [0, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1];
-var testTypes = ['MDV'];
 
 function benchmarkComplete(results) {
-  print('benchmarkComplete');
-  print(JSON.stringify(results));
+  console.log(JSON.stringify(results));
 }
 
-function updateStatus(density, testType, runCount) {
-  print('updateStatus');
-  print(testType + ' ' + (100 * density) +
-        '% binding density, ' + runCount + ' runs');
+function updateStatus(b, variation, runCount) {
+  console.log((100 * b.density) + '% binding density, ' + runCount + ' runs');
 }
 
-var test = new MDVBenchmark(testDiv, width, depth, decoration, instanceCount,
-                            oneTime,
-                            compoundBindings,
-                            expressionCheckbox);
+var benchmarks = bindingDensities.map(function(density) {
+  return new MDVBenchmark(testDiv, density, width, depth, decoration,
+                          instanceCount,
+                          oneTime,
+                          compoundBindings,
+                          expressionCheckbox);
+});
 
-var runner = new BenchmarkRunner(test,
-                                 bindingDensities,
-                                 testTypes,
-                                 benchmarkComplete,
-                                 updateStatus);
-runner.go();
-runTimeouts();
+Benchmark.all(benchmarks, 0, updateStatus).then(benchmarkComplete);

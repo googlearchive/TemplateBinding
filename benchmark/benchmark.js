@@ -105,10 +105,12 @@
     return nextBindingText(false, oneTime, expression);
   }
 
-  function MDVBenchmark(testDiv, width, depth, decoration, instanceCount,
-                        oneTimeBindings, compoundBindings, expressions) {
+  function MDVBenchmark(testDiv, density, width, depth, decoration,
+                        instanceCount, oneTimeBindings, compoundBindings,
+                        expressions) {
     Benchmark.call(this);
     this.testDiv = testDiv;
+    this.density = density;
     this.width = width;
     this.depth = depth;
     this.decoration = decoration;
@@ -178,7 +180,11 @@
       }
     },
 
-    setupTest: function(density) {
+    setup: function() {
+      if (this.fragment) {
+        return;
+      }
+
       // |decoration| attributes on each element in each depth
       var bindingCount = this.decoration *
           (Math.pow(this.width, this.depth) - 1) * this.width;
@@ -186,24 +192,14 @@
       if (this.decoration > 0)
         bindingCount += Math.pow(this.width, this.depth) - 1;
 
-      this.bindingCount = Math.round(bindingCount * density);
+      this.bindingCount = Math.round(bindingCount * this.density);
       this.bindingCounter = 0;
       this.propNameCounter = 0;
       this.fragment = document.createDocumentFragment();
       this.buildFragment(this.fragment, this.width, this.depth, this.decoration,
-                         density);
-    },
+                         this.density);
 
-    teardownTest: function(density) {
-      this.fragment = undefined;
-    },
-
-    setupMDVVariant: function() {
-      if (testDiv.childNodes.length > 1)
-        alert('Failed to cleanup last test');
-
-      testDiv.innerHTML = '';
-      this.template = testDiv.appendChild(document.createElement('template'));
+      this.template = this.testDiv.appendChild(document.createElement('template'));
       HTMLTemplateElement.decorate(this.template);
       if (this.expressions)
         this.template.bindingDelegate = new PolymerExpressions;
@@ -212,75 +208,21 @@
       this.template.setAttribute('repeat', '');
     },
 
-    runMDV: function() {
+    test: function() {
       this.template.model = this.flip ? this.ping : this.pong;
       this.flip = !this.flip;
     },
 
-    teardownMDVVariant: function() {
-      if (this.template)
+    dispose: function() {
+      if (this.template) {
         this.template.clear();
+        if (this.testDiv.childNodes.length > 1)
+          alert('Failed to cleanup last test');
+      }
+
       this.template = undefined;
-      testDiv.innerHTML = '';
-    },
-
-    setupHandlebarsVariant: function() {
-      testDiv.innerHTML = '';
-      var div = document.createElement('div');
-      div.appendChild(this.fragment.cloneNode(true));
-      var stringTemplate = '{{#each this}}' + div.innerHTML + '{{/each}}';
-      stringTemplate = stringTemplate.replace(/\[\[/g, '{{');
-      stringTemplate = stringTemplate.replace(/\]\]/g, '}}');
-      this.compiledTemplate = Handlebars.compile(stringTemplate);
-    },
-
-    runHandlebars: function() {
-      testDiv.innerHTML = '';
-      testDiv.innerHTML = this.compiledTemplate(this.flip ?
-          this.ping : this.pong);
-      if (!testDiv.querySelectorAll('div').length)
-        console.error('Foo');
-      this.flip = !this.flip;
-    },
-
-    teardownHandlebarsVariant: function() {
-      testDiv.innerHTML = '';
-    },
-
-    setupVariant: function(testType) {
-      switch (testType) {
-        case 'MDV':
-          this.setupMDVVariant();
-          break;
-        case 'Handlebars':
-          this.setupHandlebarsVariant();
-          break;
-      }
-    },
-
-    run: function(testType) {
-      switch (testType) {
-        case 'MDV':
-          this.runMDV();
-          break;
-        case 'Handlebars':
-          this.runHandlebars();
-          break;
-      }
-    },
-
-    teardownVariant: function(testType) {
-      switch (testType) {
-        case 'MDV':
-          this.teardownMDVVariant();
-          break;
-        case 'Handlebars':
-          this.teardownHandlebarsVariant();
-          break;
-      }
-    },
-
-    destroy: function() {}
+      this.testDiv.innerHTML = '';
+    }
   });
 
   global.MDVBenchmark = MDVBenchmark;
