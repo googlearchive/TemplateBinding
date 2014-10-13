@@ -5,24 +5,6 @@
 // Code distributed by Google as part of the polymer project is also
 // subject to an additional IP rights grant found at http://polymer.github.io/PATENTS.txt
 
-var console = {
-  log: print,
-  error: print
-};
-
-var timeouts = []
-function setTimeout(fn) {
-  timeouts.push(fn);
-}
-
-function runTimeouts() {
-  while (timeouts.length) {
-    if (Object.deliverAllChangeRecords)
-      Object.deliverAllChangeRecords();
-    timeouts.shift()();
-  }
-}
-
 function Window() {}
 
 var window = new Window();
