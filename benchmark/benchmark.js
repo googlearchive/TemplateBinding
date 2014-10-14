@@ -114,13 +114,12 @@
     this.width = width;
     this.depth = depth;
     this.decoration = decoration;
+    this.instanceCount = instanceCount;
     this.oneTimeBindings = oneTimeBindings;
     this.compoundBindings = compoundBindings;
     this.expressions = expressions;
 
     this.valueCounter = 1;
-    this.ping = this.objectArray(instanceCount);
-    this.pong = this.objectArray(instanceCount);
     this.flip = true;
   }
 
@@ -181,6 +180,7 @@
     },
 
     setup: function() {
+      this.model = this.objectArray(this.instanceCount);
       if (this.fragment) {
         return;
       }
@@ -209,8 +209,7 @@
     },
 
     test: function() {
-      this.template.model = this.flip ? this.ping : this.pong;
-      this.flip = !this.flip;
+      this.template.model = this.model;
     },
 
     dispose: function() {
