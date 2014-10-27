@@ -24,13 +24,10 @@ function doTeardown() {
   assert.isFalse(!!Observer._errorThrownDuringCallback);
   document.body.removeChild(testDiv);
   clearAllTemplates(testDiv);
-  Platform.performMicrotaskCheckpoint();
-  assert.strictEqual(0, Observer._allObserversCount);
 }
 
 function then(fn) {
   setTimeout(function() {
-    Platform.performMicrotaskCheckpoint();
     fn();
   }, 0);
 
@@ -46,15 +43,29 @@ function createTestHtml(s) {
   div.innerHTML = s;
   testDiv.appendChild(div);
 
-  HTMLTemplateElement.forAllTemplatesFrom_(div, function(template) {
-    HTMLTemplateElement.decorate(template);
-  });
-
   return div;
 }
 
+function isTemplate(el) {
+  if (el.isTemplate_ === undefined)
+    el.isTemplate_ = el.tagName == 'TEMPLATE';
+
+  return el.isTemplate_;
+}
+
+var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
+
+function forAllTemplatesFrom(node, fn) {
+  var subTemplates = node.querySelectorAll('template');
+
+
+  if (isTemplate(node))
+    fn(node)
+  forEach(subTemplates, fn);
+}
+
 function recursivelySetTemplateModel(node, model, delegate) {
-  HTMLTemplateElement.forAllTemplatesFrom_(node, function(template) {
+  forAllTemplatesFrom(node, function(template) {
     template.bindingDelegate = delegate;
     template.model = model;
   });
@@ -71,10 +82,6 @@ suite('Template Instantiation', function() {
     var root = div.webkitCreateShadowRoot();
     root.innerHTML = s;
     testDiv.appendChild(div);
-
-    HTMLTemplateElement.forAllTemplatesFrom_(div, function(node) {
-      HTMLTemplateElement.decorate(node);
-    });
 
     return root;
   }
@@ -443,7 +450,7 @@ suite('Template Instantiation', function() {
     template.bindingDelegate = {
       prepareBinding: function(path, name, node) {
         return function(model, node, oneTime) {
-          var result = new PathObserver(model, path); 
+          var result = new PathObserver(model, path);
           result.discardChanges = function() {
             discardChangesCalled[path]++;
             return PathObserver.prototype.discardChanges.call(this);
@@ -1405,35 +1412,6 @@ suite('Template Instantiation', function() {
     });
   });
 
-  test('TemplateWithInputValue', function(done) {
-    var div = createTestHtml(
-        '<template bind="{{}}">' +
-        '<input value="{{x}}">' +
-        '</template>');
-    var template = div.firstChild;
-    var model = {x: 'hi'};
-    template.model = model;
-
-    then(function() {
-      assert.strictEqual(2, div.childNodes.length);
-      assert.strictEqual('hi', div.lastChild.value);
-
-      model.x = 'bye';
-      assert.strictEqual('hi', div.lastChild.value);
-
-    }).then(function() {
-      assert.strictEqual('bye', div.lastChild.value);
-
-      div.lastChild.value = 'hello';
-      dispatchEvent('input', div.lastChild);
-      assert.strictEqual('hello', model.x);
-
-    }).then(function() {
-      assert.strictEqual('hello', div.lastChild.value);
-
-      done();
-    });
-  });
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -1473,7 +1451,6 @@ suite('Template Instantiation', function() {
 
   test('DefaultStyles', function() {
     var t = document.createElement('template');
-    HTMLTemplateElement.decorate(t);
 
     document.body.appendChild(t);
     assert.strictEqual('none', getComputedStyle(t, null).display);
@@ -2114,154 +2091,6 @@ suite('Template Instantiation', function() {
     });
   });
 
-  test('Attribute Template Optgroup/Option - selectedIndex', function(done) {
-    var div = createTestHtml(
-        '<template bind>' +
-          '<select selectedIndex="{{ selected }}">' +
-            '<optgroup template repeat="{{ groups }}" label="{{ name }}">' +
-              '<option template repeat="{{ items }}">{{ val }}</option>' +
-            '</optgroup>' +
-          '</select>' +
-        '</template>');
-    var template = div.firstChild;
-    var m = {
-      selected: 1,
-      groups: [
-        {
-          name: 'one', items: [{ val: 0 }, { val: 1 }]
-        }
-      ],
-    };
-    template.model = m;
-
-    then(function() {
-      var select = div.firstChild.nextSibling;
-      assert.strictEqual(2, select.childNodes.length);
-      assert.strictEqual(1, select.selectedIndex);
-      assert.strictEqual('TEMPLATE', select.childNodes[0].tagName);
-      var optgroup = select.childNodes[1];
-      assert.strictEqual('TEMPLATE', optgroup.childNodes[0].tagName);
-      assert.strictEqual('OPTION', optgroup.childNodes[1].tagName);
-      assert.strictEqual('0', optgroup.childNodes[1].textContent);
-      assert.strictEqual('OPTION', optgroup.childNodes[2].tagName);
-      assert.strictEqual('1', optgroup.childNodes[2].textContent);
-
-      done();
-    });
-  });
-
-  test('Attribute Template Optgroup/Option - value', function(done) {
-    var div = createTestHtml(
-        '<template bind>' +
-          '<select value="{{ selected }}">' +
-            '<option template repeat="{{ items }}" value="{{ value }}">{{ name }}</option>' +
-          '</select>' +
-        '</template>');
-    var template = div.firstChild;
-    var m = {
-      selected: 'b',
-      items: [
-        { name: 'A', value: 'a' },
-        { name: 'B', value: 'b' },
-        { name: 'C', value: 'c' }
-      ]
-    };
-    template.model = m;
-
-    then(function() {
-      var select = div.firstChild.nextSibling;
-      assert.strictEqual(4, select.childNodes.length);
-      assert.strictEqual('b', select.value);
-
-      done();
-    });
-  });
-
-  test('NestedIterateTableMixedSemanticNative', function(done) {
-    if (!parserHasNativeTemplate) {
-      done();
-      return;
-    }
-
-    var div = createTestHtml(
-        '<table><tbody>' +
-          '<template repeat="{{}}">' +
-            '<tr>' +
-              '<td template repeat="{{}}" class="{{ val }}">{{ val }}</td>' +
-            '</tr>' +
-          '</template>' +
-        '</tbody></table>');
-    var template = div.firstChild.firstChild.firstChild;
-    var m = [
-      [{ val: 0 }, { val: 1 }],
-      [{ val: 2 }, { val: 3 }]
-    ];
-    template.model = m;
-
-    then(function() {
-      var i = 1;
-      var tbody = div.childNodes[0].childNodes[0];
-
-      // 1 for the <tr template>, 2 * (1 tr)
-      assert.strictEqual(3, tbody.childNodes.length);
-
-      // 1 for the <td template>, 2 * (1 td)
-      assert.strictEqual(3, tbody.childNodes[1].childNodes.length);
-      assert.strictEqual('0', tbody.childNodes[1].childNodes[1].textContent)
-      assert.strictEqual('1', tbody.childNodes[1].childNodes[2].textContent)
-
-      // 1 for the <td template>, 2 * (1 td)
-      assert.strictEqual(3, tbody.childNodes[2].childNodes.length);
-      assert.strictEqual('2', tbody.childNodes[2].childNodes[1].textContent)
-      assert.strictEqual('3', tbody.childNodes[2].childNodes[2].textContent)
-
-      // Asset the 'class' binding is retained on the semantic template (just check
-      // the last one).
-      assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute('class'));
-
-      done();
-    });
-  });
-
-  test('NestedIterateTable', function(done) {
-    var div = createTestHtml(
-        '<table><tbody>' +
-          '<tr template repeat="{{}}">' +
-            '<td template repeat="{{}}" class="{{ val }}">{{ val }}</td>' +
-          '</tr>' +
-        '</tbody></table>');
-    var template = div.firstChild.firstChild.firstChild;
-    var m = [
-      [{ val: 0 }, { val: 1 }],
-      [{ val: 2 }, { val: 3 }]
-    ];
-    template.model = m;
-
-    then(function() {
-      var i = 1;
-      var tbody = div.childNodes[0].childNodes[0];
-
-      // 1 for the <tr template>, 2 * (1 tr)
-      assert.strictEqual(3, tbody.childNodes.length);
-
-      // 1 for the <td template>, 2 * (1 td)
-      assert.strictEqual(3, tbody.childNodes[1].childNodes.length);
-      assert.strictEqual('0', tbody.childNodes[1].childNodes[1].textContent)
-      assert.strictEqual('1', tbody.childNodes[1].childNodes[2].textContent)
-
-      // 1 for the <td template>, 2 * (1 td)
-      assert.strictEqual(3, tbody.childNodes[2].childNodes.length);
-      assert.strictEqual('2', tbody.childNodes[2].childNodes[1].textContent)
-      assert.strictEqual('3', tbody.childNodes[2].childNodes[2].textContent)
-
-      // Asset the 'class' binding is retained on the semantic template (just check
-      // the last one).
-      assert.strictEqual('3', tbody.childNodes[2].childNodes[2].getAttribute('class'));
-
-      done();
-    });
-  });
-
   test('NestedRepeatDeletionOfMultipleSubTemplates', function(done) {
     var div = createTestHtml(
         '<ul>' +
@@ -2783,64 +2612,6 @@ suite('Template Instantiation', function() {
     assert.strictEqual('bar:replaced',
                        instance.firstChild.nextSibling.textContent);
     clearAllTemplates(instance);
-  });
-
-  test('Repeat - svg', function(done) {
-    var div = createTestHtml(
-        '<svg width="400" height="110">' +
-          '<template repeat>' +
-            '<rect width="{{ width }}" height="{{ height }}" />' +
-          '</template>' +
-        '</svg>');
-
-    var model = [{ width: 10, height: 10 }, { width: 20, height: 20 }];
-    var svg = div.firstChild;
-    var template = svg.firstChild;
-    template.model = model;
-
-    then(function() {
-      assert.strictEqual(3, svg.childNodes.length);
-      assert.strictEqual('10', svg.childNodes[1].getAttribute('width'));
-      assert.strictEqual('10', svg.childNodes[1].getAttribute('height'));
-      assert.strictEqual('20', svg.childNodes[2].getAttribute('width'));
-      assert.strictEqual('20', svg.childNodes[2].getAttribute('height'));
-
-      done();
-    });
-  });
-
-  test('Bootstrap', function() {
-    var div = document.createElement('div');
-    div.innerHTML =
-      '<template>' +
-        '<div></div>' +
-        '<template>' +
-          'Hello' +
-        '</template>' +
-      '</template>';
-
-    HTMLTemplateElement.bootstrap(div);
-    var template = div.firstChild;
-    assert.strictEqual(2, template.content.childNodes.length);
-    var template2 = template.content.firstChild.nextSibling;
-    assert.strictEqual(1, template2.content.childNodes.length);
-    assert.strictEqual('Hello', template2.content.firstChild.textContent);
-
-    var template = document.createElement('template');
-    template.innerHTML =
-      '<template>' +
-        '<div></div>' +
-        '<template>' +
-          'Hello' +
-        '</template>' +
-      '</template>';
-
-    HTMLTemplateElement.bootstrap(template);
-    var template2 = template.content.firstChild;
-    assert.strictEqual(2, template2.content.childNodes.length);
-    var template3 = template2.content.firstChild.nextSibling;
-    assert.strictEqual(1, template3.content.childNodes.length);
-    assert.strictEqual('Hello', template3.content.firstChild.textContent);
   });
 
   test('issue-285', function(done) {
@@ -3446,38 +3217,3 @@ suite('Binding Delegate API', function() {
   });
 });
 
-suite('Compat', function() {
-  test('underbar bindings', function(done) {
-    var div = createTestHtml(
-        '<template bind>' +
-          '<div _style="color: {{ color }};"></div>' +
-          '<img _src="{{ url }}">' +
-          '<a _href="{{ url2 }}">Link</a>' +
-          '<input type="number" _value="{{ number }}">' +
-        '</template>');
-    var template = div.firstChild;
-    var model = {
-      color: 'red',
-      url: 'pic.jpg',
-      url2: 'link.html',
-      number: 4
-    };
-    template.model = model;
-
-    then(function() {
-      var subDiv = div.firstChild.nextSibling;
-      assert.equal('color: red;', subDiv.getAttribute('style'));
-
-      var img = subDiv.nextSibling;
-      assert.equal('pic.jpg', img.getAttribute('src'));
-
-      var a = img.nextSibling;
-      assert.equal('link.html', a.getAttribute('href'));
-
-      var input = a.nextSibling;
-      assert.equal(4, input.value);
-
-      done();
-    });
-  });
-});

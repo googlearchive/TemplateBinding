@@ -8,13 +8,6 @@
 (function(global) {
   'use strict';
 
-  function assert(v) {
-    if (!v)
-      throw new Error('Assertion failed');
-  }
-
-  var forEach = Array.prototype.forEach.call.bind(Array.prototype.forEach);
-
   function getFragmentRoot(node) {
     var p;
     while (p = node.parentNode) {
@@ -54,79 +47,6 @@
     return node.templateCreator_ ? node : null;
   }
 
-  var Map;
-  if (global.Map && typeof global.Map.prototype.forEach === 'function') {
-    Map = global.Map;
-  } else {
-    Map = function() {
-      this.keys = [];
-      this.values = [];
-    };
-
-    Map.prototype = {
-      set: function(key, value) {
-        var index = this.keys.indexOf(key);
-        if (index < 0) {
-          this.keys.push(key);
-          this.values.push(value);
-        } else {
-          this.values[index] = value;
-        }
-      },
-
-      get: function(key) {
-        var index = this.keys.indexOf(key);
-        if (index < 0)
-          return;
-
-        return this.values[index];
-      },
-
-      delete: function(key, value) {
-        var index = this.keys.indexOf(key);
-        if (index < 0)
-          return false;
-
-        this.keys.splice(index, 1);
-        this.values.splice(index, 1);
-        return true;
-      },
-
-      forEach: function(f, opt_this) {
-        for (var i = 0; i < this.keys.length; i++)
-          f.call(opt_this || this, this.values[i], this.keys[i], this);
-      }
-    };
-  }
-
-  // JScript does not have __proto__. We wrap all object literals with
-  // createObject which uses Object.create, Object.defineProperty and
-  // Object.getOwnPropertyDescriptor to create a new object that does the exact
-  // same thing. The main downside to this solution is that we have to extract
-  // all those property descriptors for IE.
-  var createObject = ('__proto__' in {}) ?
-      function(obj) { return obj; } :
-      function(obj) {
-        var proto = obj.__proto__;
-        if (!proto)
-          return obj;
-        var newObject = Object.create(proto);
-        Object.getOwnPropertyNames(obj).forEach(function(name) {
-          Object.defineProperty(newObject, name,
-                               Object.getOwnPropertyDescriptor(obj, name));
-        });
-        return newObject;
-      };
-
-  // IE does not support have Document.prototype.contains.
-  if (typeof document.contains != 'function') {
-    Document.prototype.contains = function(node) {
-      if (node === this || node.parentNode === this)
-        return true;
-      return this.documentElement.contains(node);
-    }
-  }
-
   var BIND = 'bind';
   var REPEAT = 'repeat';
   var IF = 'if';
@@ -138,101 +58,12 @@
     'ref': true
   };
 
-  var semanticTemplateElements = {
-    'THEAD': true,
-    'TBODY': true,
-    'TFOOT': true,
-    'TH': true,
-    'TR': true,
-    'TD': true,
-    'COLGROUP': true,
-    'COL': true,
-    'CAPTION': true,
-    'OPTION': true,
-    'OPTGROUP': true
-  };
-
-  var hasTemplateElement = typeof HTMLTemplateElement !== 'undefined';
-  if (hasTemplateElement) {
-    // TODO(rafaelw): Remove when fix for
-    // https://codereview.chromium.org/164803002/
-    // makes it to Chrome release.
-    (function() {
-      var t = document.createElement('template');
-      var d = t.content.ownerDocument;
-      var html = d.appendChild(d.createElement('html'));
-      var head = html.appendChild(d.createElement('head'));
-      var base = d.createElement('base');
-      base.href = document.baseURI;
-      head.appendChild(base);
-    })();
-  }
-
-  var allTemplatesSelectors = 'template, ' +
-      Object.keys(semanticTemplateElements).map(function(tagName) {
-        return tagName.toLowerCase() + '[template]';
-      }).join(', ');
-
-  function isSVGTemplate(el) {
-    return el.tagName == 'template' &&
-           el.namespaceURI == 'http://www.w3.org/2000/svg';
-  }
-
-  function isHTMLTemplate(el) {
-    return el.tagName == 'TEMPLATE' &&
-           el.namespaceURI == 'http://www.w3.org/1999/xhtml';
-  }
-
-  function isAttributeTemplate(el) {
-    return Boolean(semanticTemplateElements[el.tagName] &&
-                   el.hasAttribute('template'));
-  }
-
   function isTemplate(el) {
     if (el.isTemplate_ === undefined)
-      el.isTemplate_ = el.tagName == 'TEMPLATE' || isAttributeTemplate(el);
+      el.isTemplate_ = el.tagName == 'TEMPLATE';
 
     return el.isTemplate_;
   }
-
-  // FIXME: Observe templates being added/removed from documents
-  // FIXME: Expose imperative API to decorate and observe templates in
-  // "disconnected tress" (e.g. ShadowRoot)
-  document.addEventListener('DOMContentLoaded', function(e) {
-    bootstrapTemplatesRecursivelyFrom(document);
-    // FIXME: Is this needed? Seems like it shouldn't be.
-    Platform.performMicrotaskCheckpoint();
-  }, false);
-
-  function forAllTemplatesFrom(node, fn) {
-    var subTemplates = node.querySelectorAll(allTemplatesSelectors);
-
-    if (isTemplate(node))
-      fn(node)
-    forEach(subTemplates, fn);
-  }
-
-  function bootstrapTemplatesRecursivelyFrom(node) {
-    function bootstrap(template) {
-      if (!HTMLTemplateElement.decorate(template))
-        bootstrapTemplatesRecursivelyFrom(template.content);
-    }
-
-    forAllTemplatesFrom(node, bootstrap);
-  }
-
-  if (!hasTemplateElement) {
-    /**
-     * This represents a <template> element.
-     * @constructor
-     * @extends {HTMLElement}
-     */
-    global.HTMLTemplateElement = function() {
-      throw TypeError('Illegal constructor');
-    };
-  }
-
-  var hasProto = '__proto__' in {};
 
   function mixin(to, from) {
     Object.getOwnPropertyNames(from).forEach(function(name) {
@@ -241,37 +72,12 @@
     });
   }
 
-  // http://dvcs.w3.org/hg/webcomponents/raw-file/tip/spec/templates/index.html#dfn-template-contents-owner
-  function getOrCreateTemplateContentsOwner(template) {
-    var doc = template.ownerDocument
-    if (!doc.defaultView)
-      return doc;
-    var d = doc.templateContentsOwner_;
-    if (!d) {
-      // TODO(arv): This should either be a Document or HTMLDocument depending
-      // on doc.
-      d = doc.implementation.createHTMLDocument('');
-      while (d.lastChild) {
-        d.removeChild(d.lastChild);
-      }
-      doc.templateContentsOwner_ = d;
-    }
-    return d;
-  }
-
   function getTemplateStagingDocument(template) {
     if (!template.stagingDocument_) {
       var owner = template.ownerDocument;
       if (!owner.stagingDocument_) {
         owner.stagingDocument_ = owner.implementation.createHTMLDocument('');
         owner.stagingDocument_.isStagingDocument = true;
-        // TODO(rafaelw): Remove when fix for
-        // https://codereview.chromium.org/164803002/
-        // makes it to Chrome release.
-        var base = owner.stagingDocument_.createElement('base');
-        base.href = document.baseURI;
-        owner.stagingDocument_.head.appendChild(base);
-
         owner.stagingDocument_.stagingDocument_ = owner.stagingDocument_;
       }
 
@@ -279,66 +85,6 @@
     }
 
     return template.stagingDocument_;
-  }
-
-  // For non-template browsers, the parser will disallow <template> in certain
-  // locations, so we allow "attribute templates" which combine the template
-  // element with the top-level container node of the content, e.g.
-  //
-  //   <tr template repeat="{{ foo }}"" class="bar"><td>Bar</td></tr>
-  //
-  // becomes
-  //
-  //   <template repeat="{{ foo }}">
-  //   + #document-fragment
-  //     + <tr class="bar">
-  //       + <td>Bar</td>
-  //
-  function extractTemplateFromAttributeTemplate(el) {
-    var template = el.ownerDocument.createElement('template');
-    el.parentNode.insertBefore(template, el);
-
-    var attribs = el.attributes;
-    var count = attribs.length;
-    while (count-- > 0) {
-      var attrib = attribs[count];
-      if (templateAttributeDirectives[attrib.name]) {
-        if (attrib.name !== 'template')
-          template.setAttribute(attrib.name, attrib.value);
-        el.removeAttribute(attrib.name);
-      }
-    }
-
-    return template;
-  }
-
-  function extractTemplateFromSVGTemplate(el) {
-    var template = el.ownerDocument.createElement('template');
-    el.parentNode.insertBefore(template, el);
-
-    var attribs = el.attributes;
-    var count = attribs.length;
-    while (count-- > 0) {
-      var attrib = attribs[count];
-      template.setAttribute(attrib.name, attrib.value);
-      el.removeAttribute(attrib.name);
-    }
-
-    el.parentNode.removeChild(el);
-    return template;
-  }
-
-  function liftNonNativeTemplateChildrenIntoContent(template, el, useRoot) {
-    var content = template.content;
-    if (useRoot) {
-      content.appendChild(el);
-      return;
-    }
-
-    var child;
-    while (child = el.firstChild) {
-      content.appendChild(child);
-    }
   }
 
   var templateObserver;
@@ -350,68 +96,6 @@
     });
   }
 
-  /**
-   * Ensures proper API and content model for template elements.
-   * @param {HTMLTemplateElement} opt_instanceRef The template element which
-   *     |el| template element will return as the value of its ref(), and whose
-   *     content will be used as source when createInstance() is invoked.
-   */
-  HTMLTemplateElement.decorate = function(el, opt_instanceRef) {
-    if (el.templateIsDecorated_)
-      return false;
-
-    var templateElement = el;
-    templateElement.templateIsDecorated_ = true;
-
-    var isNativeHTMLTemplate = isHTMLTemplate(templateElement) &&
-                               hasTemplateElement;
-    var bootstrapContents = isNativeHTMLTemplate;
-    var liftContents = !isNativeHTMLTemplate;
-    var liftRoot = false;
-
-    if (!isNativeHTMLTemplate) {
-      if (isAttributeTemplate(templateElement)) {
-        assert(!opt_instanceRef);
-        templateElement = extractTemplateFromAttributeTemplate(el);
-        templateElement.templateIsDecorated_ = true;
-        isNativeHTMLTemplate = hasTemplateElement;
-        liftRoot = true;
-      } else if (isSVGTemplate(templateElement)) {
-        templateElement = extractTemplateFromSVGTemplate(el);
-        templateElement.templateIsDecorated_ = true;
-        isNativeHTMLTemplate = hasTemplateElement;
-      }
-    }
-
-    if (!isNativeHTMLTemplate) {
-      fixTemplateElementPrototype(templateElement);
-      var doc = getOrCreateTemplateContentsOwner(templateElement);
-      templateElement.content_ = doc.createDocumentFragment();
-    }
-
-    if (opt_instanceRef) {
-      // template is contained within an instance, its direct content must be
-      // empty
-      templateElement.instanceRef_ = opt_instanceRef;
-    } else if (liftContents) {
-      liftNonNativeTemplateChildrenIntoContent(templateElement,
-                                               el,
-                                               liftRoot);
-    } else if (bootstrapContents) {
-      bootstrapTemplatesRecursivelyFrom(templateElement.content);
-    }
-
-    return true;
-  };
-
-  // TODO(rafaelw): This used to decorate recursively all templates from a given
-  // node. This happens by default on 'DOMContentLoaded', but may be needed
-  // in subtrees not descendent from document (e.g. ShadowRoot).
-  // Review whether this is the right public API.
-  HTMLTemplateElement.bootstrap = bootstrapTemplatesRecursivelyFrom;
-
-  var htmlElement = global.HTMLUnknownElement || HTMLElement;
-
   var contentDescriptor = {
     get: function() {
       return this.content_;
@@ -419,22 +103,6 @@
     enumerable: true,
     configurable: true
   };
-
-  if (!hasTemplateElement) {
-    // Gecko is more picky with the prototype than WebKit. Make sure to use the
-    // same prototype as created in the constructor.
-    HTMLTemplateElement.prototype = Object.create(htmlElement.prototype);
-
-    Object.defineProperty(HTMLTemplateElement.prototype, 'content',
-                          contentDescriptor);
-  }
-
-  function fixTemplateElementPrototype(el) {
-    if (hasProto)
-      el.__proto__ = HTMLTemplateElement.prototype;
-    else
-      mixin(el, HTMLTemplateElement.prototype);
-  }
 
   function ensureSetModelScheduled(template) {
     if (!template.setModelFn_) {
@@ -791,7 +459,6 @@
         instanceBindings.push(binding);
     }
 
-    node.bindFinished();
     if (!bindings.isTemplate)
       return;
 
@@ -807,8 +474,6 @@
   }
 
   function parseAttributeBindings(element, prepareBindingFn) {
-    assert(element);
-
     var bindings = [];
     var ifFound = false;
     var bindFound = false;
@@ -817,15 +482,6 @@
       var attr = element.attributes[i];
       var name = attr.name;
       var value = attr.value;
-
-      // Allow bindings expressed in attributes to be prefixed with underbars.
-      // We do this to allow correct semantics for browsers that don't implement
-      // <template> where certain attributes might trigger side-effects -- and
-      // for IE which sanitizes certain attributes, disallowing mustache
-      // replacements in their text.
-      while (name[0] === '_') {
-        name = name.substring(1);
-      }
 
       if (isTemplate(element) &&
           (name === IF || name === BIND || name === REPEAT)) {
@@ -883,7 +539,8 @@
     }
 
     if (bindings.isTemplate) {
-      HTMLTemplateElement.decorate(clone, node);
+      clone.instanceRef_ = node;
+
       if (delegate)
         clone.setDelegate_(delegate);
     }
@@ -1280,7 +937,4 @@
       this.closed = true;
     }
   };
-
-  // Polyfill-specific API.
-  HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
 })(this);
