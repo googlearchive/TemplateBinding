@@ -2,7 +2,7 @@
   "name": "TemplateBinding",
   "version": "0.0.0",
   "description": "",
-  "main": "grunt.js",
+  "main": "./src/TemplateBinding.js",
   "directories": {
     "doc": "docs",
     "test": "tests"
