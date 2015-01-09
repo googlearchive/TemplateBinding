@@ -2177,6 +2177,29 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Attribute Template If', function(done) {
+    var div = createTestHtml(
+        '<template bind><table><tbody>' +
+          '<tr template if="{{falseItem}}"><td>Should be invisible</td></tr>' +
+          '<tr template if="{{trueItem}}"><td>Should be visible</td></tr>' +
+        '<tbody></table></template>')
+
+    var template = div.querySelector('template');
+    var m = {
+      falseItem: false,
+      trueItem: true
+    };
+    template.model = m;
+
+    then(function() {
+      var tbody = div.querySelector('tbody');
+      assert.strictEqual(3, tbody.childNodes.length);
+      assert.strictEqual('<td>Should be visible</td>',
+                         tbody.childNodes[2].innerHTML);
+      done();
+    });
+  });
+
   test('NestedIterateTableMixedSemanticNative', function(done) {
     if (!parserHasNativeTemplate) {
       done();
