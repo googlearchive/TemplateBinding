@@ -135,7 +135,8 @@
     'template': true,
     'repeat': true,
     'bind': true,
-    'ref': true
+    'ref': true,
+    'if': true
   };
 
   var semanticTemplateElements = {
