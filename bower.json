@@ -5,8 +5,8 @@
     "The Polymer Authors"
   ],
   "dependencies": {
-    "NodeBind": "Polymer/NodeBind#master",
-    "observe-js": "Polymer/observe-js#master"
+    "NodeBind": "Polymer/NodeBind#^0.5",
+    "observe-js": "Polymer/observe-js#^0.5"
   },
   "devDependencies": {
     "web-component-tester": "Polymer/web-component-tester#^1.0.1"
@@ -19,5 +19,6 @@
     "bower_components",
     "test",
     "tests"
-  ]
+  ],
+  "version": "0.5.3"
 }
