@@ -697,6 +697,121 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Repeat If (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="{{ items }}" if="{{ predicate }}">{{}}</template>');
+    var m = { predicate: 0, items: {key1: 1} };
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items['key2'] = 2;
+      m.items['key3'] = 3;
+
+    }).then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+      assert.strictEqual('key2', div.childNodes[2].textContent);
+      assert.strictEqual('key3', div.childNodes[3].textContent);
+
+      m.items = {key4: 4};
+
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key4', div.childNodes[1].textContent);
+
+      template.model = undefined;
+
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
+  test('Repeat If (false-true-false)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="{{ items }}" if="{{ predicate }}">{{}}</template>');
+    var m = { predicate: 0, items: [1] };
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('1', div.childNodes[1].textContent);
+
+      m.items.push(2, 3);
+
+      m.predicate = 0;
+
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('1', div.childNodes[1].textContent);
+      assert.strictEqual('2', div.childNodes[2].textContent);
+      assert.strictEqual('3', div.childNodes[3].textContent);
+
+      template.model = undefined;
+
+      done();
+    });
+  });
+
+  test('Repeat If (false-true-false) (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="{{ items }}" if="{{ predicate }}">{{}}</template>');
+    var m = { predicate: 0, items: {key1: 1} };
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items['key2'] = 2;
+      m.items['key3'] = 3;
+
+      m.predicate = 0;
+
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+      assert.strictEqual('key2', div.childNodes[2].textContent);
+      assert.strictEqual('key3', div.childNodes[3].textContent);
+
+      template.model = undefined;
+
+      done();
+    });
+  });
+
   test('Repeat oneTime-If (predicate false)', function(done) {
     var div = createTestHtml(
         '<template repeat="{{ items }}" if="[[ predicate ]]">{{}}</template>');
@@ -720,6 +835,47 @@ suite('Template Instantiation', function() {
       assert.strictEqual(1, div.childNodes.length);
 
       m.items = [4];
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(1, div.childNodes.length);
+
+      template.model = undefined;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
+  test('Repeat oneTime-If (predicate false) (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="{{ items }}" if="[[ predicate ]]">{{}}</template>');
+    var m = { predicate: 0, items: {key1: 1} };
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.items["key2"] = 2;
+      m.items["key3"] = 3;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.items = {
+        "key4": 4
+      }
 
     }).then(function() {
       // unchanged.
@@ -775,6 +931,49 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Repeat oneTime-If (predicate true) (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="{{ items }}" if="[[ predicate ]]">{{}}</template>');
+    var m = { predicate: 1, items: {key1: 1} };
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items["key2"] = 2;
+      m.items["key3"] = 3;
+
+    }).then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+      assert.strictEqual('key2', div.childNodes[2].textContent);
+      assert.strictEqual('key3', div.childNodes[3].textContent);
+
+      m.items = {
+        "key4": null
+      }
+
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key4', div.childNodes[1].textContent);
+
+      m.predicate = 0;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key4', div.childNodes[1].textContent);
+
+      template.model = undefined;
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
   test('oneTime-Repeat If', function(done) {
     var div = createTestHtml(
         '<template repeat="[[ items ]]" if="{{ predicate }}">{{}}</template>');
@@ -804,6 +1003,46 @@ suite('Template Instantiation', function() {
       // unchanged.
       assert.strictEqual(2, div.childNodes.length);
       assert.strictEqual('1', div.childNodes[1].textContent);
+
+      template.model = undefined;
+
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
+  test('oneTime-Repeat If (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="[[ items ]]" if="{{ predicate }}">{{}}</template>');
+    var m = { predicate: 0, items: {key1: 1 }};
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      m.predicate = 1;
+
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items['key2'] = 2;
+      m.items['key3'] = 3;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items = {key4: 4};
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
 
       template.model = undefined;
 
@@ -845,6 +1084,48 @@ suite('Template Instantiation', function() {
       // unchanged.
       assert.strictEqual(2, div.childNodes.length);
       assert.strictEqual('1', div.childNodes[1].textContent);
+
+      template.model = undefined;
+
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
+  test('oneTime-Repeat oneTime-If (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="[[ items ]]" if="[[ predicate ]]">{{}}</template>');
+    var m = { predicate: 1, items: {key1: 1} };
+    var template = div.firstChild;
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items['key2'] = 2;
+      m.items['key3'] = 3;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.items = {key4: 4};
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      m.predicate = 0;
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
 
       template.model = undefined;
 
@@ -1072,6 +1353,53 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('Repeat (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="{{ obj }}"">{{}}</template>');
+
+    var model = { obj: {"key1": 1, "key2": 2, "key3": 3} };
+    var template = div.firstChild;
+    template.model = model;
+
+    then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+      assert.strictEqual('key2', div.childNodes[2].textContent);
+      assert.strictEqual('key3', div.childNodes[3].textContent);
+
+      delete model.obj["key2"];
+      delete model.obj["key3"];
+    }).then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+
+      model.obj["key4"] = 4;
+      model.obj["key5"] = 5;
+    }).then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+      assert.strictEqual('key4', div.childNodes[2].textContent);
+      assert.strictEqual('key5', div.childNodes[3].textContent);
+
+      delete model.obj["key4"];
+    }).then(function() {
+      assert.strictEqual(3, div.childNodes.length);
+      assert.strictEqual('key1', div.childNodes[1].textContent);
+      assert.strictEqual('key5', div.childNodes[2].textContent);
+      model.obj = {x: 1, y: 2};
+    }).then(function() {
+      assert.strictEqual(3, div.childNodes.length);
+      assert.strictEqual('x', div.childNodes[1].textContent);
+      assert.strictEqual('y', div.childNodes[2].textContent);
+
+      model.obj = undefined;
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
   test('Repeat - oneTime', function(done) {
     var div = createTestHtml(
         '<template repeat="[[]]"">text</template>');
@@ -1090,6 +1418,40 @@ suite('Template Instantiation', function() {
       assert.strictEqual(4, div.childNodes.length);
 
       model.push(3, 4);
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(4, div.childNodes.length);
+
+      template.model = undefined;
+
+    }).then(function() {
+      assert.strictEqual(1, div.childNodes.length);
+
+      done();
+    });
+  });
+
+  test('Repeat - oneTime (Object Keys)', function(done) {
+    var div = createTestHtml(
+      '<template repeat="[[]]"">text</template>');
+
+    var model = {"key1": 1, "key2": 2, "key3": 3};
+    var template = div.firstChild;
+    template.model = model;
+
+    then(function() {
+      assert.strictEqual(4, div.childNodes.length);
+
+      delete model["key2"];
+      delete model["key3"];
+
+    }).then(function() {
+      // unchanged.
+      assert.strictEqual(4, div.childNodes.length);
+
+      model["key4"] = 4;
+      model["key5"] = 5;
 
     }).then(function() {
       // unchanged.

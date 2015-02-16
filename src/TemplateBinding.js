@@ -99,6 +99,41 @@
     };
   }
 
+  // Use for template repeating objects
+  function KeysObserver(values, observe) {
+    this.values = values;
+    this.observe = observe;
+    this.resetKeys_();
+  }
+  KeysObserver.prototype = {
+    createObserver: function () {
+      this.observer_ = new ObjectObserver(this.values);
+      this.observer_.open(this.keysObserverHandler_, this);
+    },
+    closeObserver: function () {
+      if (this.observer_)
+        this.observer_.close();
+    },
+    keysObserverHandler_: function (added, removed, changed, getOldValueFn) {
+      for (var addedKey in added)
+        this.keys.push(addedKey);
+
+      var indexToRemove;
+      for (var removedKey in removed) {
+        indexToRemove = this.keys.indexOf(removedKey);
+        this.keys.splice(indexToRemove, 1);
+      }
+    },
+    resetKeys_: function () {
+      var values = this.values;
+      if (this.observe)
+        this.closeObserver();
+      this.keys = Object.keys(this.values);
+      if (this.observe)
+        this.createObserver();
+    }
+  };
+
   // JScript does not have __proto__. We wrap all object literals with
   // createObject which uses Object.create, Object.defineProperty and
   // Object.getOwnPropertyDescriptor to create a new object that does the exact
@@ -961,6 +996,7 @@
     this.iteratedValue = [];
     this.presentValue = undefined;
     this.arrayObserver = undefined;
+    this.keysObserver = undefined;
   }
 
   TemplateIterator.prototype = {
@@ -1058,6 +1094,19 @@
     updateValue: function(value) {
       if (!this.deps.repeat)
         value = [value];
+      else if (Object.prototype.toString.call(value)  === '[object Object]') {
+        if (this.keysObserver) {
+          if (value !== this.keysObserver.values) {
+            // we have a new value so close observer and recreate
+            this.keysObserver.closeObserver();
+            this.keysObserver = new KeysObserver(value, !this.deps.oneTime);
+          }
+        } else {
+          this.keysObserver = new KeysObserver(value, !this.deps.oneTime);
+        }
+        value = this.keysObserver.keys;
+      }
+
       var observe = this.deps.repeat &&
                     !this.deps.oneTime &&
                     Array.isArray(value);
@@ -1273,6 +1322,11 @@
       this.unobserve();
       for (var i = 0; i < this.instances.length; i++) {
         this.closeInstanceBindings(this.instances[i]);
+      }
+
+      if (this.keysObserver) {
+        this.keysObserver.closeObserver();
+        this.keysObserver = undefined;
       }
 
       this.instances.length = 0;
