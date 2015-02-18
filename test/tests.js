@@ -737,7 +737,7 @@ suite('Template Instantiation', function() {
     });
   });
 
-  test('Repeat If (false-true-false)', function(done) {
+  test('Repeat If (predicate multiple switching)', function(done) {
     var div = createTestHtml(
       '<template repeat="{{ items }}" if="{{ predicate }}">{{}}</template>');
     var m = { predicate: 0, items: [1] };
@@ -774,7 +774,7 @@ suite('Template Instantiation', function() {
     });
   });
 
-  test('Repeat If (false-true-false) (Object Keys)', function(done) {
+  test('Repeat If (predicate multiple switching) (Object Keys)', function(done) {
     var div = createTestHtml(
       '<template repeat="{{ items }}" if="{{ predicate }}">{{}}</template>');
     var m = { predicate: 0, items: {key1: 1} };
