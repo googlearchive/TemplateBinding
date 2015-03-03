@@ -1284,4 +1284,4 @@
 
   // Polyfill-specific API.
   HTMLTemplateElement.forAllTemplatesFrom_ = forAllTemplatesFrom;
-})(this);
+})(window);
