@@ -671,7 +671,15 @@
         terminator = ']]';
       }
 
-      endIndex = startIndex < 0 ? -1 : s.indexOf(terminator, startIndex + 2);
+      if (startIndex >= 0) {
+        endIndex = s.indexOf(terminator, startIndex + 2);
+        // Handle this case [[foo['bar']]] and others like it.
+        while (s.length > endIndex + 2 && s[endIndex + 2] == terminator[0]) {
+          endIndex++;
+        }
+      } else {
+        endIndex = -1;
+      }
 
       if (endIndex < 0) {
         if (!tokens)

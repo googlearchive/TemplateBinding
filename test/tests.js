@@ -634,6 +634,22 @@ suite('Template Instantiation', function() {
     });
   });
 
+  test('OneTime - list/map', function(done) {
+    var div = createTestHtml(
+        '<template bind>' +
+          '<div foo="[[foo[\'bar\']]]:[[zap[0]]]"></div>' +
+        '</template>');
+    var template = div.firstChild;
+    var m = { foo: {'bar': 'baz'}, zap: ['zip'] };
+    template.model = m;
+
+    then(function() {
+      assert.strictEqual(2, div.childNodes.length);
+      assert.strictEqual('baz:zip', div.lastChild.getAttribute('foo'));
+      done();
+    });
+  });
+
   test('OneTime/Dynamic Mixed - compound attribute', function(done) {
     var div = createTestHtml(
         '<template bind>' +
